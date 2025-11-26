@@ -20,7 +20,7 @@ router.use(authenticate);
  */
 router.get(
   "/",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   supervisorController.getSupervisors
 );
 
@@ -31,7 +31,7 @@ router.get(
  */
 router.get(
   "/available",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   supervisorController.getAvailableSupervisors
 );
 
@@ -49,12 +49,12 @@ router.get("/:id", supervisorController.getSupervisorById);
  */
 router.put(
   "/:id",
-  requireRole([
+  requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
     ROLES.DEPARTMENTAL_SUPERVISOR,
-    ROLES.INDUSTRIAL_SUPERVISOR,
-  ]),
+    ROLES.INDUSTRIAL_SUPERVISOR
+  ),
   supervisorController.updateSupervisor
 );
 
@@ -65,12 +65,12 @@ router.put(
  */
 router.get(
   "/:id/dashboard",
-  requireRole([
+  requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
     ROLES.DEPARTMENTAL_SUPERVISOR,
-    ROLES.INDUSTRIAL_SUPERVISOR,
-  ]),
+    ROLES.INDUSTRIAL_SUPERVISOR
+  ),
   supervisorController.getSupervisorDashboard
 );
 
@@ -81,7 +81,7 @@ router.get(
  */
 router.post(
   "/:id/assign-student",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   supervisorController.assignStudent
 );
 
@@ -92,7 +92,7 @@ router.post(
  */
 router.post(
   "/:id/unassign-student",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   supervisorController.unassignStudent
 );
 

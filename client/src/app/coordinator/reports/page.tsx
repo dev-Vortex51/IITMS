@@ -54,7 +54,7 @@ export default function CoordinatorReportsPage() {
 
   // Fetch supervisors
   const { data: dSupervisorsData } = useQuery({
-    queryKey: ["departmental-supervisors"],
+    queryKey: ["supervisors", "departmental"],
     queryFn: () =>
       adminService.supervisorService.getAllSupervisors({
         type: "departmental",
@@ -62,7 +62,7 @@ export default function CoordinatorReportsPage() {
   });
 
   const { data: iSupervisorsData } = useQuery({
-    queryKey: ["industrial-supervisors"],
+    queryKey: ["supervisors", "industrial"],
     queryFn: () =>
       adminService.supervisorService.getAllSupervisors({ type: "industrial" }),
   });

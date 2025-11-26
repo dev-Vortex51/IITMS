@@ -12,9 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Building,
+  Building2,
   ArrowLeft,
   Mail,
   Phone,
@@ -23,14 +23,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function DepartmentalSupervisorDetailsPage({
+export default function SupervisorDetailsPage({
   params,
 }: {
   params: { id: string };
 }) {
   // Fetch supervisor details
   const { data: supervisorData, isLoading } = useQuery({
-    queryKey: ["departmental-supervisor", params.id],
+    queryKey: ["supervisor", params.id],
     queryFn: () => adminService.supervisorService.getSupervisorById(params.id),
     enabled: !!params.id,
   });
@@ -46,21 +46,21 @@ export default function DepartmentalSupervisorDetailsPage({
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold">Supervisor Not Found</h2>
         <Button asChild className="mt-4">
-          <Link href="/coordinator/departmental-supervisors">
-            Back to Supervisors
-          </Link>
+          <Link href="/coordinator/supervisors">Back to Supervisors</Link>
         </Button>
       </div>
     );
   }
 
   const assignedStudents = supervisor.students || [];
+  const isDepartmental =
+    supervisor.type === "departmental" || supervisor.department;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/coordinator/departmental-supervisors">
+          <Link href="/coordinator/supervisors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Link>
@@ -70,7 +70,7 @@ export default function DepartmentalSupervisorDetailsPage({
             {supervisor.name || "Supervisor"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Departmental Supervisor Details
+            {isDepartmental ? "Departmental" : "Industrial"} Supervisor Details
           </p>
         </div>
         <Badge
@@ -84,12 +84,22 @@ export default function DepartmentalSupervisorDetailsPage({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Building className="h-6 w-6 text-primary" />
+            <div
+              className={`p-2 rounded-lg ${
+                isDepartmental ? "bg-primary/10" : "bg-accent/10"
+              }`}
+            >
+              {isDepartmental ? (
+                <Building className="h-6 w-6 text-primary" />
+              ) : (
+                <Building2 className="h-6 w-6 text-accent-foreground" />
+              )}
             </div>
             <div>
               <CardTitle>Supervisor Information</CardTitle>
-              <CardDescription>Contact and department details</CardDescription>
+              <CardDescription>
+                Contact and {isDepartmental ? "department" : "company"} details
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -111,26 +121,53 @@ export default function DepartmentalSupervisorDetailsPage({
                 <Phone className="h-4 w-4" />
                 Phone Number
               </Label>
-              <p className="font-medium">{supervisor.phoneNumber || "N/A"}</p>
+              <p className="font-medium">{supervisor.phone || "N/A"}</p>
             </div>
-            <div>
-              <Label className="text-muted-foreground">Department</Label>
-              <p className="font-medium">
-                {typeof supervisor.department === "object"
-                  ? supervisor.department.name
-                  : supervisor.department || "N/A"}
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Staff ID</Label>
-              <p className="font-medium">{supervisor.staffId || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Specialization</Label>
-              <p className="font-medium">
-                {supervisor.specialization || "N/A"}
-              </p>
-            </div>
+            {isDepartmental ? (
+              <>
+                <div>
+                  <Label className="text-muted-foreground">Department</Label>
+                  <p className="font-medium">
+                    {typeof supervisor.department === "object"
+                      ? supervisor.department.name
+                      : supervisor.department || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Staff ID</Label>
+                  <p className="font-medium">{supervisor.staffId || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">
+                    Specialization
+                  </Label>
+                  <p className="font-medium">
+                    {supervisor.specialization || "N/A"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-muted-foreground">Company Name</Label>
+                  <p className="font-medium">
+                    {supervisor.companyName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">
+                    Company Address
+                  </Label>
+                  <p className="font-medium">
+                    {supervisor.companyAddress || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Position</Label>
+                  <p className="font-medium">{supervisor.position || "N/A"}</p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

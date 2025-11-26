@@ -17,6 +17,17 @@ const { ROLES } = require("../utils/constants");
 router.use(authenticate);
 
 /**
+ * @route   POST /api/v1/students
+ * @desc    Create a new student
+ * @access  Coordinator, Admin
+ */
+router.post(
+  "/",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  studentController.createStudent
+);
+
+/**
  * @route   GET /api/v1/students/all
  * @desc    Get all students (no filters)
  * @access  Admin, Coordinator
@@ -76,6 +87,17 @@ router.post(
   "/:id/assign-supervisor",
   requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   studentController.assignSupervisor
+);
+
+/**
+ * @route   GET /api/v1/students/:id/placement
+ * @desc    Get student's placement
+ * @access  Student (self), Admin, Coordinator
+ */
+router.get(
+  "/:id/placement",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR, ROLES.STUDENT),
+  studentController.getStudentPlacement
 );
 
 module.exports = router;

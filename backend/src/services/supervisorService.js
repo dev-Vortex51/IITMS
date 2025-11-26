@@ -15,10 +15,52 @@ const logger = require("../utils/logger");
 const getSupervisors = async (filters = {}, pagination = {}) => {
   const { page, limit, skip } = parsePagination(pagination);
 
-  const query = { isActive: true };
+  let query = { isActive: true };
+  let supervisorIds = null;
 
-  if (filters.type) query.type = filters.type;
-  if (filters.department) query.department = filters.department;
+  // Handle type filter
+  if (filters.type) {
+    query.type = filters.type;
+  }
+
+  // Handle department filter
+  if (filters.department) {
+    query.department = filters.department;
+  } else if (filters.coordinatorDepartment) {
+    // For coordinators, show:
+    // 1. Departmental supervisors from their department
+    // 2. Industrial supervisors assigned to students in their department
+
+    // Get students from coordinator's department
+    const studentsInDept = await Student.find({
+      department: filters.coordinatorDepartment,
+    }).select("industrialSupervisor");
+
+    const industrialSupervisorIds = studentsInDept
+      .map((s) => s.industrialSupervisor)
+      .filter((id) => id != null);
+
+    // Build query to include departmental supervisors OR assigned industrial supervisors
+    query.$or = [
+      { type: "departmental", department: filters.coordinatorDepartment },
+      { type: "industrial", _id: { $in: industrialSupervisorIds } },
+    ];
+  }
+
+  // Debug logging
+  console.log("[supervisorService] Query:", JSON.stringify(query, null, 2));
+
+  // Count all supervisors in database
+  const allSupervisorsCount = await Supervisor.countDocuments({});
+  console.log(
+    "[supervisorService] Total supervisors in DB:",
+    allSupervisorsCount
+  );
+  console.log(
+    "[supervisorService] Active supervisors matching query:",
+    await Supervisor.countDocuments(query)
+  );
+
   if (filters.available !== undefined) {
     const supervisors = await Supervisor.find(query);
     const availableSupervisors = supervisors.filter(
@@ -32,14 +74,47 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
   }
 
   const supervisors = await Supervisor.find(query)
+    .populate("user", "firstName lastName email phone")
+    .populate("department", "name code")
+    .populate("assignedStudents")
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
   const total = await Supervisor.countDocuments(query);
 
+  // Transform supervisors to include user fields at top level for frontend compatibility
+  const transformedSupervisors = supervisors.map((supervisor) => {
+    const sup = supervisor.toObject();
+
+    // Debug log to see what's in the user field
+    if (!sup.user || !sup.user.firstName) {
+      console.log(
+        "[supervisorService] Supervisor with missing/incomplete user data:",
+        {
+          supervisorId: sup._id,
+          userId: sup.user?._id || "NO USER",
+          userName: sup.user
+            ? `${sup.user.firstName} ${sup.user.lastName}`
+            : "NULL USER",
+        }
+      );
+    }
+
+    return {
+      ...sup,
+      name:
+        sup.user && sup.user.firstName && sup.user.lastName
+          ? `${sup.user.firstName} ${sup.user.lastName}`
+          : "Unknown",
+      email: sup.user?.email || null,
+      phone: sup.user?.phone || null,
+      students: sup.assignedStudents || [],
+    };
+  });
+
   return {
-    supervisors,
+    supervisors: transformedSupervisors,
     pagination: buildPaginationMeta(total, page, limit),
   };
 };
@@ -48,15 +123,24 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
  * Get supervisor by ID
  */
 const getSupervisorById = async (supervisorId) => {
-  const supervisor = await Supervisor.findById(supervisorId).populate(
-    "assignedStudents"
-  );
+  const supervisor = await Supervisor.findById(supervisorId)
+    .populate("user", "firstName lastName email phone")
+    .populate("department", "name code")
+    .populate("assignedStudents");
 
   if (!supervisor) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
   }
 
-  return supervisor;
+  // Transform to include user fields at top level
+  const sup = supervisor.toObject();
+  return {
+    ...sup,
+    name: sup.user ? `${sup.user.firstName} ${sup.user.lastName}` : "Unknown",
+    email: sup.user?.email,
+    phone: sup.user?.phone,
+    students: sup.assignedStudents || [],
+  };
 };
 
 /**

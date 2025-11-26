@@ -15,14 +15,30 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
   Briefcase,
   ArrowLeft,
   CheckCircle,
   XCircle,
   Clock,
   FileText,
+  Mail,
+  Phone,
+  User,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
+import adminService from "@/services/admin.service";
+import { toast } from "sonner";
 
 export default function StudentPlacementPage({
   params,
@@ -32,6 +48,16 @@ export default function StudentPlacementPage({
   const queryClient = useQueryClient();
   const [remarks, setRemarks] = useState("");
   const [error, setError] = useState("");
+  const [isCreateSupervisorOpen, setIsCreateSupervisorOpen] = useState(false);
+  const [supervisorFormData, setSupervisorFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    companyName: "",
+    companyAddress: "",
+    position: "",
+  });
 
   // Fetch student placement
   const { data: placement, isLoading } = useQuery({
@@ -39,6 +65,18 @@ export default function StudentPlacementPage({
     queryFn: () => studentService.getStudentPlacement(params.id),
     enabled: !!params.id,
   });
+
+  // Fetch all supervisors to check if one already exists with this email
+  const { data: supervisorsData } = useQuery({
+    queryKey: ["supervisors"],
+    queryFn: () => adminService.supervisorService.getAllSupervisors(),
+    enabled: !!placement?.supervisorEmail,
+  });
+
+  // Check if supervisor already exists
+  const supervisorExists = supervisorsData?.supervisors?.some(
+    (sup: any) => sup.email === placement?.supervisorEmail
+  );
 
   // Approve placement mutation
   const approveMutation = useMutation({
@@ -73,6 +111,58 @@ export default function StudentPlacementPage({
       setError(err.response?.data?.message || "Failed to reject placement");
     },
   });
+
+  // Create industrial supervisor mutation
+  const createSupervisorMutation = useMutation({
+    mutationFn: (data: any) =>
+      adminService.supervisorService.createSupervisor(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supervisors"] });
+      queryClient.invalidateQueries({ queryKey: ["placement", params.id] });
+      setIsCreateSupervisorOpen(false);
+      setSupervisorFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        companyName: "",
+        companyAddress: "",
+        position: "",
+      });
+      toast.success("Industrial supervisor created successfully");
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error.response?.data?.message || "Failed to create supervisor";
+      toast.error(errorMessage);
+    },
+  });
+
+  // Pre-fill supervisor form from placement data
+  const handlePrefillSupervisor = () => {
+    if (placement) {
+      const nameParts = placement.supervisorName?.split(" ") || [];
+      setSupervisorFormData({
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: placement.supervisorEmail || "",
+        phone: placement.supervisorPhone || "",
+        companyName: placement.companyName || "",
+        companyAddress: placement.companyAddress || "",
+        position: placement.supervisorPosition || "",
+      });
+      setIsCreateSupervisorOpen(true);
+    }
+  };
+
+  const handleCreateSupervisor = (e: React.FormEvent) => {
+    e.preventDefault();
+    createSupervisorMutation.mutate({
+      ...supervisorFormData,
+      role: "industrial_supervisor",
+      type: "industrial",
+    });
+  };
 
   const handleApprove = () => {
     if (window.confirm("Are you sure you want to approve this placement?")) {
@@ -241,6 +331,71 @@ export default function StudentPlacementPage({
         </CardContent>
       </Card>
 
+      {/* Industrial Supervisor Information */}
+      {(placement.supervisorName || placement.supervisorEmail) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Industrial Supervisor</CardTitle>
+                <CardDescription>
+                  Student's supervisor at the placement organization
+                </CardDescription>
+              </div>
+              {placement.status === "approved" &&
+                !supervisorExists &&
+                placement.supervisorEmail && (
+                  <Button
+                    onClick={handlePrefillSupervisor}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Create Supervisor Account
+                  </Button>
+                )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="text-muted-foreground flex items-center gap-1">
+                  <User className="h-4 w-4" />
+                  Supervisor Name
+                </Label>
+                <p className="font-medium">
+                  {placement.supervisorName || "N/A"}
+                </p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Position</Label>
+                <p className="font-medium">
+                  {placement.supervisorPosition || "N/A"}
+                </p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground flex items-center gap-1">
+                  <Mail className="h-4 w-4" />
+                  Email
+                </Label>
+                <p className="font-medium">
+                  {placement.supervisorEmail || "N/A"}
+                </p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground flex items-center gap-1">
+                  <Phone className="h-4 w-4" />
+                  Phone
+                </Label>
+                <p className="font-medium">
+                  {placement.supervisorPhone || "N/A"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Coordinator Remarks */}
       {placement.coordinator_remarks && (
         <Card className="border-primary/20">
@@ -308,6 +463,150 @@ export default function StudentPlacementPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Create Industrial Supervisor Dialog */}
+      <Dialog
+        open={isCreateSupervisorOpen}
+        onOpenChange={setIsCreateSupervisorOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Industrial Supervisor Account</DialogTitle>
+            <DialogDescription>
+              Create a supervisor account based on the placement information
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateSupervisor}>
+            <div className="space-y-4 py-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input
+                    id="firstName"
+                    value={supervisorFormData.firstName}
+                    onChange={(e) =>
+                      setSupervisorFormData({
+                        ...supervisorFormData,
+                        firstName: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input
+                    id="lastName"
+                    value={supervisorFormData.lastName}
+                    onChange={(e) =>
+                      setSupervisorFormData({
+                        ...supervisorFormData,
+                        lastName: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={supervisorFormData.email}
+                    onChange={(e) =>
+                      setSupervisorFormData({
+                        ...supervisorFormData,
+                        email: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={supervisorFormData.phone}
+                    onChange={(e) =>
+                      setSupervisorFormData({
+                        ...supervisorFormData,
+                        phone: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name *</Label>
+                <Input
+                  id="companyName"
+                  value={supervisorFormData.companyName}
+                  onChange={(e) =>
+                    setSupervisorFormData({
+                      ...supervisorFormData,
+                      companyName: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companyAddress">Company Address *</Label>
+                <Input
+                  id="companyAddress"
+                  value={supervisorFormData.companyAddress}
+                  onChange={(e) =>
+                    setSupervisorFormData({
+                      ...supervisorFormData,
+                      companyAddress: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="position">Position/Title *</Label>
+                <Input
+                  id="position"
+                  value={supervisorFormData.position}
+                  onChange={(e) =>
+                    setSupervisorFormData({
+                      ...supervisorFormData,
+                      position: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreateSupervisorOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createSupervisorMutation.isPending}
+              >
+                {createSupervisorMutation.isPending
+                  ? "Creating..."
+                  : "Create Supervisor"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

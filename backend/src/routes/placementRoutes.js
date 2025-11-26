@@ -65,6 +65,39 @@ router.post(
 );
 
 /**
+ * @route   PATCH /api/v1/placements/:id/approve
+ * @desc    Approve placement
+ * @access  Admin, Coordinator
+ */
+router.patch(
+  "/:id/approve",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  placementController.approvePlacement
+);
+
+/**
+ * @route   PATCH /api/v1/placements/:id/reject
+ * @desc    Reject placement
+ * @access  Admin, Coordinator
+ */
+router.patch(
+  "/:id/reject",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  placementController.rejectPlacement
+);
+
+/**
+ * @route   PATCH /api/v1/placements/:id
+ * @desc    Update placement (coordinators can assign supervisors)
+ * @access  Admin, Coordinator
+ */
+router.patch(
+  "/:id",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  placementController.updatePlacementByCoordinator
+);
+
+/**
  * @route   POST /api/v1/placements/:id/assign-supervisor
  * @desc    Assign industrial supervisor to placement
  * @access  Admin, Coordinator

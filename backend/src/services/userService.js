@@ -39,8 +39,12 @@ const createUser = async (userData, creatorUser) => {
       );
     }
   } else if (creatorUser.role === USER_ROLES.COORDINATOR) {
-    // Coordinator can create: Student, Departmental Supervisor
-    const allowedRoles = [USER_ROLES.STUDENT, USER_ROLES.DEPT_SUPERVISOR];
+    // Coordinator can create: Student, Departmental Supervisor, Industrial Supervisor
+    const allowedRoles = [
+      USER_ROLES.STUDENT,
+      USER_ROLES.DEPT_SUPERVISOR,
+      USER_ROLES.INDUSTRIAL_SUPERVISOR,
+    ];
     if (!allowedRoles.includes(role)) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
@@ -102,15 +106,94 @@ const createUser = async (userData, creatorUser) => {
   });
 
   // Create role-specific profile
+  console.log("[userService] Creating user with role:", role);
+  console.log("[userService] USER_ROLES.STUDENT:", USER_ROLES.STUDENT);
+  console.log(
+    "[userService] USER_ROLES.DEPT_SUPERVISOR:",
+    USER_ROLES.DEPT_SUPERVISOR
+  );
+
   if (role === USER_ROLES.STUDENT) {
+    console.log("[userService] Creating student profile");
     await createStudentProfile(user._id, userData, creatorUser._id);
   } else if (role === USER_ROLES.DEPT_SUPERVISOR) {
-    await createSupervisorProfile(
-      user._id,
-      "departmental",
-      userData,
-      creatorUser._id
+    console.log("[userService] Creating departmental supervisor profile");
+    console.log(
+      "[userService] Department ID:",
+      userData.department || department
     );
+    try {
+      const supervisor = await createSupervisorProfile(
+        user._id,
+        "departmental",
+        { ...userData, department: userData.department || department },
+        creatorUser._id
+      );
+      console.log("[userService] Supervisor profile created:", supervisor._id);
+    } catch (error) {
+      console.error(
+        "[userService] ERROR creating supervisor profile:",
+        error.message
+      );
+      console.error("[userService] Full error:", error);
+      throw error; // Re-throw to prevent user creation without profile
+    }
+  } else if (role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
+    console.log("[userService] Creating industrial supervisor profile");
+    console.log("[userService] userData:", JSON.stringify(userData, null, 2));
+    try {
+      const supervisor = await createSupervisorProfile(
+        user._id,
+        "industrial",
+        userData,
+        creatorUser._id
+      );
+      console.log(
+        "[userService] Industrial supervisor profile created:",
+        supervisor._id
+      );
+
+      // Auto-assign to students with pending/approved placements with this supervisor email
+      const Placement = require("../models").Placement;
+      const placements = await Placement.find({
+        supervisorEmail: email,
+        status: { $in: ["pending", "approved"] },
+      }).populate("student");
+
+      for (const placement of placements) {
+        const student = placement.student;
+
+        // Update placement with supervisor reference
+        placement.industrialSupervisor = supervisor._id;
+        placement.supervisorAssignedAt = new Date();
+        await placement.save();
+
+        // Add student to supervisor's assigned students
+        if (!supervisor.assignedStudents.includes(student._id)) {
+          supervisor.assignedStudents.push(student._id);
+        }
+
+        // Update student record if placement is approved
+        if (placement.status === "approved" && !student.industrialSupervisor) {
+          student.industrialSupervisor = supervisor._id;
+          await student.save();
+        }
+      }
+
+      if (supervisor.assignedStudents.length > 0) {
+        await supervisor.save();
+        console.log(
+          `[userService] Assigned ${supervisor.assignedStudents.length} students to new supervisor`
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[userService] ERROR creating industrial supervisor profile:",
+        error.message
+      );
+      console.error("[userService] Full error:", error);
+      throw error; // Re-throw to prevent user creation without profile
+    }
   }
 
   // Add coordinator to department if applicable
@@ -172,21 +255,58 @@ const createSupervisorProfile = async (
   supervisorData,
   creatorId
 ) => {
-  const supervisor = await Supervisor.create({
+  console.log("[createSupervisorProfile] Creating supervisor with data:", {
+    userId,
+    type,
+    department: supervisorData.department,
+    companyName: supervisorData.companyName,
+    companyAddress: supervisorData.companyAddress,
+    position: supervisorData.position,
+  });
+
+  const supervisorPayload = {
     user: userId,
     type,
-    department: type === "departmental" ? supervisorData.department : undefined,
-    companyName: type === "industrial" ? supervisorData.companyName : undefined,
-    companyAddress:
-      type === "industrial" ? supervisorData.companyAddress : undefined,
+    createdBy: creatorId,
     position: supervisorData.position,
     qualification: supervisorData.qualification,
     yearsOfExperience: supervisorData.yearsOfExperience,
     specialization: supervisorData.specialization,
     maxStudents: supervisorData.maxStudents || 10,
-    createdBy: creatorId,
-  });
+  };
 
+  // Add type-specific fields
+  if (type === "departmental") {
+    supervisorPayload.department = supervisorData.department;
+  } else if (type === "industrial") {
+    // For industrial supervisors, companyName is required
+    console.log(
+      "[createSupervisorProfile] Industrial supervisor data - companyName:",
+      supervisorData.companyName
+    );
+    console.log(
+      "[createSupervisorProfile] Industrial supervisor data - companyAddress:",
+      supervisorData.companyAddress
+    );
+
+    if (!supervisorData.companyName) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Company name is required for industrial supervisors. Please provide companyName in the request."
+      );
+    }
+    supervisorPayload.companyName = supervisorData.companyName;
+    if (supervisorData.companyAddress) {
+      supervisorPayload.companyAddress = supervisorData.companyAddress;
+    }
+  }
+
+  const supervisor = await Supervisor.create(supervisorPayload);
+
+  console.log(
+    "[createSupervisorProfile] Supervisor created successfully:",
+    supervisor._id
+  );
   return supervisor;
 };
 

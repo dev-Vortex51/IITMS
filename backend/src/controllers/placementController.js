@@ -41,6 +41,12 @@ const getPlacements = catchAsync(async (req, res) => {
     department: req.query.department,
   };
 
+  // If coordinator, filter by their department
+  const { USER_ROLES } = require("../utils/constants");
+  if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
+    filters.department = req.user.department;
+  }
+
   const pagination = {
     page: req.query.page,
     limit: req.query.limit,
@@ -110,6 +116,44 @@ const reviewPlacement = catchAsync(async (req, res) => {
 });
 
 /**
+ * @desc    Approve placement
+ * @route   PATCH /api/v1/placements/:id/approve
+ * @access  Private (Coordinator, Admin)
+ */
+const approvePlacement = catchAsync(async (req, res) => {
+  const placement = await placementService.approvePlacement(
+    req.params.id,
+    req.body.remarks,
+    req.user._id
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Placement approved successfully",
+    data: placement,
+  });
+});
+
+/**
+ * @desc    Reject placement
+ * @route   PATCH /api/v1/placements/:id/reject
+ * @access  Private (Coordinator, Admin)
+ */
+const rejectPlacement = catchAsync(async (req, res) => {
+  const placement = await placementService.rejectPlacement(
+    req.params.id,
+    req.body.remarks,
+    req.user._id
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Placement rejected successfully",
+    data: placement,
+  });
+});
+
+/**
  * @desc    Assign industrial supervisor
  * @route   POST /api/v1/placements/:id/assign-supervisor
  * @access  Private (Coordinator, Admin)
@@ -124,6 +168,25 @@ const assignIndustrialSupervisor = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: "Industrial supervisor assigned successfully",
+    data: placement,
+  });
+});
+
+/**
+ * @desc    Update placement by coordinator (assign supervisors)
+ * @route   PATCH /api/v1/placements/:id
+ * @access  Private (Coordinator, Admin)
+ */
+const updatePlacementByCoordinator = catchAsync(async (req, res) => {
+  const placement = await placementService.updatePlacementByCoordinator(
+    req.params.id,
+    req.body,
+    req.user
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Placement updated successfully",
     data: placement,
   });
 });
@@ -148,6 +211,9 @@ module.exports = {
   getPlacementById,
   updatePlacement,
   reviewPlacement,
+  approvePlacement,
+  rejectPlacement,
   assignIndustrialSupervisor,
+  updatePlacementByCoordinator,
   deletePlacement,
 };

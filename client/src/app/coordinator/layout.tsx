@@ -29,11 +29,6 @@ const navItems = [
     icon: Briefcase,
   },
   {
-    title: "Logbooks",
-    href: "/coordinator/logbooks",
-    icon: BookOpen,
-  },
-  {
     title: "Supervisors",
     href: "/coordinator/supervisors",
     icon: UserCheck,

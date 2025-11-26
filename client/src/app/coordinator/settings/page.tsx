@@ -237,18 +237,6 @@ export default function CoordinatorSettingsPage() {
                 Coming Soon
               </Button>
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Require logbook approval</Label>
-                <p className="text-sm text-muted-foreground">
-                  Students must get logbook entries approved
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -287,18 +275,6 @@ export default function CoordinatorSettingsPage() {
                 <Label>Placement submission alerts</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when students submit placements
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Logbook update notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive alerts for new logbook entries
                 </p>
               </div>
               <Button variant="outline" size="sm" disabled>

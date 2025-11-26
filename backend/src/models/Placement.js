@@ -48,6 +48,11 @@ const placementSchema = new mongoose.Schema(
       trim: true,
     },
 
+    companySector: {
+      type: String,
+      trim: true,
+    },
+
     // Position Information
     position: {
       type: String,
@@ -56,6 +61,28 @@ const placementSchema = new mongoose.Schema(
     },
 
     department: {
+      type: String,
+      trim: true,
+    },
+
+    // Industrial Supervisor Information (from student submission)
+    supervisorName: {
+      type: String,
+      trim: true,
+    },
+
+    supervisorEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+
+    supervisorPhone: {
+      type: String,
+      trim: true,
+    },
+
+    supervisorPosition: {
       type: String,
       trim: true,
     },
@@ -81,7 +108,7 @@ const placementSchema = new mongoose.Schema(
     // Documents
     acceptanceLetter: {
       type: String, // File path/URL
-      required: [true, "Acceptance letter is required"],
+      required: false, // Made optional
     },
 
     additionalDocuments: [

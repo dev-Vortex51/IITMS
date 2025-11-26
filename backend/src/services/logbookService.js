@@ -74,6 +74,15 @@ const getLogbooks = async (filters = {}, pagination = {}) => {
   if (filters.status) query.status = filters.status;
   if (filters.weekNumber) query.weekNumber = filters.weekNumber;
 
+  // Filter by department if specified
+  if (filters.department) {
+    const Student = require("../models/Student");
+    const students = await Student.find({
+      department: filters.department,
+    }).select("_id");
+    query.student = { $in: students.map((s) => s._id) };
+  }
+
   const logbooks = await Logbook.find(query)
     .skip(skip)
     .limit(limit)

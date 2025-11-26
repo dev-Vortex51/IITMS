@@ -19,12 +19,33 @@ const getSupervisors = catchAsync(async (req, res) => {
     available: req.query.available,
   };
 
+  // If coordinator, filter by their department for departmental supervisors only
+  // Industrial supervisors should be visible to all coordinators
+  const { USER_ROLES } = require("../utils/constants");
+  if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
+    // Only apply department filter if specifically requesting departmental supervisors
+    if (req.query.type === "departmental") {
+      filters.department = req.user.department;
+    }
+    // For coordinators, pass the user's department for mixed queries
+    filters.coordinatorDepartment = req.user.department;
+  }
+
   const pagination = {
     page: req.query.page,
     limit: req.query.limit,
   };
 
   const result = await supervisorService.getSupervisors(filters, pagination);
+
+  // Debug logging
+  console.log("[supervisorController] User role:", req.user.role);
+  console.log("[supervisorController] User department:", req.user.department);
+  console.log("[supervisorController] Applied filters:", filters);
+  console.log(
+    "[supervisorController] Result count:",
+    result.supervisors.length
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

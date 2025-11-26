@@ -13,9 +13,18 @@ export const authService = {
     return response.data;
   },
 
-  getProfile: async (): Promise<User> => {
-    const response = await apiClient.get("/auth/profile");
-    return response.data.data.user;
+  getProfile: async (): Promise<User | null> => {
+    try {
+      const response = await apiClient.get("/auth/profile");
+      return response.data.data;
+    } catch (error: any) {
+      console.error(
+        "getProfile error:",
+        error.response?.status,
+        error.response?.data || error.message
+      );
+      return null;
+    }
   },
 
   resetPasswordFirstLogin: async (password: string): Promise<void> => {

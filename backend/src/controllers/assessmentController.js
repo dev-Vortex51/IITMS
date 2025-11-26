@@ -38,7 +38,14 @@ const getAssessments = catchAsync(async (req, res) => {
     supervisor: req.query.supervisor,
     type: req.query.type,
     status: req.query.status,
+    department: req.query.department,
   };
+
+  // If coordinator, filter by their department
+  const { USER_ROLES } = require("../utils/constants");
+  if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
+    filters.department = req.user.department;
+  }
 
   const pagination = {
     page: req.query.page,

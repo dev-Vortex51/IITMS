@@ -19,19 +19,47 @@ const logger = require("../utils/logger");
 /**
  * Get all students (no filters, no pagination)
  */
-const getAllStudents = async () => {
+const getAllStudents = async (filters = {}) => {
   const logger = require("../utils/logger");
   logger.info("studentService.getAllStudents called");
 
-  const students = await Student.find({ isActive: true })
-    .select("_id user department level session placementApproved")
+  const query = { isActive: true };
+
+  // Add department filter if provided
+  if (filters.department) {
+    query.department = filters.department;
+  }
+
+  const students = await Student.find(query)
+    .populate("user", "firstName lastName email")
+    .populate("department", "name code")
+    .populate("currentPlacement")
+    .populate("departmentalSupervisor", "name email")
+    .populate("industrialSupervisor", "name email")
     .lean();
 
+  // Format students with user data
+  const formattedStudents = students.map((student) => ({
+    _id: student._id,
+    matricNumber: student.matricNumber,
+    level: student.level,
+    session: student.session,
+    placementApproved: student.placementApproved,
+    department: student.department,
+    placement: student.currentPlacement,
+    departmentalSupervisor: student.departmentalSupervisor,
+    industrialSupervisor: student.industrialSupervisor,
+    name: student.user
+      ? `${student.user.firstName} ${student.user.lastName}`
+      : "N/A",
+    email: student.user?.email,
+  }));
+
   logger.info(
-    `studentService.getAllStudents fetched ${students.length} students`
+    `studentService.getAllStudents fetched ${formattedStudents.length} students`
   );
 
-  return students;
+  return formattedStudents;
 };
 
 /**

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { authService } from "@/services/auth.service";
+import { settingsService } from "@/services/settings.service";
 import {
   Card,
   CardContent,
@@ -15,41 +16,141 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { User, Lock, Mail, Shield, Bell, Database } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AdminSettingsPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  console.log("Settings page - user:", user, "isLoading:", isLoading);
+  const queryClient = useQueryClient();
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+
+  // Fetch System Settings
+  const { data: systemSettings } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: settingsService.getSystemSettings,
+    enabled: user?.role === "admin",
+  });
+
+  const [systemSettingsForm, setSystemSettingsForm] = useState({
+    currentSession: "2024/2025",
+    semester: "First Semester",
+    siweDuration: 6,
+    minWeeks: 24,
+    autoAssignSupervisors: false,
+    requireLogbookApproval: true,
+  });
+
+  // Fetch Notification Preferences
+  const { data: notificationPreferences } = useQuery({
+    queryKey: ["notificationPreferences"],
+    queryFn: settingsService.getNotificationPreferences,
+  });
+
+  const [notificationSettings, setNotificationSettings] = useState({
+    emailNotifications: false,
+    placementAlerts: false,
+    systemUpdates: false,
+  });
+
+  // Update local state when data is fetched
+  useEffect(() => {
+    if (systemSettings) {
+      setSystemSettingsForm({
+        currentSession: systemSettings.currentSession,
+        semester: systemSettings.semester,
+        siweDuration: systemSettings.siweDuration,
+        minWeeks: systemSettings.minWeeks,
+        autoAssignSupervisors: systemSettings.autoAssignSupervisors,
+        requireLogbookApproval: systemSettings.requireLogbookApproval,
+      });
+    }
+  }, [systemSettings]);
+
+  useEffect(() => {
+    if (notificationPreferences) {
+      setNotificationSettings({
+        emailNotifications: notificationPreferences.emailNotifications,
+        placementAlerts: notificationPreferences.placementAlerts,
+        systemUpdates: notificationPreferences.systemUpdates,
+      });
+    }
+  }, [notificationPreferences]);
 
   const changePasswordMutation = useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
       authService.changePassword(data.currentPassword, data.newPassword),
     onSuccess: () => {
-      setSuccess("Password changed successfully");
+      toast.success("Password changed successfully");
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
       setError("");
-      setTimeout(() => setSuccess(""), 5000);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to change password");
-      setSuccess("");
+      const errorMessage =
+        err.response?.data?.message || "Failed to change password";
+      setError(errorMessage);
+      toast.error(errorMessage);
     },
   });
+
+  // System Settings Mutation
+  const updateSystemSettingsMutation = useMutation({
+    mutationFn: settingsService.updateSystemSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success("System settings saved successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to save settings");
+    },
+  });
+
+  // Notification Preferences Mutation
+  const updateNotificationsMutation = useMutation({
+    mutationFn: settingsService.updateNotificationPreferences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notificationPreferences"] });
+      toast.success("Notification preferences updated");
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.message || "Failed to update preferences"
+      );
+    },
+  });
+
+  // Save System Settings
+  const saveSystemSettings = () => {
+    updateSystemSettingsMutation.mutate(systemSettingsForm);
+  };
+
+  // Toggle Notification Settings
+  const toggleNotification = (key: keyof typeof notificationSettings) => {
+    const newValue = !notificationSettings[key];
+    setNotificationSettings((prev) => ({
+      ...prev,
+      [key]: newValue,
+    }));
+
+    // Update on backend
+    updateNotificationsMutation.mutate({
+      [key]: newValue,
+    });
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError("New passwords do not match");
@@ -66,6 +167,26 @@ export default function AdminSettingsPage() {
       newPassword: passwordData.newPassword,
     });
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading settings...</p>
+      </div>
+    );
+  }
+
+  // Show error if user not loaded
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-destructive">
+          Unable to load user profile. Please refresh the page.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -93,7 +214,11 @@ export default function AdminSettingsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">{user?.name || "N/A"}</p>
+              <p className="font-medium">
+                {user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground">Email</Label>
@@ -194,12 +319,6 @@ export default function AdminSettingsPage() {
               </div>
             )}
 
-            {success && (
-              <div className="bg-green-50 text-green-600 text-sm p-3 rounded-md">
-                {success}
-              </div>
-            )}
-
             <Button type="submit" disabled={changePasswordMutation.isPending}>
               {changePasswordMutation.isPending
                 ? "Changing Password..."
@@ -236,11 +355,29 @@ export default function AdminSettingsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="currentSession">Current Session</Label>
-                <Input id="currentSession" defaultValue="2024/2025" disabled />
+                <Input
+                  id="currentSession"
+                  value={systemSettingsForm.currentSession}
+                  onChange={(e) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      currentSession: e.target.value,
+                    })
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="semester">Semester</Label>
-                <Input id="semester" defaultValue="First Semester" disabled />
+                <Input
+                  id="semester"
+                  value={systemSettingsForm.semester}
+                  onChange={(e) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      semester: e.target.value,
+                    })
+                  }
+                />
               </div>
             </div>
           </div>
@@ -258,11 +395,31 @@ export default function AdminSettingsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="duration">Duration (Months)</Label>
-                <Input id="duration" type="number" defaultValue="6" disabled />
+                <Input
+                  id="duration"
+                  type="number"
+                  value={systemSettingsForm.siweDuration}
+                  onChange={(e) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      siweDuration: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="minWeeks">Minimum Weeks</Label>
-                <Input id="minWeeks" type="number" defaultValue="24" disabled />
+                <Input
+                  id="minWeeks"
+                  type="number"
+                  value={systemSettingsForm.minWeeks}
+                  onChange={(e) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      minWeeks: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
               </div>
             </div>
           </div>
@@ -285,9 +442,15 @@ export default function AdminSettingsPage() {
                     Automatically assign supervisors after placement approval
                   </p>
                 </div>
-                <Button variant="outline" size="sm" disabled>
-                  Disabled
-                </Button>
+                <Switch
+                  checked={systemSettingsForm.autoAssignSupervisors}
+                  onCheckedChange={(checked: boolean) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      autoAssignSupervisors: checked,
+                    })
+                  }
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -296,16 +459,22 @@ export default function AdminSettingsPage() {
                     Supervisors must approve all logbook entries
                   </p>
                 </div>
-                <Button variant="outline" size="sm" disabled>
-                  Enabled
-                </Button>
+                <Switch
+                  checked={systemSettingsForm.requireLogbookApproval}
+                  onCheckedChange={(checked: boolean) =>
+                    setSystemSettingsForm({
+                      ...systemSettingsForm,
+                      requireLogbookApproval: checked,
+                    })
+                  }
+                />
               </div>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground text-center pt-4">
-            System configuration features coming soon
-          </p>
+          <div className="flex justify-end pt-4">
+            <Button onClick={saveSystemSettings}>Save System Settings</Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -331,9 +500,10 @@ export default function AdminSettingsPage() {
                   Receive email updates for system events
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Enable
-              </Button>
+              <Switch
+                checked={notificationSettings.emailNotifications}
+                onCheckedChange={() => toggleNotification("emailNotifications")}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -342,9 +512,10 @@ export default function AdminSettingsPage() {
                   Get notified when placements need approval
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Enable
-              </Button>
+              <Switch
+                checked={notificationSettings.placementAlerts}
+                onCheckedChange={() => toggleNotification("placementAlerts")}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -353,13 +524,11 @@ export default function AdminSettingsPage() {
                   Receive notifications about system updates
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Enable
-              </Button>
+              <Switch
+                checked={notificationSettings.systemUpdates}
+                onCheckedChange={() => toggleNotification("systemUpdates")}
+              />
             </div>
-            <p className="text-sm text-muted-foreground text-center mt-4">
-              Notification features coming soon
-            </p>
           </div>
         </CardContent>
       </Card>

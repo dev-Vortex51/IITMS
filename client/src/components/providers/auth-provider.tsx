@@ -35,8 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
   } = useQuery({
     queryKey: ["user"],
-    queryFn: authService.getProfile,
-    retry: false,
+    queryFn: async () => {
+      const profile = await authService.getProfile();
+      console.log("Query function result:", profile);
+      if (!profile) {
+        throw new Error("Failed to load user profile");
+      }
+      return profile;
+    },
+    retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: isMounted && hasToken,
   });
@@ -101,10 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetch();
   };
 
+  // Debug logging
+  useEffect(() => {
+    console.log("Auth state updated:", { user, isLoading, hasToken, error });
+  }, [user, isLoading, hasToken, error]);
+
   return (
     <AuthContext.Provider
       value={{
-        user: user || null,
+        user: user ?? null,
         isLoading: !isMounted || isLoading,
         login,
         logout,

@@ -41,7 +41,8 @@ const createPlacement = async (studentId, placementData, files = {}) => {
   const placement = await Placement.create({
     student: studentId,
     ...placementData,
-    acceptanceLetter: files.acceptanceLetter?.path,
+    acceptanceLetter:
+      files?.acceptanceLetter?.path || placementData.acceptanceLetter,
     status: PLACEMENT_STATUS.PENDING,
   });
 
@@ -83,14 +84,39 @@ const getPlacements = async (filters = {}, pagination = {}) => {
   }
 
   const placements = await Placement.find(query)
+    .populate({
+      path: "student",
+      select: "matricNumber user department",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    })
+    .populate("industrialSupervisor", "firstName lastName email phone")
+    .populate("reviewedBy", "firstName lastName email")
     .skip(skip)
     .limit(limit)
     .sort({ submittedAt: -1 });
 
   const total = await Placement.countDocuments(query);
 
+  // Transform placements to include student name at top level
+  const transformedPlacements = placements.map((placement) => {
+    const p = placement.toObject();
+    return {
+      ...p,
+      student: {
+        ...p.student,
+        name:
+          p.student?.user?.firstName && p.student?.user?.lastName
+            ? `${p.student.user.firstName} ${p.student.user.lastName}`
+            : "Unknown Student",
+      },
+    };
+  });
+
   return {
-    placements,
+    placements: transformedPlacements,
     pagination: buildPaginationMeta(total, page, limit),
   };
 };
@@ -278,6 +304,134 @@ const assignIndustrialSupervisor = async (
 };
 
 /**
+ * Approve placement
+ */
+const approvePlacement = async (placementId, remarks, reviewerId) => {
+  const placement = await Placement.findById(placementId);
+
+  if (!placement) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Placement not found");
+  }
+
+  if (placement.status !== PLACEMENT_STATUS.PENDING) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Placement has already been reviewed"
+    );
+  }
+
+  placement.status = PLACEMENT_STATUS.APPROVED;
+  placement.reviewedBy = reviewerId;
+  placement.reviewedAt = new Date();
+  placement.reviewComment = remarks || "Placement approved";
+  await placement.save();
+
+  // Update student record
+  const student = await Student.findById(placement.student);
+  student.hasPlacement = true;
+  student.placementApproved = true;
+  student.currentPlacement = placement._id;
+  student.trainingStartDate = placement.startDate;
+  student.trainingEndDate = placement.endDate;
+
+  // Find and assign industrial supervisor if exists
+  if (placement.supervisorEmail) {
+    const User = require("../models").User;
+    const supervisorUser = await User.findOne({
+      email: placement.supervisorEmail,
+    });
+
+    if (supervisorUser && supervisorUser.role === "industrial_supervisor") {
+      const Supervisor = require("../models").Supervisor;
+      const supervisor = await Supervisor.findOne({ user: supervisorUser._id });
+
+      if (supervisor) {
+        // Assign supervisor to student
+        student.industrialSupervisor = supervisor._id;
+        placement.industrialSupervisor = supervisor._id;
+        placement.supervisorAssignedAt = new Date();
+
+        // Add student to supervisor's assigned students if not already there
+        if (!supervisor.assignedStudents.includes(student._id)) {
+          supervisor.assignedStudents.push(student._id);
+          await supervisor.save();
+        }
+
+        await placement.save();
+      }
+    }
+  }
+
+  await student.save();
+
+  // Send approval notification
+  await notificationService.createNotification({
+    recipient: student.user,
+    type: NOTIFICATION_TYPES.PLACEMENT_APPROVED,
+    title: "Placement Approved",
+    message: `Your placement at ${placement.companyName} has been approved!`,
+    priority: "high",
+    relatedModel: "Placement",
+    relatedId: placement._id,
+    createdBy: reviewerId,
+    sendEmail: true,
+  });
+
+  logger.info(`Placement approved: ${placementId}`);
+
+  return placement;
+};
+
+/**
+ * Reject placement
+ */
+const rejectPlacement = async (placementId, remarks, reviewerId) => {
+  const placement = await Placement.findById(placementId);
+
+  if (!placement) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Placement not found");
+  }
+
+  if (placement.status !== PLACEMENT_STATUS.PENDING) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Placement has already been reviewed"
+    );
+  }
+
+  if (!remarks) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Remarks are required when rejecting a placement"
+    );
+  }
+
+  placement.status = PLACEMENT_STATUS.REJECTED;
+  placement.reviewedBy = reviewerId;
+  placement.reviewedAt = new Date();
+  placement.reviewComment = remarks;
+  await placement.save();
+
+  // Send rejection notification
+  const student = await Student.findById(placement.student);
+  await notificationService.createNotification({
+    recipient: student.user,
+    type: NOTIFICATION_TYPES.PLACEMENT_REJECTED,
+    title: "Placement Not Approved",
+    message: `Your placement application was not approved. Reason: ${remarks}`,
+    priority: "high",
+    relatedModel: "Placement",
+    relatedId: placement._id,
+    createdBy: reviewerId,
+    sendEmail: true,
+  });
+
+  logger.info(`Placement rejected: ${placementId}`);
+
+  return placement;
+};
+
+/**
  * Delete placement (withdraw)
  */
 const deletePlacement = async (placementId, userId) => {
@@ -302,12 +456,158 @@ const deletePlacement = async (placementId, userId) => {
   return placement;
 };
 
+/**
+ * Update placement by coordinator (assign supervisors)
+ */
+const updatePlacementByCoordinator = async (placementId, updateData, user) => {
+  const placement = await Placement.findById(placementId).populate({
+    path: "student",
+    populate: { path: "department" },
+  });
+
+  if (!placement) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Placement not found");
+  }
+
+  const { USER_ROLES } = require("../utils/constants");
+  const Supervisor = require("../models/Supervisor");
+
+  // Handle departmental supervisor assignment
+  if (updateData.departmentalSupervisor) {
+    const supervisor = await Supervisor.findById(
+      updateData.departmentalSupervisor
+    );
+
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    if (supervisor.type !== "departmental") {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Can only assign departmental supervisors through this endpoint"
+      );
+    }
+
+    // Check if supervisor has reached max students capacity
+    const maxStudents = supervisor.maxStudents || 5; // Default to 5 for departmental supervisors
+    const currentStudentCount = supervisor.assignedStudents.length;
+
+    // Don't count if this student is already assigned to this supervisor
+    const isAlreadyAssigned = supervisor.assignedStudents.some(
+      (id) => id.toString() === placement.student._id.toString()
+    );
+
+    if (!isAlreadyAssigned && currentStudentCount >= maxStudents) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Supervisor has reached maximum capacity of ${maxStudents} students`
+      );
+    }
+
+    // Verify coordinator has access to this student
+    const studentDeptId =
+      typeof placement.student.department === "object"
+        ? placement.student.department._id?.toString()
+        : placement.student.department?.toString();
+    const userDeptId = user.department?.toString();
+
+    if (user.role === USER_ROLES.COORDINATOR && studentDeptId !== userDeptId) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You can only assign supervisors to students in your department"
+      );
+    }
+
+    // Get student and check for previous supervisor
+    const student = await Student.findById(placement.student._id);
+    const previousSupervisorId = student.departmentalSupervisor;
+
+    // Remove student from previous supervisor's assignedStudents if exists
+    if (
+      previousSupervisorId &&
+      previousSupervisorId.toString() !== supervisor._id.toString()
+    ) {
+      const previousSupervisor = await Supervisor.findById(
+        previousSupervisorId
+      );
+      if (previousSupervisor) {
+        previousSupervisor.assignedStudents =
+          previousSupervisor.assignedStudents.filter(
+            (id) => id.toString() !== student._id.toString()
+          );
+        await previousSupervisor.save();
+        logger.info(
+          `Removed student ${student._id} from previous supervisor ${previousSupervisorId}`
+        );
+      }
+    }
+
+    // Update student record (departmental supervisor only exists in Student model)
+    student.departmentalSupervisor = updateData.departmentalSupervisor;
+    await student.save();
+
+    // Add student to new supervisor's assigned students if not already there
+    if (!isAlreadyAssigned) {
+      supervisor.assignedStudents.push(student._id);
+      await supervisor.save();
+    }
+
+    logger.info(
+      `Departmental supervisor ${supervisor._id} assigned to student ${student._id}`
+    );
+  }
+
+  // Handle industrial supervisor assignment
+  if (updateData.industrialSupervisor) {
+    const supervisor = await Supervisor.findById(
+      updateData.industrialSupervisor
+    );
+
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    if (supervisor.type !== "industrial") {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Can only assign industrial supervisors through this endpoint"
+      );
+    }
+
+    // Update placement
+    placement.industrialSupervisor = updateData.industrialSupervisor;
+
+    // Update student record
+    const student = await Student.findById(placement.student._id);
+    student.industrialSupervisor = updateData.industrialSupervisor;
+    await student.save();
+
+    // Add student to supervisor's assigned students if not already there
+    if (!supervisor.assignedStudents.includes(student._id)) {
+      supervisor.assignedStudents.push(student._id);
+      await supervisor.save();
+    }
+
+    logger.info(
+      `Industrial supervisor ${supervisor._id} assigned to student ${student._id}`
+    );
+  }
+
+  await placement.save();
+
+  return placement.populate("industrialSupervisor");
+};
+
 module.exports = {
   createPlacement,
   getPlacements,
   getPlacementById,
   updatePlacement,
   reviewPlacement,
+  approvePlacement,
+  rejectPlacement,
   assignIndustrialSupervisor,
+  updatePlacementByCoordinator,
   deletePlacement,
 };

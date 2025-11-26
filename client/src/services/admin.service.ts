@@ -13,7 +13,7 @@ export const supervisorService = {
   },
 
   createSupervisor: async (data: Partial<Supervisor>) => {
-    const response = await apiClient.post("/supervisors", data);
+    const response = await apiClient.post("/users", data);
     return response.data;
   },
 

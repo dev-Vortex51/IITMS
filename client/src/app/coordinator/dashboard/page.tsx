@@ -1,11 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  studentService,
-  placementService,
-  logbookService,
-} from "@/services/student.service";
+import { studentService, placementService } from "@/services/student.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +14,19 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function CoordinatorDashboardPage() {
   // Fetch all students
@@ -32,15 +41,21 @@ export default function CoordinatorDashboardPage() {
     queryFn: () => placementService.getAllPlacements({}),
   });
 
-  // Fetch all logbook entries
-  const { data: logbooksData } = useQuery({
-    queryKey: ["logbooks"],
-    queryFn: () => logbookService.getAllLogbooks({}),
-  });
-
   const students = studentsData?.data || [];
   const placements = placementsData?.data || [];
-  const logbooks = logbooksData?.data || [];
+
+  // Count students needing supervisors (check student object, not placement)
+  const studentsNeedingSupervisors = students.filter((student: any) => {
+    // Only count if they have an approved placement
+    const hasApprovedPlacement = placements.some(
+      (p: any) => p.student?._id === student._id && p.status === "approved"
+    );
+    // Check if either supervisor is missing
+    return (
+      hasApprovedPlacement &&
+      (!student.departmentalSupervisor || !student.industrialSupervisor)
+    );
+  }).length;
 
   const stats = {
     totalStudents: students.length,
@@ -48,11 +63,39 @@ export default function CoordinatorDashboardPage() {
       .length,
     approvedPlacements: placements.filter((p: any) => p.status === "approved")
       .length,
-    pendingLogbooks: logbooks.filter((l: any) => !l.supervisor_approval).length,
-    studentsWithoutSupervisors: placements.filter(
-      (p: any) => !p.departmentalSupervisor || !p.industrialSupervisor
-    ).length,
+    studentsWithoutSupervisors: studentsNeedingSupervisors,
   };
+
+  // Placement status data for pie chart
+  const placementStatusData = [
+    {
+      name: "Approved",
+      value: placements.filter((p: any) => p.status === "approved").length,
+      color: "#22c55e",
+    },
+    {
+      name: "Pending",
+      value: placements.filter((p: any) => p.status === "pending").length,
+      color: "#eab308",
+    },
+    {
+      name: "Rejected",
+      value: placements.filter((p: any) => p.status === "rejected").length,
+      color: "#ef4444",
+    },
+  ];
+
+  // Student level distribution for bar chart
+  const levelDistribution = students.reduce((acc: any, student: any) => {
+    const level = student.level || "Unknown";
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {});
+
+  const levelData = Object.entries(levelDistribution).map(([level, count]) => ({
+    level,
+    students: count,
+  }));
 
   return (
     <div className="space-y-6">
@@ -121,17 +164,68 @@ export default function CoordinatorDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Logbooks
+              Need Supervisors
             </CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {stats.pendingLogbooks}
+            <div className="text-2xl font-bold text-orange-600">
+              {stats.studentsWithoutSupervisors}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Entries to review
+              Awaiting assignment
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Placement Status Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Placement Status Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={placementStatusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {placementStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Student Level Distribution Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Students by Level</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={levelData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="level" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="students" fill="#0ea5e9" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -242,24 +336,6 @@ export default function CoordinatorDashboardPage() {
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
                       Manage supervisor assignments
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-            </Link>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <Link href="/coordinator/logbooks">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-accent/10">
-                    <BookOpen className="h-6 w-6 text-accent-foreground" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Review Logbooks</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Monitor student progress
                     </p>
                   </div>
                 </div>

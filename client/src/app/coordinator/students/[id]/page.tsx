@@ -253,25 +253,39 @@ export default function StudentDetailsPage({
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="p-4 border rounded-lg">
-              <Label className="text-muted-foreground text-xs">
-                Departmental Supervisor
-              </Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-muted-foreground text-xs">
+                  Departmental Supervisor
+                </Label>
+                {student?.departmentalSupervisor && (
+                  <Badge variant="success" className="text-xs">
+                    Assigned
+                  </Badge>
+                )}
+              </div>
               <p className="font-medium mt-1">
-                {placement?.departmentalSupervisor
-                  ? typeof placement.departmentalSupervisor === "object"
-                    ? placement.departmentalSupervisor.name
+                {student?.departmentalSupervisor
+                  ? typeof student.departmentalSupervisor === "object"
+                    ? student.departmentalSupervisor.name
                     : "Assigned"
                   : "Not Assigned"}
               </p>
             </div>
             <div className="p-4 border rounded-lg">
-              <Label className="text-muted-foreground text-xs">
-                Industrial Supervisor
-              </Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-muted-foreground text-xs">
+                  Industrial Supervisor
+                </Label>
+                {student?.industrialSupervisor && (
+                  <Badge variant="success" className="text-xs">
+                    Assigned
+                  </Badge>
+                )}
+              </div>
               <p className="font-medium mt-1">
-                {placement?.industrialSupervisor
-                  ? typeof placement.industrialSupervisor === "object"
-                    ? placement.industrialSupervisor.name
+                {student?.industrialSupervisor
+                  ? typeof student.industrialSupervisor === "object"
+                    ? student.industrialSupervisor.name
                     : "Assigned"
                   : "Not Assigned"}
               </p>
@@ -290,21 +304,7 @@ export default function StudentDetailsPage({
       </Card>
 
       {/* Activity Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Logbook Entries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">0</span>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">

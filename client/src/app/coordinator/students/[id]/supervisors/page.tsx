@@ -38,9 +38,15 @@ export default function StudentSupervisorsPage({
 }) {
   const queryClient = useQueryClient();
   const [departmentalSupervisorId, setDepartmentalSupervisorId] = useState("");
-  const [industrialSupervisorId, setIndustrialSupervisorId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Fetch student data (departmental supervisor is stored in Student model)
+  const { data: student } = useQuery({
+    queryKey: ["student", params.id],
+    queryFn: () => studentService.getStudentById(params.id),
+    enabled: !!params.id,
+  });
 
   // Fetch student placement
   const { data: placement, isLoading: placementLoading } = useQuery({
@@ -51,80 +57,52 @@ export default function StudentSupervisorsPage({
 
   // Fetch all departmental supervisors
   const { data: dSupervisorsData } = useQuery({
-    queryKey: ["departmental-supervisors"],
+    queryKey: ["supervisors", "departmental"],
     queryFn: () =>
       adminService.supervisorService.getAllSupervisors({
         type: "departmental",
       }),
   });
 
-  // Fetch all industrial supervisors
-  const { data: iSupervisorsData } = useQuery({
-    queryKey: ["industrial-supervisors"],
-    queryFn: () =>
-      adminService.supervisorService.getAllSupervisors({ type: "industrial" }),
-  });
-
   const departmentalSupervisors = dSupervisorsData?.data || [];
-  const industrialSupervisors = iSupervisorsData?.data || [];
 
-  // Set initial values when placement loads
+  // Set initial values when student data loads
   useState(() => {
-    if (placement?.departmentalSupervisor) {
+    if (student?.departmentalSupervisor) {
       const dsId =
-        typeof placement.departmentalSupervisor === "object"
-          ? placement.departmentalSupervisor._id
-          : placement.departmentalSupervisor;
+        typeof student.departmentalSupervisor === "object"
+          ? student.departmentalSupervisor._id
+          : student.departmentalSupervisor;
       setDepartmentalSupervisorId(dsId || "");
     }
-    if (placement?.industrialSupervisor) {
-      const isId =
-        typeof placement.industrialSupervisor === "object"
-          ? placement.industrialSupervisor._id
-          : placement.industrialSupervisor;
-      setIndustrialSupervisorId(isId || "");
-    }
   });
 
-  // Update supervisors mutation
+  // Update departmental supervisor mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: {
-      departmentalSupervisor?: string;
-      industrialSupervisor?: string;
-    }) => {
-      // This would be an endpoint to assign supervisors to placement
-      // For now, we'll use the placement service update method
+    mutationFn: async (data: { departmentalSupervisor: string }) => {
       if (!placement) throw new Error("No placement found");
       return placementService.updatePlacement(placement._id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["placement", params.id] });
       queryClient.invalidateQueries({ queryKey: ["student", params.id] });
-      setSuccess("Supervisors assigned successfully");
+      setSuccess("Departmental supervisor assigned successfully");
       setError("");
       setTimeout(() => setSuccess(""), 5000);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to assign supervisors");
+      setError(err.response?.data?.message || "Failed to assign supervisor");
       setSuccess("");
     },
   });
 
   const handleSave = () => {
-    const updates: any = {};
-    if (departmentalSupervisorId) {
-      updates.departmentalSupervisor = departmentalSupervisorId;
-    }
-    if (industrialSupervisorId) {
-      updates.industrialSupervisor = industrialSupervisorId;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      setError("Please select at least one supervisor");
+    if (!departmentalSupervisorId) {
+      setError("Please select a departmental supervisor");
       return;
     }
 
-    updateMutation.mutate(updates);
+    updateMutation.mutate({ departmentalSupervisor: departmentalSupervisorId });
   };
 
   if (placementLoading) {
@@ -168,11 +146,11 @@ export default function StudentSupervisorsPage({
   }
 
   const currentDepartmentalSupervisor =
-    typeof placement.departmentalSupervisor === "object"
-      ? placement.departmentalSupervisor
+    typeof student?.departmentalSupervisor === "object"
+      ? student.departmentalSupervisor
       : null;
   const currentIndustrialSupervisor =
-    typeof placement.industrialSupervisor === "object"
+    typeof placement?.industrialSupervisor === "object"
       ? placement.industrialSupervisor
       : null;
 
@@ -187,10 +165,10 @@ export default function StudentSupervisorsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-primary">
-            Assign Supervisors
+            Assign Departmental Supervisor
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage departmental and industrial supervisors
+            Assign a departmental supervisor to this student
           </p>
         </div>
       </div>
@@ -260,9 +238,9 @@ export default function StudentSupervisorsPage({
               <UserCheck className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle>Assign Supervisors</CardTitle>
+              <CardTitle>Assign Departmental Supervisor</CardTitle>
               <CardDescription>
-                Select supervisors for this student
+                Select a departmental supervisor for this student
               </CardDescription>
             </div>
           </div>
@@ -281,67 +259,50 @@ export default function StudentSupervisorsPage({
             </div>
           )}
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="departmental-supervisor">
-                Departmental Supervisor
-              </Label>
-              <Select
-                value={departmentalSupervisorId}
-                onValueChange={setDepartmentalSupervisorId}
-              >
-                <SelectTrigger id="departmental-supervisor">
-                  <SelectValue placeholder="Select departmental supervisor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departmentalSupervisors.length > 0 ? (
-                    departmentalSupervisors.map((supervisor: any) => (
-                      <SelectItem key={supervisor._id} value={supervisor._id}>
-                        {supervisor.name} -{" "}
-                        {supervisor.department?.name || "N/A"}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none" disabled>
-                      No supervisors available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {departmentalSupervisors.length} available
-              </p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="departmental-supervisor">
+              Departmental Supervisor
+            </Label>
+            <Select
+              value={departmentalSupervisorId}
+              onValueChange={setDepartmentalSupervisorId}
+            >
+              <SelectTrigger id="departmental-supervisor">
+                <SelectValue placeholder="Select departmental supervisor" />
+              </SelectTrigger>
+              <SelectContent>
+                {departmentalSupervisors.length > 0 ? (
+                  departmentalSupervisors.map((supervisor: any) => {
+                    const studentCount =
+                      supervisor.assignedStudents?.length || 0;
+                    const maxStudents = supervisor.maxStudents || 5;
+                    const isFull = studentCount >= maxStudents;
+                    const isCurrentlyAssigned =
+                      departmentalSupervisorId === supervisor._id;
 
-            <div className="space-y-2">
-              <Label htmlFor="industrial-supervisor">
-                Industrial Supervisor
-              </Label>
-              <Select
-                value={industrialSupervisorId}
-                onValueChange={setIndustrialSupervisorId}
-              >
-                <SelectTrigger id="industrial-supervisor">
-                  <SelectValue placeholder="Select industrial supervisor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {industrialSupervisors.length > 0 ? (
-                    industrialSupervisors.map((supervisor: any) => (
-                      <SelectItem key={supervisor._id} value={supervisor._id}>
-                        {supervisor.name} - {supervisor.companyName || "N/A"}
+                    return (
+                      <SelectItem
+                        key={supervisor._id}
+                        value={supervisor._id}
+                        disabled={isFull && !isCurrentlyAssigned}
+                      >
+                        {supervisor.name} -{" "}
+                        {supervisor.department?.name || "N/A"}({studentCount}/
+                        {maxStudents} students)
+                        {isFull && !isCurrentlyAssigned && " - Full"}
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none" disabled>
-                      No supervisors available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {industrialSupervisors.length} available
-              </p>
-            </div>
+                    );
+                  })
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No supervisors available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {departmentalSupervisors.length} available
+            </p>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -351,7 +312,7 @@ export default function StudentSupervisorsPage({
               className="flex-1"
             >
               <Save className="h-4 w-4 mr-2" />
-              {updateMutation.isPending ? "Saving..." : "Save Assignments"}
+              {updateMutation.isPending ? "Saving..." : "Assign Supervisor"}
             </Button>
             <Button variant="outline" asChild>
               <Link href={`/coordinator/students/${params.id}`}>Cancel</Link>

@@ -91,6 +91,38 @@ const userValidation = {
     faculty: customValidators.objectId.optional(),
     isFirstLogin: Joi.boolean().optional(),
     passwordResetRequired: Joi.boolean().optional(),
+    // Additional fields for supervisors
+    type: Joi.string().valid("departmental", "industrial").optional(),
+    companyName: Joi.string().when("role", {
+      is: USER_ROLES.INDUSTRIAL_SUPERVISOR,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+    companyAddress: Joi.string().optional(),
+    position: Joi.string().optional(),
+    qualification: Joi.string().optional(),
+    yearsOfExperience: Joi.number().min(0).optional(),
+    specialization: Joi.string().optional(),
+    maxStudents: Joi.number().min(1).optional(),
+    // Student-specific fields
+    matricNumber: Joi.string().when("role", {
+      is: USER_ROLES.STUDENT,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+    level: Joi.number().when("role", {
+      is: USER_ROLES.STUDENT,
+      then: Joi.valid(100, 200, 300, 400, 500, 600).required(),
+      otherwise: Joi.optional(),
+    }),
+    session: Joi.string().when("role", {
+      is: USER_ROLES.STUDENT,
+      then: Joi.string()
+        .pattern(/^\d{4}\/\d{4}$/)
+        .required(),
+      otherwise: Joi.optional(),
+    }),
+    cgpa: Joi.number().min(0).max(5).optional(),
   }),
 
   updateUser: Joi.object({

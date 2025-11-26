@@ -77,6 +77,15 @@ const getAssessments = async (filters = {}, pagination = {}) => {
   if (filters.type) query.type = filters.type;
   if (filters.status) query.status = filters.status;
 
+  // Filter by department if specified
+  if (filters.department) {
+    const Student = require("../models/Student");
+    const students = await Student.find({
+      department: filters.department,
+    }).select("_id");
+    query.student = { $in: students.map((s) => s._id) };
+  }
+
   const assessments = await Assessment.find(query)
     .skip(skip)
     .limit(limit)

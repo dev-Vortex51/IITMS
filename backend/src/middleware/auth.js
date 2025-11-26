@@ -72,7 +72,7 @@ const authenticate = async (req, res, next) => {
     if (user.role === ROLES.STUDENT) {
       const studentProfile = await Student.findOne({ user: user._id });
       if (studentProfile) {
-        req.user.studentProfile = studentProfile._id;
+        user.studentProfile = studentProfile._id;
       }
     } else if (
       [ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(
@@ -81,8 +81,8 @@ const authenticate = async (req, res, next) => {
     ) {
       const supervisorProfile = await Supervisor.findOne({ user: user._id });
       if (supervisorProfile) {
-        req.user.supervisorProfile = supervisorProfile._id;
-        req.user.supervisorType = supervisorProfile.type;
+        user.supervisorProfile = supervisorProfile._id;
+        user.supervisorType = supervisorProfile.type;
       }
     }
 

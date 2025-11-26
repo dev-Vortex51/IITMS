@@ -16,6 +16,9 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Building,
+  Calendar,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,20 +26,24 @@ import { Button } from "@/components/ui/button";
 export default function StudentDashboardPage() {
   const { user } = useAuth();
 
+  // Get student profile ID from authenticated user
+  const studentProfileId = user?.studentProfile || user?.profileData?._id;
+
   // Fetch student data
-  const { data: students } = useQuery({
-    queryKey: ["students", "me"],
-    queryFn: () => studentService.getAllStudents(),
-    enabled: !!user,
+  const { data: studentData } = useQuery({
+    queryKey: ["student", studentProfileId],
+    queryFn: () => studentService.getStudentById(studentProfileId!),
+    enabled: !!studentProfileId,
   });
 
-  const student = students?.data?.[0];
+  const student = studentData;
 
   // Fetch placement data
   const { data: placementData } = useQuery({
-    queryKey: ["placement", student?._id],
-    queryFn: () => studentService.getStudentPlacement(student._id),
-    enabled: !!student,
+    queryKey: ["placement", studentProfileId],
+    queryFn: () => studentService.getStudentPlacement(studentProfileId!),
+    enabled: !!studentProfileId,
+    retry: false,
   });
 
   const placement = placementData;
@@ -134,6 +141,101 @@ export default function StudentDashboardPage() {
         </Card>
       </div>
 
+      {/* Placement Details - Show when submitted */}
+      {placement && (
+        <Card
+          className={
+            placement.status === "approved"
+              ? "border-green-200 bg-green-50/50"
+              : placement.status === "pending"
+              ? "border-yellow-200 bg-yellow-50/50"
+              : "border-red-200 bg-red-50/50"
+          }
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Placement Details</CardTitle>
+                <CardDescription>
+                  Your industrial training placement information
+                </CardDescription>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+                  placement.status === "approved"
+                    ? "bg-green-100 text-green-700"
+                    : placement.status === "pending"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {placement.status === "approved" ? (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Approved
+                  </>
+                ) : placement.status === "pending" ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Pending Review
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    Rejected
+                  </>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex items-start gap-3">
+                <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Company
+                  </p>
+                  <p className="font-semibold">{placement.companyName}</p>
+                  {placement.companySector && (
+                    <p className="text-sm text-muted-foreground">
+                      {placement.companySector}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Duration
+                  </p>
+                  <p className="font-semibold">
+                    {new Date(placement.startDate).toLocaleDateString()} -{" "}
+                    {new Date(placement.endDate).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {placement.reviewComment && (
+              <div className="mt-4 p-3 rounded-lg bg-background border">
+                <p className="text-sm font-medium mb-1">Coordinator Remarks:</p>
+                <p className="text-sm text-muted-foreground">
+                  {placement.reviewComment}
+                </p>
+              </div>
+            )}
+            <div className="mt-4">
+              <Link href="/student/placement">
+                <Button variant="outline" className="w-full">
+                  View Full Details
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -149,9 +251,13 @@ export default function StudentDashboardPage() {
               <div className="flex items-start gap-3">
                 <Briefcase className="h-5 w-5 mt-0.5" />
                 <div className="text-left">
-                  <div className="font-medium">Register Placement</div>
+                  <div className="font-medium">
+                    {placement ? "View Placement" : "Register Placement"}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Submit your placement details
+                    {placement
+                      ? "Check placement status"
+                      : "Submit your placement details"}
                   </div>
                 </div>
               </div>

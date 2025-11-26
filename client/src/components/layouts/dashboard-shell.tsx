@@ -106,12 +106,6 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
 
           {/* User Info & Logout */}
           <div className="p-4 border-t border-primary-foreground/20">
-            <div className="mb-3 px-3">
-              <p className="text-sm font-medium">
-                {user?.firstName || user?.email}
-              </p>
-              <p className="text-xs text-primary-foreground/70">{user?.role}</p>
-            </div>
             <Button
               className="w-full justify-start bg-transparent text-primary-foreground border-primary-foreground/20 hover:bg-primary/90"
               onClick={logout}

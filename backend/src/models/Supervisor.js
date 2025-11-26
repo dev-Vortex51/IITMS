@@ -81,7 +81,10 @@ const supervisorSchema = new mongoose.Schema(
     // Maximum number of students that can be assigned
     maxStudents: {
       type: Number,
-      default: 10,
+      default: function () {
+        // Departmental supervisors: 5 students, Industrial: 10 students
+        return this.type === "departmental" ? 5 : 10;
+      },
     },
 
     // Status

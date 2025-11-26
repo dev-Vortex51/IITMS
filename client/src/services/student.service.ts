@@ -62,10 +62,8 @@ export const placementService = {
     return response.data.data;
   },
 
-  createPlacement: async (data: FormData) => {
-    const response = await apiClient.post("/placements", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  createPlacement: async (data: any) => {
+    const response = await apiClient.post("/placements", data);
     return response.data;
   },
 

@@ -14,6 +14,19 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function AdminDashboardPage() {
   // Fetch system data
@@ -51,6 +64,31 @@ export default function AdminDashboardPage() {
     activePlacements: placements.filter((p: any) => p.status === "approved")
       .length,
   };
+
+  // Prepare chart data
+  const departmentChartData = departments.slice(0, 6).map((dept: any) => ({
+    name:
+      dept.name.length > 15 ? dept.name.substring(0, 15) + "..." : dept.name,
+    students: dept.studentCount || 0,
+  }));
+
+  const placementChartData = [
+    {
+      name: "Approved",
+      value: placements.filter((p: any) => p.status === "approved").length,
+      color: "#22c55e",
+    },
+    {
+      name: "Pending",
+      value: placements.filter((p: any) => p.status === "pending").length,
+      color: "#eab308",
+    },
+    {
+      name: "Rejected",
+      value: placements.filter((p: any) => p.status === "rejected").length,
+      color: "#ef4444",
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -215,6 +253,81 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Department Students Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Students by Department</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {departmentChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={departmentChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    dataKey="students"
+                    fill="hsl(var(--primary))"
+                    name="Students"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No department data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Placement Status Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Placement Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {placements.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={placementChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {placementChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No placement data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent Activity */}
