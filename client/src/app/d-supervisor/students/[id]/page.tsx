@@ -37,13 +37,6 @@ export default function StudentDetailsPage({
     enabled: !!params.id,
   });
 
-  // Fetch student placement
-  const { data: placementData } = useQuery({
-    queryKey: ["placement", params.id],
-    queryFn: () => studentService.getStudentPlacement(params.id),
-    enabled: !!params.id,
-  });
-
   // Fetch student logbook entries
   const { data: logbookData } = useQuery({
     queryKey: ["logbook", params.id],
@@ -52,11 +45,11 @@ export default function StudentDetailsPage({
   });
 
   const student = studentData;
-  const placement = placementData;
+  const placement = student?.currentPlacement;
   const logbookEntries = logbookData?.data || [];
 
   if (isLoading) {
-    return <div>Loading student details...</div>;
+    return <Loading />;
   }
 
   if (!student) {
@@ -81,11 +74,13 @@ export default function StudentDetailsPage({
   };
 
   const pendingLogbooks = logbookEntries.filter(
-    (entry: any) => entry.departmentalSupervisor_status === "pending"
+    (entry: any) =>
+      entry.status === "submitted" &&
+      entry.departmentalReview?.status === "submitted"
   ).length;
 
   const approvedLogbooks = logbookEntries.filter(
-    (entry: any) => entry.departmentalSupervisor_status === "approved"
+    (entry: any) => entry.departmentalReview?.status === "approved"
   ).length;
 
   return (
@@ -99,7 +94,7 @@ export default function StudentDetailsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-primary">
-            {student.name || "Student"}
+            {student.user?.firstName} {student.user?.lastName}
           </h1>
           <p className="text-muted-foreground mt-1">
             {student.matricNumber || "N/A"}
@@ -124,7 +119,9 @@ export default function StudentDetailsPage({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Full Name</Label>
-              <p className="font-medium">{student.name || "N/A"}</p>
+              <p className="font-medium">
+                {student.user?.firstName} {student.user?.lastName}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground">Matric Number</Label>
@@ -135,9 +132,7 @@ export default function StudentDetailsPage({
                 <Mail className="h-4 w-4" />
                 Email
               </Label>
-              <p className="font-medium">
-                {typeof student.user === "object" ? student.user?.email : "N/A"}
-              </p>
+              <p className="font-medium">{student.user?.email || "N/A"}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Level</Label>
@@ -148,11 +143,7 @@ export default function StudentDetailsPage({
                 <Building className="h-4 w-4" />
                 Department
               </Label>
-              <p className="font-medium">
-                {typeof student.department === "object" && student.department
-                  ? (student.department as any).name
-                  : student.department || "N/A"}
-              </p>
+              <p className="font-medium">{student.department?.name || "N/A"}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Session</Label>
@@ -300,18 +291,21 @@ export default function StudentDetailsPage({
           {logbookEntries.length > 0 ? (
             <div className="space-y-3">
               {logbookEntries.slice(0, 5).map((entry: any) => {
-                const status = entry.departmentalSupervisor_status || "pending";
+                const reviewStatus =
+                  entry.departmentalReview?.status || entry.status || "draft";
                 const statusConfig = {
                   approved: { variant: "success" as const, text: "Approved" },
-                  pending: { variant: "warning" as const, text: "Pending" },
+                  submitted: { variant: "warning" as const, text: "Pending" },
+                  reviewed: { variant: "default" as const, text: "Reviewed" },
                   rejected: {
                     variant: "destructive" as const,
                     text: "Rejected",
                   },
+                  draft: { variant: "secondary" as const, text: "Draft" },
                 };
                 const config =
-                  statusConfig[status as keyof typeof statusConfig] ||
-                  statusConfig.pending;
+                  statusConfig[reviewStatus as keyof typeof statusConfig] ||
+                  statusConfig.draft;
 
                 return (
                   <div
@@ -326,11 +320,15 @@ export default function StudentDetailsPage({
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                        {entry.activity}
+                        {entry.tasksCompleted || "No tasks recorded"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {entry.date
-                          ? new Date(entry.date).toLocaleDateString()
+                        {entry.startDate && entry.endDate
+                          ? `${new Date(
+                              entry.startDate
+                            ).toLocaleDateString()} - ${new Date(
+                              entry.endDate
+                            ).toLocaleDateString()}`
                           : "N/A"}
                       </p>
                     </div>

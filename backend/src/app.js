@@ -47,6 +47,11 @@ app.use(sanitize); // Sanitize inputs
 app.use(preventNoSQLInjection); // Prevent NoSQL injection
 
 /**
+ * Static Files
+ */
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
+
+/**
  * Logging Middleware
  */
 if (config.isDevelopment) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loading } from "@/components/ui/loading";
 import { studentService, placementService } from "@/services/student.service";
 import {
   Card,
@@ -181,7 +182,7 @@ export default function StudentPlacementPage({
   };
 
   if (isLoading) {
-    return <div>Loading placement details...</div>;
+    return <Loading />;
   }
 
   if (!placement) {

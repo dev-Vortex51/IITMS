@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { LoadingCard } from "@/components/ui/loading";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   Card,
@@ -182,7 +183,7 @@ export default function EvaluationsPage() {
 
       {/* Evaluations List */}
       {isLoading ? (
-        <div>Loading evaluations...</div>
+        <LoadingCard />
       ) : filteredEvaluations.length > 0 ? (
         <Card>
           <CardHeader>

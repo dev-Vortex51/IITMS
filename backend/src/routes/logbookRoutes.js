@@ -5,10 +5,46 @@
 
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
 const { logbookController } = require("../controllers");
 const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/authorization");
 const { ROLES } = require("../utils/constants");
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/logbooks/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only images and documents are allowed"));
+    }
+  },
+});
 
 // All routes require authentication
 router.use(authenticate);
@@ -20,7 +56,8 @@ router.use(authenticate);
  */
 router.post(
   "/",
-  requireRole([ROLES.STUDENT]),
+  requireRole(ROLES.STUDENT),
+  upload.array("evidence", 5), // Allow up to 5 files
   logbookController.createLogbookEntry
 );
 
@@ -38,7 +75,7 @@ router.get("/", logbookController.getLogbooks);
  */
 router.get(
   "/pending-review",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   logbookController.getLogbooksPendingReview
 );
 
@@ -56,7 +93,8 @@ router.get("/:id", logbookController.getLogbookById);
  */
 router.put(
   "/:id",
-  requireRole([ROLES.STUDENT]),
+  requireRole(ROLES.STUDENT),
+  upload.array("evidence", 5), // Allow up to 5 files
   logbookController.updateLogbookEntry
 );
 
@@ -67,19 +105,30 @@ router.put(
  */
 router.post(
   "/:id/submit",
-  requireRole([ROLES.STUDENT]),
+  requireRole(ROLES.STUDENT),
   logbookController.submitLogbookEntry
 );
 
 /**
  * @route   POST /api/v1/logbooks/:id/review
- * @desc    Review logbook
- * @access  Supervisor
+ * @desc    Review logbook (Departmental Supervisor)
+ * @access  Departmental Supervisor
  */
 router.post(
   "/:id/review",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR),
   logbookController.reviewLogbook
+);
+
+/**
+ * @route   POST /api/v1/logbooks/:id/industrial-review
+ * @desc    Review logbook (Industrial Supervisor)
+ * @access  Industrial Supervisor
+ */
+router.post(
+  "/:id/industrial-review",
+  requireRole(ROLES.INDUSTRIAL_SUPERVISOR),
+  logbookController.industrialReviewLogbook
 );
 
 module.exports = router;

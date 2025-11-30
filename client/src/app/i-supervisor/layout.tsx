@@ -2,14 +2,7 @@
 
 import { ReactNode } from "react";
 import DashboardShell from "@/components/layouts/dashboard-shell";
-import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  ClipboardCheck,
-  FileText,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, Settings } from "lucide-react";
 
 const navItems = [
   {
@@ -26,16 +19,6 @@ const navItems = [
     title: "Logbooks",
     href: "/i-supervisor/logbooks",
     icon: BookOpen,
-  },
-  {
-    title: "Assessments",
-    href: "/i-supervisor/assessments",
-    icon: ClipboardCheck,
-  },
-  {
-    title: "Reports",
-    href: "/i-supervisor/reports",
-    icon: FileText,
   },
   {
     title: "Settings",

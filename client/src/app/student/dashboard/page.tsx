@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { studentService, placementService } from "@/services/student.service";
+import { logbookService } from "@/services/logbook.service";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   Card,
@@ -47,6 +48,23 @@ export default function StudentDashboardPage() {
   });
 
   const placement = placementData;
+
+  // Fetch logbook entries
+  const { data: logbooksData } = useQuery({
+    queryKey: ["logbooks", studentProfileId],
+    queryFn: async () => {
+      const response = await logbookService.getLogbooks({
+        student: studentProfileId,
+      });
+      return response.data || [];
+    },
+    enabled: !!studentProfileId,
+  });
+
+  const logbooks = logbooksData || [];
+  const submittedLogbooks = logbooks.filter(
+    (log: any) => log.status !== "draft"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -99,7 +117,7 @@ export default function StudentDashboardPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{submittedLogbooks}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Total entries submitted
             </p>
@@ -113,11 +131,10 @@ export default function StudentDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {student?.departmental_supervisor &&
-              student?.industrial_supervisor
+              {student?.departmentalSupervisor && student?.industrialSupervisor
                 ? "2"
-                : student?.departmental_supervisor ||
-                  student?.industrial_supervisor
+                : student?.departmentalSupervisor ||
+                  student?.industrialSupervisor
                 ? "1"
                 : "0"}
             </div>

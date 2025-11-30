@@ -87,46 +87,31 @@ const getFaculties = async (filters = {}, pagination = {}, user = null) => {
     ];
   }
 
-  // Get faculties with department count
-  const faculties = await Faculty.aggregate([
-    { $match: query },
-    {
-      $lookup: {
-        from: "departments",
-        localField: "_id",
-        foreignField: "faculty",
-        as: "departments",
-      },
-    },
-    {
-      $addFields: {
-        departmentCount: { $size: "$departments" },
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "createdBy",
-        foreignField: "_id",
-        as: "createdBy",
-      },
-    },
-    {
-      $unwind: {
-        path: "$createdBy",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $project: {
-        departments: 0,
-        "createdBy.password": 0,
-      },
-    },
-    { $sort: { createdAt: -1 } },
-    { $skip: skip },
-    { $limit: parseInt(limit) },
+  // Get faculties with department count - optimized with lean and select
+  const faculties = await Faculty.find(query)
+    .select("-__v")
+    .populate("createdBy", "firstName lastName email -_id")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .lean();
+
+  // Get department counts separately (more efficient than aggregation)
+  const Department = require("../models/Department");
+  const facultyIds = faculties.map((f) => f._id);
+  const departmentCounts = await Department.aggregate([
+    { $match: { faculty: { $in: facultyIds }, isActive: true } },
+    { $group: { _id: "$faculty", count: { $sum: 1 } } },
   ]);
+
+  const countMap = new Map(
+    departmentCounts.map((dc) => [dc._id.toString(), dc.count])
+  );
+
+  // Add department counts to faculties
+  faculties.forEach((faculty) => {
+    faculty.departmentCount = countMap.get(faculty._id.toString()) || 0;
+  });
 
   const totalCount = await Faculty.countDocuments(query);
 

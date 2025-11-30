@@ -4,6 +4,8 @@ export interface Student {
     | string
     | { _id: string; email: string; firstName?: string; lastName?: string };
   matricNumber?: string;
+  firstName?: string;
+  lastName?: string;
   name?: string;
   level?: string;
   session?: string;
@@ -11,8 +13,12 @@ export interface Student {
   department?: string | { _id: string; name: string };
   phoneNumber?: string;
   placement?: string;
+  currentPlacement?: Placement;
   departmental_supervisor?: string;
   industrial_supervisor?: string;
+  departmentalSupervisor?: string | Supervisor;
+  industrialSupervisor?: string | Supervisor;
+  logbooks?: any[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -113,6 +119,15 @@ export interface User {
   faculty?: string | Faculty;
   createdAt?: string;
   updatedAt?: string;
+  profileData?: {
+    _id: string;
+    user?: string;
+    department?: any;
+    currentPlacement?: any;
+    departmentalSupervisor?: any;
+    industrialSupervisor?: any;
+    assignedStudents?: any[];
+  };
 }
 
 export interface Faculty {

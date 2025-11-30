@@ -123,6 +123,14 @@ const reviewLogbook = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
   const supervisorType = req.user.supervisorType; // From auth middleware
 
+  console.log("Review logbook - User:", {
+    userId: req.user._id,
+    email: req.user.email,
+    role: req.user.role,
+    supervisorProfile: req.user.supervisorProfile,
+    supervisorType: req.user.supervisorType,
+  });
+
   const logbook = await logbookService.reviewLogbook(
     req.params.id,
     req.body,
@@ -171,6 +179,27 @@ const getStudentLogbookSummary = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Industrial supervisor review logbook
+ * @route   POST /api/v1/logbooks/:id/industrial-review
+ * @access  Private (Industrial Supervisor)
+ */
+const industrialReviewLogbook = catchAsync(async (req, res) => {
+  const supervisorId = req.user.supervisorProfile;
+
+  const logbook = await logbookService.industrialReviewLogbook(
+    req.params.id,
+    supervisorId,
+    req.body
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Review submitted successfully",
+    data: logbook,
+  });
+});
+
 module.exports = {
   createLogbookEntry,
   getLogbooks,
@@ -180,4 +209,5 @@ module.exports = {
   reviewLogbook,
   getLogbooksPendingReview,
   getStudentLogbookSummary,
+  industrialReviewLogbook,
 };

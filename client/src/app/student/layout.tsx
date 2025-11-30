@@ -15,7 +15,6 @@ const navItems = [
   { title: "Placement", href: "/student/placement", icon: Briefcase },
   { title: "Logbook", href: "/student/logbook", icon: BookOpen },
   { title: "Supervisors", href: "/student/supervisors", icon: Users },
-  { title: "Reports", href: "/student/reports", icon: FileText },
   { title: "Settings", href: "/student/settings", icon: Settings },
 ];
 

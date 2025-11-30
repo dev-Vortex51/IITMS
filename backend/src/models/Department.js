@@ -76,6 +76,10 @@ const departmentSchema = new mongoose.Schema(
 // Composite unique index for department code within faculty
 departmentSchema.index({ code: 1, faculty: 1 }, { unique: true });
 
+// Additional indexes for query optimization
+departmentSchema.index({ isActive: 1, faculty: 1 });
+departmentSchema.index({ faculty: 1, createdAt: -1 });
+
 // Virtual populate for students
 departmentSchema.virtual("students", {
   ref: "Student",

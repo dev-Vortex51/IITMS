@@ -170,6 +170,17 @@ const logbookSchema = new mongoose.Schema(
 logbookSchema.index({ student: 1, weekNumber: 1 }, { unique: true });
 logbookSchema.index({ status: 1, submittedAt: -1 });
 
+// Additional indexes for supervisor queries
+logbookSchema.index({ student: 1, status: 1, submittedAt: -1 });
+logbookSchema.index({
+  "departmentalReview.status": 1,
+  "departmentalReview.reviewer": 1,
+});
+logbookSchema.index({
+  "industrialReview.status": 1,
+  "industrialReview.reviewer": 1,
+});
+
 // Virtual for average rating
 logbookSchema.virtual("averageRating").get(function () {
   if (this.reviews.length === 0) return 0;
@@ -203,28 +214,6 @@ logbookSchema.pre("save", function (next) {
     this.submittedAt = Date.now();
   }
 
-  next();
-});
-
-/**
- * Populate student before find operations
- */
-logbookSchema.pre(/^find/, function (next) {
-  this.populate({
-    path: "student",
-    select: "matricNumber user",
-    populate: {
-      path: "user",
-      select: "firstName lastName email",
-    },
-  }).populate({
-    path: "reviews.supervisor",
-    select: "user type",
-    populate: {
-      path: "user",
-      select: "firstName lastName",
-    },
-  });
   next();
 });
 
@@ -270,7 +259,16 @@ logbookSchema.statics.findPendingReview = function (
       query["industrialReview.status"] = LOGBOOK_STATUS.SUBMITTED;
     }
 
-    return this.find(query).sort({ submittedAt: -1 });
+    return this.find(query)
+      .populate({
+        path: "student",
+        select: "matricNumber user",
+        populate: {
+          path: "user",
+          select: "firstName lastName email",
+        },
+      })
+      .sort({ submittedAt: -1 });
   });
 };
 

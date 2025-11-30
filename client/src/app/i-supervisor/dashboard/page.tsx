@@ -2,44 +2,33 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
-import adminService from "@/services/admin.service";
+import { apiClient } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, BookOpen, ClipboardCheck, CheckCircle } from "lucide-react";
+import { Users, BookOpen, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function IndustrialSupervisorDashboardPage() {
   const { user } = useAuth();
 
-  // Fetch assigned students
-  const { data: studentsData } = useQuery({
-    queryKey: ["supervisor-students", user?._id],
+  const supervisorId = user?.profileData?._id;
+
+  // Fetch supervisor dashboard data
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ["supervisor-dashboard", supervisorId],
     queryFn: async () => {
-      const response = await adminService.supervisorService.getAssignedStudents(
-        user?._id || ""
+      const response = await apiClient.get(
+        `/supervisors/${supervisorId}/dashboard`
       );
-      return response.data;
+      return response.data.data;
     },
-    enabled: !!user,
+    enabled: !!supervisorId,
   });
 
-  const students = studentsData || [];
-
-  // Calculate statistics
-  const totalLogbooks = students.reduce((sum: number, student: any) => {
-    return sum + (student.logbookEntries?.length || 0);
-  }, 0);
-
-  const pendingLogbooks = students.reduce((sum: number, student: any) => {
-    const pending =
-      student.logbookEntries?.filter((l: any) => !l.supervisor_approval)
-        .length || 0;
-    return sum + pending;
-  }, 0);
-
-  const assessmentsCompleted = students.filter(
-    (s: any) => s.assessmentCompleted
-  ).length;
+  const students = dashboardData?.supervisor?.assignedStudents || [];
+  const stats = dashboardData?.statistics || {};
+  const pendingLogbooks = stats.pendingLogbooks || 0;
+  const totalLogbooks = stats.totalLogbooks || 0;
 
   return (
     <div className="space-y-6">
@@ -108,16 +97,16 @@ export default function IndustrialSupervisorDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Assessments Done
+              Logbook Reviews
             </CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {assessmentsCompleted}
+              {totalLogbooks - pendingLogbooks}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Out of {students.length}
+              Reviewed logbooks
             </p>
           </CardContent>
         </Card>
@@ -137,7 +126,7 @@ export default function IndustrialSupervisorDashboardPage() {
                   {pendingLogbooks > 1 ? "ies" : "y"} pending review
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Review and approve student logbooks
+                  Review student logbooks
                 </p>
               </div>
               <Button asChild size="sm">
@@ -154,25 +143,33 @@ export default function IndustrialSupervisorDashboardPage() {
           <CardTitle>My Students</CardTitle>
         </CardHeader>
         <CardContent>
-          {students.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading students...
+            </div>
+          ) : students.length > 0 ? (
             <div className="space-y-3">
               {students.map((student: any) => (
                 <div
                   key={student._id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
                 >
                   <div>
-                    <p className="font-medium">{student.name}</p>
+                    <p className="font-medium">
+                      {student.user?.firstName} {student.user?.lastName}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {student.matricNumber}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium">
-                      {student.department || "Department"}
+                      {typeof student.department === "object"
+                        ? student.department.name
+                        : "Department"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {student.logbookEntries?.length || 0} logbook entries
+                      {student.currentPlacement?.companyName || "No placement"}
                     </p>
                   </div>
                 </div>

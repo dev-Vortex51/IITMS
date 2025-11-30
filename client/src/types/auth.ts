@@ -5,6 +5,18 @@ export type UserRole =
   | "industrial_supervisor"
   | "student";
 
+export interface ProfileData {
+  _id: string;
+  user?: string;
+  department?: any;
+  // Student-specific fields
+  currentPlacement?: any;
+  departmentalSupervisor?: any;
+  industrialSupervisor?: any;
+  // Supervisor-specific fields
+  assignedStudents?: any[];
+}
+
 export interface User {
   _id: string;
   email: string;
@@ -18,6 +30,7 @@ export interface User {
   department?: string;
   createdAt?: string;
   updatedAt?: string;
+  profileData?: ProfileData;
 }
 
 export interface LoginCredentials {

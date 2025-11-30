@@ -29,11 +29,17 @@ const connectDB = async (retries = 5) => {
     });
 
     mongoose.connection.on("disconnected", () => {
-      logger.warn("MongoDB disconnected. Attempting to reconnect...");
+      logger.warn("MongoDB disconnected");
     });
 
     mongoose.connection.on("reconnected", () => {
-      logger.info("MongoDB reconnected");
+      logger.info("MongoDB reconnected successfully");
+    });
+
+    mongoose.connection.on("reconnectFailed", () => {
+      logger.error(
+        "MongoDB reconnection failed. Please check your database connection."
+      );
     });
 
     return conn;

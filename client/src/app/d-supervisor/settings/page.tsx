@@ -96,7 +96,11 @@ export default function DSupervisorSettingsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">{user?.name || "N/A"}</p>
+              <p className="font-medium">
+                {user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground flex items-center gap-1">

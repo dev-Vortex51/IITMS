@@ -130,6 +130,9 @@ const studentSchema = new mongoose.Schema(
 // Indexes for performance
 studentSchema.index({ department: 1, session: 1 });
 studentSchema.index({ placementApproved: 1, isActive: 1 });
+studentSchema.index({ user: 1 }); // For faster user lookups
+studentSchema.index({ currentPlacement: 1 }); // For placement queries
+studentSchema.index({ departmentalSupervisor: 1, isActive: 1 }); // For supervisor queries
 
 // Virtual populate for logbooks
 studentSchema.virtual("logbooks", {
@@ -157,20 +160,6 @@ studentSchema.virtual("placements", {
  */
 studentSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
-  next();
-});
-
-/**
- * Populate user and department before find operations
- */
-studentSchema.pre(/^find/, function (next) {
-  this.populate({
-    path: "user",
-    select: "firstName lastName email phone isActive",
-  }).populate({
-    path: "department",
-    select: "name code faculty",
-  });
   next();
 });
 
@@ -216,14 +205,11 @@ studentSchema.methods.assignSupervisor = async function (type, supervisorId) {
 
 /**
  * Instance method to check if student can submit logbook
- * @returns {boolean} True if student can submit logbook
+ * @returns {boolean} Can submit logbook
  */
 studentSchema.methods.canSubmitLogbook = function () {
   return (
-    this.placementApproved &&
-    this.trainingStartDate &&
-    new Date() >= this.trainingStartDate &&
-    !this.trainingCompleted
+    this.placementApproved && this.trainingStartDate && !this.trainingCompleted
   );
 };
 

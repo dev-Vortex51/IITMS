@@ -20,7 +20,7 @@ router.use(authenticate);
  */
 router.post(
   "/",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   assessmentController.createAssessment
 );
 
@@ -38,7 +38,7 @@ router.get("/", assessmentController.getAssessments);
  */
 router.get(
   "/pending",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   assessmentController.getSupervisorPendingAssessments
 );
 
@@ -56,7 +56,7 @@ router.get("/:id", assessmentController.getAssessmentById);
  */
 router.put(
   "/:id",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   assessmentController.updateAssessment
 );
 
@@ -67,7 +67,7 @@ router.put(
  */
 router.post(
   "/:id/submit",
-  requireRole([ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR]),
+  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   assessmentController.submitAssessment
 );
 
@@ -78,7 +78,7 @@ router.post(
  */
 router.post(
   "/:id/verify",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   assessmentController.verifyAssessment
 );
 

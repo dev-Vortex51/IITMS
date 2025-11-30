@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { apiClient } from "@/lib/api-client";
+import { LoadingCard } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -18,7 +20,7 @@ import {
   Eye,
   Briefcase,
   Building2,
-  ClipboardCheck,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -27,37 +29,50 @@ export default function ISupervisorStudentsPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch assigned students (students where this user is the industrial supervisor)
-  const { data: studentsData, isLoading } = useQuery({
-    queryKey: ["assigned-students", user?._id],
+  const supervisorId = user?.profileData?._id;
+
+  // Fetch supervisor dashboard data
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ["supervisor-dashboard", supervisorId],
     queryFn: async () => {
-      // This would fetch students assigned to this industrial supervisor
-      // For now, we'll use a mock response
-      return { data: [] };
+      const response = await apiClient.get(
+        `/supervisors/${supervisorId}/dashboard`
+      );
+      return response.data.data;
     },
-    enabled: !!user?._id,
+    enabled: !!supervisorId,
   });
 
-  const students = studentsData?.data || [];
+  const students = dashboardData?.supervisor?.assignedStudents || [];
 
   // Filter students based on search query
   const filteredStudents = students.filter((student: any) => {
     const searchLower = searchQuery.toLowerCase();
+    const fullName =
+      `${student.user?.firstName} ${student.user?.lastName}`.toLowerCase();
     return (
-      student.name?.toLowerCase().includes(searchLower) ||
+      fullName.includes(searchLower) ||
       student.matricNumber?.toLowerCase().includes(searchLower) ||
-      student.email?.toLowerCase().includes(searchLower)
+      student.user?.email?.toLowerCase().includes(searchLower)
     );
   });
 
   const getPlacementStatus = (student: any) => {
-    if (!student.placement) {
+    if (!student.currentPlacement) {
       return { text: "No Placement", variant: "secondary" as const };
     }
-    const status = student.placement.status || "pending";
+    const status = student.currentPlacement.status || "pending";
     const variants = {
-      approved: { text: "Approved", variant: "success" as const },
-      pending: { text: "Pending", variant: "warning" as const },
+      approved: {
+        text: "Approved",
+        variant: "default" as const,
+        className: "bg-green-500 hover:bg-green-600",
+      },
+      pending: {
+        text: "Pending",
+        variant: "secondary" as const,
+        className: "bg-yellow-500 hover:bg-yellow-600",
+      },
       rejected: { text: "Rejected", variant: "destructive" as const },
     };
     return (
@@ -101,7 +116,7 @@ export default function ISupervisorStudentsPage() {
       </Card>
 
       {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -127,8 +142,9 @@ export default function ISupervisorStudentsPage() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               {
-                students.filter((s: any) => s.placement?.status === "approved")
-                  .length
+                students.filter(
+                  (s: any) => s.currentPlacement?.status === "approved"
+                ).length
               }
             </div>
           </CardContent>
@@ -137,27 +153,15 @@ export default function ISupervisorStudentsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Assessments
+              Pending Logbooks
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-yellow-600" />
-              <span className="text-2xl font-bold text-yellow-600">0</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Completed Assessments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-green-600" />
-              <span className="text-2xl font-bold text-green-600">0</span>
+              <BookOpen className="h-5 w-5 text-yellow-600" />
+              <span className="text-2xl font-bold text-yellow-600">
+                {dashboardData?.statistics?.pendingLogbooks || 0}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -165,7 +169,7 @@ export default function ISupervisorStudentsPage() {
 
       {/* Students List */}
       {isLoading ? (
-        <div>Loading students...</div>
+        <LoadingCard />
       ) : filteredStudents.length > 0 ? (
         <Card>
           <CardHeader>
@@ -175,9 +179,6 @@ export default function ISupervisorStudentsPage() {
             <div className="space-y-3">
               {filteredStudents.map((student: any) => {
                 const placementStatus = getPlacementStatus(student);
-                const hasAssessment =
-                  student.assessment !== null &&
-                  student.assessment !== undefined;
 
                 return (
                   <div
@@ -189,17 +190,19 @@ export default function ISupervisorStudentsPage() {
                         <Users className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{student.name || "N/A"}</p>
+                        <p className="font-medium">
+                          {student.user?.firstName} {student.user?.lastName}
+                        </p>
                         <div className="flex items-center gap-3 mt-1">
                           <p className="text-sm text-muted-foreground">
                             {student.matricNumber || "N/A"}
                           </p>
-                          {student.placement?.companyName && (
+                          {student.currentPlacement?.companyName && (
                             <>
                               <span className="text-muted-foreground">•</span>
                               <p className="text-sm text-muted-foreground flex items-center gap-1">
                                 <Building2 className="h-3 w-3" />
-                                {student.placement.companyName}
+                                {student.currentPlacement.companyName}
                               </p>
                             </>
                           )}
@@ -208,17 +211,12 @@ export default function ISupervisorStudentsPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        {hasAssessment && (
-                          <Badge variant="success" className="gap-1">
-                            <ClipboardCheck className="h-3 w-3" />
-                            Assessed
-                          </Badge>
-                        )}
-                        <Badge variant={placementStatus.variant}>
-                          {placementStatus.text}
-                        </Badge>
-                      </div>
+                      <Badge
+                        variant={placementStatus.variant}
+                        className={placementStatus.className}
+                      >
+                        {placementStatus.text}
+                      </Badge>
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/i-supervisor/students/${student._id}`}>
                           <Eye className="h-4 w-4 mr-2" />

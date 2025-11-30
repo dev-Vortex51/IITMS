@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Loading } from "@/components/ui/loading";
 import { studentService } from "@/services/student.service";
 import {
   Card,
@@ -82,7 +83,9 @@ export default function StudentDetailsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-primary">
-            {student.name || "Student"}
+            {student.user?.firstName && student.user?.lastName
+              ? `${student.user.firstName} ${student.user.lastName}`
+              : "Student"}
           </h1>
           <p className="text-muted-foreground mt-1">
             {student.matricNumber || "N/A"}
@@ -123,7 +126,11 @@ export default function StudentDetailsPage({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Full Name</Label>
-              <p className="font-medium">{student.name || "N/A"}</p>
+              <p className="font-medium">
+                {student.user?.firstName && student.user?.lastName
+                  ? `${student.user.firstName} ${student.user.lastName}`
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground">Matric Number</Label>

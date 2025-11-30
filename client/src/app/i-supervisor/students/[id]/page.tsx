@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { studentService } from "@/services/student.service";
-import { Assessment } from "@/types/models";
+import { Loading } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Users,
   ArrowLeft,
@@ -39,29 +38,11 @@ export default function StudentDetailsPage({
     enabled: !!params.id,
   });
 
-  // Fetch student placement
-  const { data: placementData } = useQuery({
-    queryKey: ["placement", params.id],
-    queryFn: () => studentService.getStudentPlacement(params.id),
-    enabled: !!params.id,
-  });
-
-  // Fetch student assessments
-  const { data: assessmentsData } = useQuery({
-    queryKey: ["assessments", params.id],
-    queryFn: async () => {
-      // This would fetch assessments for this student
-      return { data: [] };
-    },
-    enabled: !!params.id,
-  });
-
   const student = studentData;
-  const placement = placementData;
-  const assessments = assessmentsData?.data || [];
+  const placement = student?.currentPlacement;
 
   if (isLoading) {
-    return <div>Loading student details...</div>;
+    return <Loading />;
   }
 
   if (!student) {
@@ -85,9 +66,6 @@ export default function StudentDetailsPage({
     return <Badge variant="secondary">Unknown</Badge>;
   };
 
-  const hasAssessment = assessments.length > 0;
-  const latestAssessment = assessments[0] as any;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -99,7 +77,11 @@ export default function StudentDetailsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-primary">
-            {student.name || "Student"}
+            {typeof student.user === "object" &&
+            student.user?.firstName &&
+            student.user?.lastName
+              ? `${student.user.firstName} ${student.user.lastName}`
+              : "Student"}
           </h1>
           <p className="text-muted-foreground mt-1">
             {student.matricNumber || "N/A"}
@@ -124,7 +106,13 @@ export default function StudentDetailsPage({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Full Name</Label>
-              <p className="font-medium">{student.name || "N/A"}</p>
+              <p className="font-medium">
+                {typeof student.user === "object" &&
+                student.user?.firstName &&
+                student.user?.lastName
+                  ? `${student.user.firstName} ${student.user.lastName}`
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground">Matric Number</Label>
@@ -247,90 +235,6 @@ export default function StudentDetailsPage({
         </CardContent>
       </Card>
 
-      {/* Assessment Summary */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <ClipboardCheck className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Assessment Summary</CardTitle>
-                <CardDescription>
-                  Student performance evaluation
-                </CardDescription>
-              </div>
-            </div>
-            {hasAssessment && <Badge variant="success">Completed</Badge>}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {hasAssessment ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="p-4 border rounded-lg bg-primary/5">
-                  <Label className="text-muted-foreground text-xs">
-                    Overall Score
-                  </Label>
-                  <p className="text-2xl font-bold text-primary mt-1">
-                    {latestAssessment.totalScore || 0}%
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-muted-foreground text-xs">
-                    Technical Skills
-                  </Label>
-                  <p className="text-xl font-semibold mt-1">
-                    {latestAssessment.technicalSkills || "--"}/100
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-muted-foreground text-xs">
-                    Work Attitude
-                  </Label>
-                  <p className="text-xl font-semibold mt-1">
-                    {latestAssessment.workAttitude || "--"}/100
-                  </p>
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <Label className="text-muted-foreground">Assessment Date</Label>
-                <p className="font-medium">
-                  {latestAssessment.createdAt
-                    ? new Date(latestAssessment.createdAt).toLocaleDateString()
-                    : "N/A"}
-                </p>
-              </div>
-              {latestAssessment.comments && (
-                <div>
-                  <Label className="text-muted-foreground">Comments</Label>
-                  <p className="font-medium mt-1">
-                    {latestAssessment.comments}
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <ClipboardCheck className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-muted-foreground">
-                  No assessment submitted yet
-                </p>
-                <Button className="mt-4" disabled>
-                  <ClipboardCheck className="h-4 w-4 mr-2" />
-                  Create Assessment
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -338,12 +242,14 @@ export default function StudentDetailsPage({
         </CardHeader>
         <CardContent>
           <div className="flex gap-3">
-            <Button variant="outline" disabled>
-              <ClipboardCheck className="h-4 w-4 mr-2" />
-              {hasAssessment ? "Update Assessment" : "Create Assessment"}
+            <Button asChild>
+              <Link href="/i-supervisor/logbooks">
+                <ClipboardCheck className="h-4 w-4 mr-2" />
+                Review Logbooks
+              </Link>
             </Button>
-            <Button variant="outline" disabled>
-              View Performance History
+            <Button variant="outline" asChild>
+              <Link href="/i-supervisor/students">View All Students</Link>
             </Button>
           </div>
         </CardContent>

@@ -75,9 +75,7 @@ const authenticate = async (req, res, next) => {
         user.studentProfile = studentProfile._id;
       }
     } else if (
-      [ROLES.DEPARTMENTAL_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(
-        user.role
-      )
+      [ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(user.role)
     ) {
       const supervisorProfile = await Supervisor.findOne({ user: user._id });
       if (supervisorProfile) {

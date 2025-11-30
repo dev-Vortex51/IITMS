@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Loading } from "@/components/ui/loading";
 import adminService from "@/services/admin.service";
 import {
   Card,

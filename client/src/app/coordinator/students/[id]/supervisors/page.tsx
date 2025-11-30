@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { Loading } from "@/components/ui/loading";
+
 export default function StudentSupervisorsPage({
   params,
 }: {
@@ -149,10 +151,7 @@ export default function StudentSupervisorsPage({
     typeof student?.departmentalSupervisor === "object"
       ? student.departmentalSupervisor
       : null;
-  const currentIndustrialSupervisor =
-    typeof placement?.industrialSupervisor === "object"
-      ? placement.industrialSupervisor
-      : null;
+  const currentIndustrialSupervisor = student?.industrialSupervisor;
 
   return (
     <div className="space-y-6">
@@ -188,10 +187,23 @@ export default function StudentSupervisorsPage({
             {currentDepartmentalSupervisor ? (
               <div>
                 <p className="font-medium">
-                  {currentDepartmentalSupervisor.name}
+                  {typeof currentDepartmentalSupervisor === "object"
+                    ? currentDepartmentalSupervisor.name ||
+                      (typeof currentDepartmentalSupervisor.user === "object" &&
+                      currentDepartmentalSupervisor.user?.firstName &&
+                      currentDepartmentalSupervisor.user?.lastName
+                        ? `${currentDepartmentalSupervisor.user.firstName} ${currentDepartmentalSupervisor.user.lastName}`
+                        : "N/A")
+                    : "N/A"}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDepartmentalSupervisor.email}
+                  {typeof currentDepartmentalSupervisor === "object"
+                    ? currentDepartmentalSupervisor.email ||
+                      (typeof currentDepartmentalSupervisor.user === "object"
+                        ? currentDepartmentalSupervisor.user?.email
+                        : null) ||
+                      "N/A"
+                    : "N/A"}
                 </p>
                 <Badge variant="success" className="mt-2">
                   Assigned
@@ -214,10 +226,23 @@ export default function StudentSupervisorsPage({
             {currentIndustrialSupervisor ? (
               <div>
                 <p className="font-medium">
-                  {currentIndustrialSupervisor.name}
+                  {typeof currentIndustrialSupervisor === "object"
+                    ? currentIndustrialSupervisor.name ||
+                      (typeof currentIndustrialSupervisor.user === "object" &&
+                      currentIndustrialSupervisor.user?.firstName &&
+                      currentIndustrialSupervisor.user?.lastName
+                        ? `${currentIndustrialSupervisor.user.firstName} ${currentIndustrialSupervisor.user.lastName}`
+                        : "N/A")
+                    : "N/A"}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentIndustrialSupervisor.email}
+                  {typeof currentIndustrialSupervisor === "object"
+                    ? currentIndustrialSupervisor.email ||
+                      (typeof currentIndustrialSupervisor.user === "object"
+                        ? currentIndustrialSupervisor.user?.email
+                        : null) ||
+                      "N/A"
+                    : "N/A"}
                 </p>
                 <Badge variant="success" className="mt-2">
                   Assigned

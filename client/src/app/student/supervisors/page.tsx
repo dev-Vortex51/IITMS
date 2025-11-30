@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Loading } from "@/components/ui/loading";
 import { studentService } from "@/services/student.service";
 import {
   Card,
@@ -24,20 +25,23 @@ const isSupervisorObject = (
 export default function StudentSupervisorsPage() {
   const { user } = useAuth();
 
-  // Fetch student data
-  const { data: students } = useQuery({
-    queryKey: ["students", "me"],
-    queryFn: () => studentService.getAllStudents(),
-    enabled: !!user,
+  const studentId = user?.profileData?._id;
+
+  // Fetch student data with supervisors
+  const { data: studentData, isLoading } = useQuery({
+    queryKey: ["student", studentId],
+    queryFn: () => studentService.getStudentById(studentId!),
+    enabled: !!studentId,
   });
 
-  const student = students?.data?.[0];
+  const student = studentData;
 
-  // Fetch placement with supervisors
-  const { data: placement, isLoading } = useQuery({
-    queryKey: ["placement", student?._id],
-    queryFn: () => studentService.getStudentPlacement(student._id),
-    enabled: !!student,
+  // Fetch placement
+  const { data: placement } = useQuery({
+    queryKey: ["placement", studentId],
+    queryFn: () => studentService.getStudentPlacement(studentId!),
+    enabled: !!studentId,
+    retry: false,
   });
 
   if (!placement) {
@@ -75,8 +79,12 @@ export default function StudentSupervisorsPage() {
     return <div>Loading supervisors...</div>;
   }
 
+  if (!student) {
+    return <div>Student data not found</div>;
+  }
+
   const hasSupervisors =
-    placement.departmentalSupervisor || placement.industrialSupervisor;
+    student.departmentalSupervisor || student.industrialSupervisor;
 
   return (
     <div className="space-y-6">
@@ -106,8 +114,8 @@ export default function StudentSupervisorsPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Departmental Supervisor */}
-          {placement.departmentalSupervisor &&
-            isSupervisorObject(placement.departmentalSupervisor) && (
+          {student.departmentalSupervisor &&
+            isSupervisorObject(student.departmentalSupervisor) && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -129,46 +137,46 @@ export default function StudentSupervisorsPage() {
                       <div>
                         <Label className="text-muted-foreground">Name</Label>
                         <p className="font-medium">
-                          {placement.departmentalSupervisor.name}
+                          {student.departmentalSupervisor.name}
                         </p>
                       </div>
                     </div>
 
-                    {placement.departmentalSupervisor.email && (
+                    {student.departmentalSupervisor.email && (
                       <div className="flex items-start gap-3">
                         <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <Label className="text-muted-foreground">Email</Label>
                           <p className="font-medium">
                             <a
-                              href={`mailto:${placement.departmentalSupervisor.email}`}
+                              href={`mailto:${student.departmentalSupervisor.email}`}
                               className="text-primary hover:underline"
                             >
-                              {placement.departmentalSupervisor.email}
+                              {student.departmentalSupervisor.email}
                             </a>
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.departmentalSupervisor.phone && (
+                    {student.departmentalSupervisor.phone && (
                       <div className="flex items-start gap-3">
                         <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <Label className="text-muted-foreground">Phone</Label>
                           <p className="font-medium">
                             <a
-                              href={`tel:${placement.departmentalSupervisor.phone}`}
+                              href={`tel:${student.departmentalSupervisor.phone}`}
                               className="text-primary hover:underline"
                             >
-                              {placement.departmentalSupervisor.phone}
+                              {student.departmentalSupervisor.phone}
                             </a>
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.departmentalSupervisor.department && (
+                    {student.departmentalSupervisor.department && (
                       <div className="flex items-start gap-3">
                         <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
@@ -176,22 +184,22 @@ export default function StudentSupervisorsPage() {
                             Department
                           </Label>
                           <p className="font-medium">
-                            {typeof placement.departmentalSupervisor
+                            {typeof student.departmentalSupervisor
                               .department === "object"
-                              ? placement.departmentalSupervisor.department.name
-                              : placement.departmentalSupervisor.department}
+                              ? student.departmentalSupervisor.department.name
+                              : student.departmentalSupervisor.department}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.departmentalSupervisor.designation && (
+                    {student.departmentalSupervisor.designation && (
                       <div className="p-3 rounded-lg bg-muted">
                         <Label className="text-muted-foreground">
                           Designation
                         </Label>
                         <p className="mt-1 font-medium">
-                          {placement.departmentalSupervisor.designation}
+                          {student.departmentalSupervisor.designation}
                         </p>
                       </div>
                     )}
@@ -201,8 +209,8 @@ export default function StudentSupervisorsPage() {
             )}
 
           {/* Industrial Supervisor */}
-          {placement.industrialSupervisor &&
-            isSupervisorObject(placement.industrialSupervisor) && (
+          {student.industrialSupervisor &&
+            isSupervisorObject(student.industrialSupervisor) && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -224,46 +232,46 @@ export default function StudentSupervisorsPage() {
                       <div>
                         <Label className="text-muted-foreground">Name</Label>
                         <p className="font-medium">
-                          {placement.industrialSupervisor.name}
+                          {student.industrialSupervisor.name}
                         </p>
                       </div>
                     </div>
 
-                    {placement.industrialSupervisor.email && (
+                    {student.industrialSupervisor.email && (
                       <div className="flex items-start gap-3">
                         <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <Label className="text-muted-foreground">Email</Label>
                           <p className="font-medium">
                             <a
-                              href={`mailto:${placement.industrialSupervisor.email}`}
+                              href={`mailto:${student.industrialSupervisor.email}`}
                               className="text-primary hover:underline"
                             >
-                              {placement.industrialSupervisor.email}
+                              {student.industrialSupervisor.email}
                             </a>
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.industrialSupervisor.phone && (
+                    {student.industrialSupervisor.phone && (
                       <div className="flex items-start gap-3">
                         <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <Label className="text-muted-foreground">Phone</Label>
                           <p className="font-medium">
                             <a
-                              href={`tel:${placement.industrialSupervisor.phone}`}
+                              href={`tel:${student.industrialSupervisor.phone}`}
                               className="text-primary hover:underline"
                             >
-                              {placement.industrialSupervisor.phone}
+                              {student.industrialSupervisor.phone}
                             </a>
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.industrialSupervisor.company && (
+                    {student.industrialSupervisor.company && (
                       <div className="flex items-start gap-3">
                         <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
@@ -271,19 +279,19 @@ export default function StudentSupervisorsPage() {
                             Company
                           </Label>
                           <p className="font-medium">
-                            {placement.industrialSupervisor.company}
+                            {student.industrialSupervisor.company}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {placement.industrialSupervisor.designation && (
+                    {student.industrialSupervisor.designation && (
                       <div className="p-3 rounded-lg bg-muted">
                         <Label className="text-muted-foreground">
                           Designation
                         </Label>
                         <p className="mt-1 font-medium">
-                          {placement.industrialSupervisor.designation}
+                          {student.industrialSupervisor.designation}
                         </p>
                       </div>
                     )}

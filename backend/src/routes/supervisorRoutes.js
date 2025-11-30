@@ -52,7 +52,7 @@ router.put(
   requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
-    ROLES.DEPARTMENTAL_SUPERVISOR,
+    ROLES.DEPT_SUPERVISOR,
     ROLES.INDUSTRIAL_SUPERVISOR
   ),
   supervisorController.updateSupervisor
@@ -68,7 +68,7 @@ router.get(
   requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
-    ROLES.DEPARTMENTAL_SUPERVISOR,
+    ROLES.DEPT_SUPERVISOR,
     ROLES.INDUSTRIAL_SUPERVISOR
   ),
   supervisorController.getSupervisorDashboard

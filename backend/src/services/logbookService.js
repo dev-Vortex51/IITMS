@@ -24,6 +24,13 @@ const createLogbookEntry = async (studentId, logbookData, files = []) => {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
   }
 
+  logger.info(`Logbook validation for student ${studentId}:`, {
+    placementApproved: student.placementApproved,
+    trainingStartDate: student.trainingStartDate,
+    trainingEndDate: student.trainingEndDate,
+    canSubmit: student.canSubmitLogbook(),
+  });
+
   if (!student.canSubmitLogbook()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
@@ -84,6 +91,14 @@ const getLogbooks = async (filters = {}, pagination = {}) => {
   }
 
   const logbooks = await Logbook.find(query)
+    .populate({
+      path: "student",
+      select: "matricNumber user",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    })
     .skip(skip)
     .limit(limit)
     .sort({ weekNumber: -1, createdAt: -1 });
@@ -100,7 +115,20 @@ const getLogbooks = async (filters = {}, pagination = {}) => {
  * Get logbook by ID
  */
 const getLogbookById = async (logbookId) => {
-  const logbook = await Logbook.findById(logbookId);
+  const logbook = await Logbook.findById(logbookId).populate({
+    path: "student",
+    select: "matricNumber user department",
+    populate: [
+      {
+        path: "user",
+        select: "firstName lastName email",
+      },
+      {
+        path: "department",
+        select: "name code",
+      },
+    ],
+  });
 
   if (!logbook) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
@@ -147,7 +175,7 @@ const updateLogbookEntry = async (logbookId, updateData, userId) => {
  * Submit logbook entry
  */
 const submitLogbookEntry = async (logbookId, userId) => {
-  const logbook = await Logbook.findById(logbookId);
+  const logbook = await Logbook.findById(logbookId).populate("student");
 
   if (!logbook) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
@@ -158,8 +186,10 @@ const submitLogbookEntry = async (logbookId, userId) => {
   }
 
   // Verify ownership
-  const student = await Student.findById(logbook.student);
-  if (student.user.toString() !== userId.toString()) {
+  const student = logbook.student;
+  const studentUserId = student.user._id || student.user;
+
+  if (studentUserId.toString() !== userId.toString()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
       "You can only submit your own logbook"
@@ -231,7 +261,11 @@ const reviewLogbook = async (
   const Supervisor = require("../models").Supervisor;
   const supervisor = await Supervisor.findById(supervisorId);
 
-  if (!supervisor.assignedStudents.includes(student._id)) {
+  if (!supervisor) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+  }
+
+  if (!supervisor.assignedStudents.includes(student._id.toString())) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
       "You are not assigned to this student"
@@ -313,6 +347,59 @@ const getStudentLogbookSummary = async (studentId) => {
   };
 };
 
+/**
+ * Industrial supervisor review logbook
+ */
+const industrialReviewLogbook = async (logbookId, supervisorId, reviewData) => {
+  const logbook = await Logbook.findById(logbookId);
+
+  if (!logbook) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+  }
+
+  // Verify supervisor is assigned to this student
+  const student = await Student.findById(logbook.student);
+  const Supervisor = require("../models").Supervisor;
+  const supervisor = await Supervisor.findById(supervisorId);
+
+  if (!supervisor) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+  }
+
+  if (!supervisor.assignedStudents.includes(student._id.toString())) {
+    throw new ApiError(
+      HTTP_STATUS.FORBIDDEN,
+      "You are not assigned to this student"
+    );
+  }
+
+  // Update industrial review
+  logbook.industrialReview = {
+    status: "approved", // Industrial supervisor only comments, doesn't approve/reject
+    comment: reviewData.comment,
+    rating: reviewData.rating,
+    reviewedAt: new Date(),
+  };
+
+  await logbook.save();
+
+  // Notify student
+  await notificationService.createNotification({
+    recipient: student.user,
+    type: NOTIFICATION_TYPES.LOGBOOK_COMMENT,
+    title: "Logbook Reviewed by Industrial Supervisor",
+    message: `Your Week ${logbook.weekNumber} logbook has been reviewed by your industrial supervisor`,
+    priority: "medium",
+    relatedModel: "Logbook",
+    relatedId: logbook._id,
+    createdBy: supervisor.user,
+  });
+
+  logger.info(`Logbook reviewed by industrial supervisor: ${logbookId}`);
+
+  return logbook;
+};
+
 module.exports = {
   createLogbookEntry,
   getLogbooks,
@@ -322,4 +409,5 @@ module.exports = {
   reviewLogbook,
   getLogbooksPendingReview,
   getStudentLogbookSummary,
+  industrialReviewLogbook,
 };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Loading } from "@/components/ui/loading";
 import { authService } from "@/services/auth.service";
 import {
   Card,
@@ -17,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { User, Lock, Mail } from "lucide-react";
 
 export default function StudentSettingsPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -25,6 +26,12 @@ export default function StudentSettingsPage() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  console.log("Settings page - user:", user);
+
+  if (authLoading) {
+    return <div>Loading...</div>;
+  }
 
   const changePasswordMutation = useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
@@ -92,7 +99,11 @@ export default function StudentSettingsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">{user?.name || "N/A"}</p>
+              <p className="font-medium">
+                {user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.name || "N/A"}
+              </p>
             </div>
             <div>
               <Label className="text-muted-foreground">Email</Label>

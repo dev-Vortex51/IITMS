@@ -35,8 +35,15 @@ export const studentService = {
 
   // Student Placements
   getStudentPlacement: async (studentId: string): Promise<Placement | null> => {
-    const response = await apiClient.get(`/students/${studentId}/placement`);
-    return response.data.data;
+    try {
+      const response = await apiClient.get(`/students/${studentId}/placement`);
+      return response.data.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   assignSupervisors: async (

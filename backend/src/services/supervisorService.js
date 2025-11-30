@@ -62,7 +62,9 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
   );
 
   if (filters.available !== undefined) {
-    const supervisors = await Supervisor.find(query);
+    const supervisors = await Supervisor.find(query)
+      .populate("user", "firstName lastName email phone")
+      .populate("department", "name code");
     const availableSupervisors = supervisors.filter(
       (s) => s.isAvailable === filters.available
     );
@@ -249,9 +251,19 @@ const unassignStudentFromSupervisor = async (supervisorId, studentId) => {
  * Get supervisor dashboard data
  */
 const getSupervisorDashboard = async (supervisorId) => {
-  const supervisor = await Supervisor.findById(supervisorId).populate(
-    "assignedStudents"
-  );
+  const supervisor = await Supervisor.findById(supervisorId).populate({
+    path: "assignedStudents",
+    populate: [
+      {
+        path: "user",
+        select: "firstName lastName email",
+      },
+      {
+        path: "currentPlacement",
+        select: "companyName status",
+      },
+    ],
+  });
 
   if (!supervisor) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");

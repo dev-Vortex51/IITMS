@@ -87,6 +87,21 @@ const getAssessments = async (filters = {}, pagination = {}) => {
   }
 
   const assessments = await Assessment.find(query)
+    .populate({
+      path: "student",
+      select: "matricNumber",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    })
+    .populate({
+      path: "supervisor",
+      populate: {
+        path: "user",
+        select: "firstName lastName",
+      },
+    })
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });

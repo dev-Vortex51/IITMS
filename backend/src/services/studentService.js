@@ -99,6 +99,18 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
   console.log("Pagination:", { page, limit, skip });
 
   const students = await Student.find(query)
+    .populate({
+      path: "user",
+      select: "firstName lastName email phone isActive",
+    })
+    .populate({
+      path: "department",
+      select: "name code faculty",
+    })
+    .populate({
+      path: "currentPlacement",
+      select: "companyName companyAddress status",
+    })
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
@@ -118,9 +130,45 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
  */
 const getStudentById = async (studentId) => {
   const student = await Student.findById(studentId)
-    .populate("currentPlacement")
-    .populate("departmentalSupervisor")
-    .populate("industrialSupervisor");
+    .populate({
+      path: "user",
+      select: "firstName lastName email phone isActive",
+    })
+    .populate({
+      path: "department",
+      select: "name code faculty",
+    })
+    .populate({
+      path: "currentPlacement",
+      select:
+        "companyName companyAddress companySector status startDate endDate",
+    })
+    .populate({
+      path: "departmentalSupervisor",
+      populate: [
+        {
+          path: "user",
+          select: "firstName lastName email phone",
+        },
+        {
+          path: "department",
+          select: "name code",
+        },
+      ],
+    })
+    .populate({
+      path: "industrialSupervisor",
+      populate: [
+        {
+          path: "user",
+          select: "firstName lastName email phone",
+        },
+        {
+          path: "department",
+          select: "name code",
+        },
+      ],
+    });
 
   if (!student) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
@@ -171,8 +219,20 @@ const updateStudent = async (studentId, updateData) => {
 const getStudentDashboard = async (studentId) => {
   const student = await Student.findById(studentId)
     .populate("currentPlacement")
-    .populate("departmentalSupervisor")
-    .populate("industrialSupervisor");
+    .populate({
+      path: "departmentalSupervisor",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    })
+    .populate({
+      path: "industrialSupervisor",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    });
 
   if (!student) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");

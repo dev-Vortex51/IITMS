@@ -132,6 +132,21 @@ supervisorSchema.virtual("currentStudentCount").get(function () {
   return this.assignedStudents ? this.assignedStudents.length : 0;
 });
 
+// Virtual for supervisor name (from user)
+supervisorSchema.virtual("name").get(function () {
+  return this.user ? `${this.user.firstName} ${this.user.lastName}` : "";
+});
+
+// Virtual for email (from user)
+supervisorSchema.virtual("email").get(function () {
+  return this.user ? this.user.email : "";
+});
+
+// Virtual for phone (from user)
+supervisorSchema.virtual("phone").get(function () {
+  return this.user ? this.user.phone : "";
+});
+
 // Virtual to check if supervisor can take more students
 supervisorSchema.virtual("canTakeMoreStudents").get(function () {
   const studentCount = this.assignedStudents ? this.assignedStudents.length : 0;
@@ -145,17 +160,6 @@ supervisorSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   // Update availability based on student count
   this.isAvailable = this.assignedStudents.length < this.maxStudents;
-  next();
-});
-
-/**
- * Populate user before find operations
- */
-supervisorSchema.pre(/^find/, function (next) {
-  this.populate({
-    path: "user",
-    select: "firstName lastName email phone",
-  });
   next();
 });
 

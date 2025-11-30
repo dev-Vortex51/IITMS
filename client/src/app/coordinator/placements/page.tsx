@@ -212,7 +212,7 @@ export default function CoordinatorPlacementsPage() {
 
       {/* Placements List */}
       {isLoading ? (
-        <div>Loading placements...</div>
+        <LoadingCard />
       ) : filteredPlacements.length > 0 ? (
         <Card>
           <CardHeader>

@@ -125,7 +125,21 @@ const getPlacements = async (filters = {}, pagination = {}) => {
  * Get placement by ID
  */
 const getPlacementById = async (placementId) => {
-  const placement = await Placement.findById(placementId);
+  const placement = await Placement.findById(placementId)
+    .populate({
+      path: "industrialSupervisor",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    })
+    .populate({
+      path: "student",
+      populate: {
+        path: "user",
+        select: "firstName lastName email",
+      },
+    });
 
   if (!placement) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Placement not found");

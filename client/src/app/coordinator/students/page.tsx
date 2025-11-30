@@ -333,7 +333,7 @@ export default function CoordinatorStudentsPage() {
 
       {/* Students List */}
       {isLoading ? (
-        <div>Loading students...</div>
+        <LoadingCard />
       ) : filteredStudents.length > 0 ? (
         <Card>
           <CardHeader>

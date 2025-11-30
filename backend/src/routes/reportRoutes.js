@@ -20,7 +20,7 @@ router.use(authenticate);
  */
 router.get(
   "/institutional-overview",
-  requireRole([ROLES.ADMIN]),
+  requireRole(ROLES.ADMIN),
   reportController.getInstitutionalOverview
 );
 
@@ -31,7 +31,7 @@ router.get(
  */
 router.get(
   "/faculties/:facultyId/statistics",
-  requireRole([ROLES.ADMIN]),
+  requireRole(ROLES.ADMIN),
   reportController.getFacultyStatistics
 );
 
@@ -42,7 +42,7 @@ router.get(
  */
 router.get(
   "/departments/:departmentId/statistics",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   reportController.getDepartmentStatistics
 );
 
@@ -63,7 +63,7 @@ router.get(
  */
 router.get(
   "/students/:studentId/export",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR, ROLES.STUDENT]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR, ROLES.STUDENT),
   reportController.exportStudentReport
 );
 
@@ -74,7 +74,7 @@ router.get(
  */
 router.get(
   "/supervisors/:supervisorId/performance",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   reportController.getSupervisorPerformanceReport
 );
 
@@ -85,7 +85,7 @@ router.get(
  */
 router.get(
   "/placements",
-  requireRole([ROLES.ADMIN, ROLES.COORDINATOR]),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   reportController.getPlacementReport
 );
 

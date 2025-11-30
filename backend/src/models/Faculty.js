@@ -84,6 +84,10 @@ facultySchema.pre("save", function (next) {
   next();
 });
 
+// Compound indexes for query optimization
+facultySchema.index({ isActive: 1, createdAt: -1 });
+facultySchema.index({ name: 1, code: 1 });
+
 /**
  * Static method to find active faculties
  * @returns {Promise<Array>} Array of active faculties

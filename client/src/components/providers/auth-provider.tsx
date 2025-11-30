@@ -88,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
 
           const redirectPath = roleRoutes[user.role] || "/";
-          await refetch();
           router.push(redirectPath);
         }
       }
@@ -102,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     authService.logout();
     queryClient.clear();
+    router.push("/login");
   };
 
   const refetchUser = () => {

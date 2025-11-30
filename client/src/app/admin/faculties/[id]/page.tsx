@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loading } from "@/components/ui/loading";
 import { useRouter } from "next/navigation";
 import adminService from "@/services/admin.service";
 import {

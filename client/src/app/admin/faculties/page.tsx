@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoadingCard } from "@/components/ui/loading";
 import adminService from "@/services/admin.service";
 import {
   Card,
@@ -184,7 +185,7 @@ export default function FacultiesPage() {
 
       {/* Faculties Grid */}
       {isLoading ? (
-        <div>Loading faculties...</div>
+        <LoadingCard />
       ) : faculties.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {faculties.map((faculty: any) => (

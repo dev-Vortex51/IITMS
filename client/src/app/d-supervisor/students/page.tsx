@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { apiClient } from "@/lib/api-client";
+import { LoadingCard } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -27,34 +29,40 @@ export default function DSupervisorStudentsPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch assigned students (students where this user is the departmental supervisor)
-  const { data: studentsData, isLoading } = useQuery({
-    queryKey: ["assigned-students", user?._id],
+  const supervisorId = user?.profileData?._id;
+
+  // Fetch supervisor dashboard data
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ["supervisor-dashboard", supervisorId],
     queryFn: async () => {
-      // This would fetch students assigned to this supervisor
-      // For now, we'll use a mock response
-      return { data: [] };
+      const response = await apiClient.get(
+        `/supervisors/${supervisorId}/dashboard`
+      );
+      return response.data.data;
     },
-    enabled: !!user?._id,
+    enabled: !!supervisorId,
   });
 
-  const students = studentsData?.data || [];
+  const students = dashboardData?.supervisor?.assignedStudents || [];
+  const pendingLogbooks = dashboardData?.statistics?.pendingLogbooks || 0;
 
   // Filter students based on search query
   const filteredStudents = students.filter((student: any) => {
     const searchLower = searchQuery.toLowerCase();
+    const fullName =
+      `${student.user?.firstName} ${student.user?.lastName}`.toLowerCase();
     return (
-      student.name?.toLowerCase().includes(searchLower) ||
+      fullName.includes(searchLower) ||
       student.matricNumber?.toLowerCase().includes(searchLower) ||
-      student.email?.toLowerCase().includes(searchLower)
+      student.user?.email?.toLowerCase().includes(searchLower)
     );
   });
 
   const getPlacementStatus = (student: any) => {
-    if (!student.placement) {
+    if (!student.currentPlacement) {
       return { text: "No Placement", variant: "secondary" as const };
     }
-    const status = student.placement.status || "pending";
+    const status = student.currentPlacement.status || "pending";
     const variants = {
       approved: { text: "Approved", variant: "success" as const },
       pending: { text: "Pending", variant: "warning" as const },
@@ -67,6 +75,10 @@ export default function DSupervisorStudentsPage() {
       }
     );
   };
+
+  const activePlacementsCount = students.filter(
+    (s: any) => s.currentPlacement?.status === "approved"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -126,10 +138,7 @@ export default function DSupervisorStudentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {
-                students.filter((s: any) => s.placement?.status === "approved")
-                  .length
-              }
+              {activePlacementsCount}
             </div>
           </CardContent>
         </Card>
@@ -143,7 +152,9 @@ export default function DSupervisorStudentsPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-yellow-600" />
-              <span className="text-2xl font-bold text-yellow-600">0</span>
+              <span className="text-2xl font-bold text-yellow-600">
+                {pendingLogbooks}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -165,7 +176,7 @@ export default function DSupervisorStudentsPage() {
 
       {/* Students List */}
       {isLoading ? (
-        <div>Loading students...</div>
+        <LoadingCard />
       ) : filteredStudents.length > 0 ? (
         <Card>
           <CardHeader>
@@ -175,7 +186,9 @@ export default function DSupervisorStudentsPage() {
             <div className="space-y-3">
               {filteredStudents.map((student: any) => {
                 const placementStatus = getPlacementStatus(student);
-                const logbookCount = student.logbookEntries?.length || 0;
+                const fullName = `${student.user?.firstName || ""} ${
+                  student.user?.lastName || ""
+                }`.trim();
 
                 return (
                   <div
@@ -187,16 +200,16 @@ export default function DSupervisorStudentsPage() {
                         <Users className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{student.name || "N/A"}</p>
+                        <p className="font-medium">{fullName || "N/A"}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <p className="text-sm text-muted-foreground">
                             {student.matricNumber || "N/A"}
                           </p>
-                          {student.placement?.companyName && (
+                          {student.currentPlacement?.companyName && (
                             <>
                               <span className="text-muted-foreground">•</span>
                               <p className="text-sm text-muted-foreground">
-                                {student.placement.companyName}
+                                {student.currentPlacement.companyName}
                               </p>
                             </>
                           )}
@@ -206,10 +219,6 @@ export default function DSupervisorStudentsPage() {
 
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="gap-1">
-                          <BookOpen className="h-3 w-3" />
-                          {logbookCount} entries
-                        </Badge>
                         <Badge variant={placementStatus.variant}>
                           {placementStatus.text}
                         </Badge>

@@ -49,8 +49,5 @@ export const authService = {
 
   logout: () => {
     Cookies.remove("accessToken");
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
   },
 };

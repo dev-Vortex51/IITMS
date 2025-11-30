@@ -33,11 +33,9 @@ const config = {
         : process.env.MONGODB_URI ||
           "mongodb://localhost:27017/siwes_management",
     options: {
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-      // maxPoolSize: 10,
-      // serverSelectionTimeoutMS: 5000,
-      // socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 0, // No timeout
+      connectTimeoutMS: 30000,
     },
   },
 
