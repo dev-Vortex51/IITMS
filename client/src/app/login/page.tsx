@@ -132,7 +132,7 @@ export default function LoginPage() {
             </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-4">
-            First time? You'll be prompted to reset your password.
+            First time? You&apos;ll be prompted to reset your password.
           </p>
         </CardContent>
       </Card>

@@ -60,7 +60,7 @@ export default function StudentPlacementPage() {
   });
 
   // Get student profile ID from authenticated user
-  const studentProfileId = user?.studentProfile || user?.profileData?._id;
+  const studentProfileId = user?.profileData?._id;
 
   // Fetch student data
   const { data: studentData, isLoading: isLoadingStudent } = useQuery({
@@ -650,8 +650,9 @@ export default function StudentPlacementPage() {
               No Placement Submitted
             </h3>
             <p className="text-muted-foreground text-center mb-6 max-w-md">
-              You haven't submitted your industrial training placement details
-              yet. Click the button above to submit your placement information.
+              You haven&apos;t submitted your industrial training placement
+              details yet. Click the button above to submit your placement
+              information.
             </p>
           </CardContent>
         </Card>

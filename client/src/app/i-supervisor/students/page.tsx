@@ -14,14 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Users,
-  Search,
-  Eye,
-  Briefcase,
-  Building2,
-  BookOpen,
-} from "lucide-react";
+import { Users, Search, Eye, Building2, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -59,7 +52,11 @@ export default function ISupervisorStudentsPage() {
 
   const getPlacementStatus = (student: any) => {
     if (!student.currentPlacement) {
-      return { text: "No Placement", variant: "secondary" as const };
+      return {
+        text: "No Placement",
+        variant: "secondary" as const,
+        className: "",
+      };
     }
     const status = student.currentPlacement.status || "pending";
     const variants = {
@@ -73,12 +70,17 @@ export default function ISupervisorStudentsPage() {
         variant: "secondary" as const,
         className: "bg-yellow-500 hover:bg-yellow-600",
       },
-      rejected: { text: "Rejected", variant: "destructive" as const },
+      rejected: {
+        text: "Rejected",
+        variant: "destructive" as const,
+        className: "",
+      },
     };
     return (
       variants[status as keyof typeof variants] || {
         text: "Unknown",
         variant: "secondary" as const,
+        className: "",
       }
     );
   };

@@ -33,6 +33,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { LoadingCard } from "@/components/ui/loading";
 
 export default function CoordinatorStudentsPage() {
   const [searchQuery, setSearchQuery] = useState("");

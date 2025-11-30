@@ -407,8 +407,8 @@ export default function ISupervisorLogbooksPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-primary">
-            {selectedStudent.user?.firstName} {selectedStudent.user?.lastName}'s
-            Logbooks
+            {selectedStudent.user?.firstName} {selectedStudent.user?.lastName}
+            &apos;s Logbooks
           </h1>
           <p className="text-muted-foreground">
             {selectedStudent.matricNumber}
@@ -521,7 +521,7 @@ export default function ISupervisorLogbooksPage() {
               Logbook Week {selectedLogbook?.weekNumber}
             </DialogTitle>
             <DialogDescription>
-              Review student's logbook entry
+              Review student&apos;s logbook entry
             </DialogDescription>
           </DialogHeader>
           {selectedLogbook && (

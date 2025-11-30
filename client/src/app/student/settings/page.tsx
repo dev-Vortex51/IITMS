@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Loading } from "@/components/ui/loading";
 import { authService } from "@/services/auth.service";
 import {
   Card,
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Lock, Mail } from "lucide-react";
+import { LoadingCard } from "@/components/ui/loading";
 
 export default function StudentSettingsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -28,10 +28,6 @@ export default function StudentSettingsPage() {
   const [success, setSuccess] = useState("");
 
   console.log("Settings page - user:", user);
-
-  if (authLoading) {
-    return <div>Loading...</div>;
-  }
 
   const changePasswordMutation = useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
@@ -72,6 +68,10 @@ export default function StudentSettingsPage() {
       newPassword: passwordData.newPassword,
     });
   };
+
+  if (authLoading) {
+    return <LoadingCard />;
+  }
 
   return (
     <div className="space-y-6">

@@ -691,8 +691,8 @@ export default function DSupervisorLogbooksPage() {
                             </p>
                             <p className="text-sm mt-1">
                               This logbook has not been reviewed by the
-                              industrial supervisor yet. It's recommended to
-                              wait for their review before approving.
+                              industrial supervisor yet. It&apos;s recommended
+                              to wait for their review before approving.
                             </p>
                           </div>
                         </div>

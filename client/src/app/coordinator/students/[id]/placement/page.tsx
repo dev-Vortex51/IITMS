@@ -340,7 +340,7 @@ export default function StudentPlacementPage({
               <div>
                 <CardTitle>Industrial Supervisor</CardTitle>
                 <CardDescription>
-                  Student's supervisor at the placement organization
+                  Student&apos;s supervisor at the placement organization
                 </CardDescription>
               </div>
               {placement.status === "approved" &&

@@ -24,6 +24,7 @@ import {
   Calendar,
 } from "lucide-react";
 import Link from "next/link";
+import { LoadingCard } from "@/components/ui/loading";
 
 export default function StudentDetailsPage({
   params,
@@ -49,7 +50,7 @@ export default function StudentDetailsPage({
   const logbookEntries = logbookData?.data || [];
 
   if (isLoading) {
-    return <Loading />;
+    return <LoadingCard />;
   }
 
   if (!student) {

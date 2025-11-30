@@ -28,7 +28,7 @@ export default function StudentDashboardPage() {
   const { user } = useAuth();
 
   // Get student profile ID from authenticated user
-  const studentProfileId = user?.studentProfile || user?.profileData?._id;
+  const studentProfileId = user?.profileData?._id;
 
   // Fetch student data
   const { data: studentData } = useQuery({
@@ -71,7 +71,7 @@ export default function StudentDashboardPage() {
       <div>
         <h1 className="text-3xl font-bold text-primary">Welcome back!</h1>
         <p className="text-muted-foreground mt-2">
-          Here's an overview of your industrial training progress.
+          Here&apos;s an overview of your industrial training progress.
         </p>
       </div>
 

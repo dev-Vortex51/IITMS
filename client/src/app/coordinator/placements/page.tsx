@@ -30,6 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { LoadingCard } from "@/components/ui/loading";
 
 export default function CoordinatorPlacementsPage() {
   const [searchQuery, setSearchQuery] = useState("");

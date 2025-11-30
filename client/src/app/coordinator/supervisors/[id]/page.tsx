@@ -221,7 +221,7 @@ export default function SupervisorDetailsPage({
             <div>
               <CardTitle>Assigned Students</CardTitle>
               <CardDescription>
-                Students under this supervisor's guidance
+                Students under this supervisor&apos;s guidance
               </CardDescription>
             </div>
             <Badge variant="outline">{assignedStudents.length} Students</Badge>
