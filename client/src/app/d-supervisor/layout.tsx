@@ -33,11 +33,6 @@ const navItems = [
     icon: ClipboardCheck,
   },
   {
-    title: "Reports",
-    href: "/d-supervisor/reports",
-    icon: FileText,
-  },
-  {
     title: "Settings",
     href: "/d-supervisor/settings",
     icon: Settings,
