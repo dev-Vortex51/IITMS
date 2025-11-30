@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -40,7 +41,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
+    setSubmitting(true);
     try {
       await login({ email, password });
     } catch (err: any) {
@@ -59,6 +60,8 @@ export default function LoginPage() {
         setError(errorMessage);
         toast.error(errorMessage);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -120,8 +123,12 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || isLoading}
+            >
+              {submitting || isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
