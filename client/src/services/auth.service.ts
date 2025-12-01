@@ -40,6 +40,13 @@ export const authService = {
     sessionStorage.removeItem("resetUserId");
   },
 
+  resetPasswordWithToken: async (
+    token: string,
+    password: string
+  ): Promise<void> => {
+    await apiClient.post("/auth/reset-password", { token, password });
+  },
+
   changePassword: async (
     oldPassword: string,
     newPassword: string

@@ -114,6 +114,39 @@ const getMe = asyncHandler(async (req, res) => {
     .json(formatResponse(true, "User retrieved successfully", req.user));
 });
 
+/**
+ * @route   POST /api/v1/auth/forgot-password
+ * @desc    Send password reset link to email
+ * @access  Public
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  await authService.forgotPassword(email);
+  res
+    .status(HTTP_STATUS.OK)
+    .json(
+      formatResponse(
+        true,
+        "If an account with that email exists, a reset link has been sent."
+      )
+    );
+});
+
+/**
+ * @route   POST /api/v1/auth/reset-password
+ * @desc    Reset password using token
+ * @access  Public
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+  await authService.resetPassword(token, password);
+  res
+    .status(HTTP_STATUS.OK)
+    .json(
+      formatResponse(true, "Password reset successful. You can now log in.")
+    );
+});
+
 module.exports = {
   login,
   resetPasswordFirstLogin,
@@ -122,4 +155,6 @@ module.exports = {
   getProfile,
   updateProfile,
   getMe,
+  forgotPassword,
+  resetPassword,
 };

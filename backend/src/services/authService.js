@@ -14,6 +14,8 @@ const {
 const { generateToken, generateRefreshToken } = require("../middleware/auth");
 const config = require("../config");
 const logger = require("../utils/logger");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 /**
  * Login user
@@ -262,6 +264,64 @@ const updateProfile = async (userId, updateData) => {
   return user;
 };
 
+/**
+ * Forgot Password - send reset link
+ */
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) return; // Don't reveal if user exists
+
+  // Generate token
+  const token = crypto.randomBytes(32).toString("hex");
+  user.passwordResetToken = token;
+  user.passwordResetExpires = Date.now() + 1000 * 60 * 60; // 1 hour
+  await user.save();
+
+  // Send email
+  const resetUrl = `${
+    process.env.FRONTEND_URL || "http://localhost:3000"
+  }/reset-password?token=${token}`;
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+    secure: false,
+  });
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: user.email,
+    subject: "Password Reset Request",
+    html: `<p>You requested a password reset for your SIWES account.</p>
+      <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
+      <p>If you did not request this, please ignore this email.</p>`,
+  });
+};
+
+/**
+ * Reset Password with token
+ */
+const resetPassword = async (token, newPassword) => {
+  const user = await User.findOne({
+    passwordResetToken: token,
+    passwordResetExpires: { $gt: Date.now() },
+  }).select("+password");
+  if (!user)
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Invalid or expired reset token"
+    );
+  user.password = newPassword;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  user.isFirstLogin = false;
+  user.passwordResetRequired = false;
+  await user.save();
+  return { email: user.email };
+};
+
 module.exports = {
   login,
   resetPasswordFirstLogin,
@@ -269,4 +329,6 @@ module.exports = {
   logout,
   getProfile,
   updateProfile,
+  forgotPassword,
+  resetPassword,
 };

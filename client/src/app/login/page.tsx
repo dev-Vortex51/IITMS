@@ -118,6 +118,15 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
+            <div className="flex justify-end">
+              <a
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+                tabIndex={0}
+              >
+                Forgot password?
+              </a>
+            </div>
             {error && (
               <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                 {error}

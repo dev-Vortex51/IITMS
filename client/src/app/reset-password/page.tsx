@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,35 @@ import { toast } from "sonner";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"first-login" | "token-reset">(
+    "first-login"
+  );
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlToken = searchParams.get("token");
+    if (urlToken) {
+      setMode("token-reset");
+      setToken(urlToken);
+    } else {
+      setMode("first-login");
+      setToken(null);
+    }
+  }, [searchParams]);
 
   const resetMutation = useMutation({
-    mutationFn: (newPassword: string) =>
-      authService.resetPasswordFirstLogin(newPassword),
+    mutationFn: async (payload: { password: string; token?: string }) => {
+      if (mode === "token-reset") {
+        if (!token) throw new Error("Missing reset token");
+        return authService.resetPasswordWithToken(token, payload.password);
+      } else {
+        return authService.resetPasswordFirstLogin(payload.password);
+      }
+    },
     onSuccess: () => {
       toast.success("Password reset successfully! Redirecting to login...");
       setTimeout(() => {
@@ -34,7 +56,9 @@ export default function ResetPasswordPage() {
     },
     onError: (err: any) => {
       const errorMessage =
-        err.response?.data?.message || "Failed to reset password";
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to reset password";
       setError(errorMessage);
       toast.error(errorMessage);
     },
@@ -58,7 +82,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    resetMutation.mutate(password);
+    resetMutation.mutate({ password });
   };
 
   return (
@@ -73,7 +97,9 @@ export default function ResetPasswordPage() {
           <div>
             <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
             <CardDescription className="mt-2">
-              Create a new secure password for your account
+              {mode === "token-reset"
+                ? "Enter a new password for your account."
+                : "Create a new secure password for your account (first login)."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -116,8 +142,17 @@ export default function ResetPasswordPage() {
               className="w-full"
               disabled={resetMutation.isPending}
             >
-              {resetMutation.isPending ? "Resetting..." : "Reset Password"}
+              {resetMutation.isPending
+                ? "Resetting..."
+                : mode === "token-reset"
+                ? "Reset Password"
+                : "Set New Password"}
             </Button>
+            {mode === "token-reset" && !token && (
+              <div className="text-destructive text-sm mt-2">
+                Missing or invalid reset token.
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
