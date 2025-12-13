@@ -10,7 +10,7 @@ import { Calendar, FileText, BarChart3, AlertCircle } from "lucide-react";
 
 export default function StudentAttendancePage() {
   const { user } = useAuth();
-  const studentId = user?.studentProfile?._id;
+  const studentId = user?.profileData?._id;
 
   return (
     <div className="space-y-6">
