@@ -41,6 +41,17 @@ export const authService = {
     await apiClient.post("/auth/change-password", { oldPassword, newPassword });
   },
 
+  resetPasswordFirstLogin: async (password: string): Promise<void> => {
+    const userId = sessionStorage.getItem("resetUserId");
+    if (!userId) {
+      throw new Error("Missing user ID for first login password reset");
+    }
+    await apiClient.post("/auth/reset-password-first-login", {
+      userId,
+      newPassword: password,
+    });
+  },
+
   logout: () => {
     Cookies.remove("accessToken");
   },

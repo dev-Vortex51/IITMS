@@ -265,6 +265,29 @@ const resetPassword = async (token, newPassword) => {
   return { email: user.email };
 };
 
+/**
+ * Reset Password on first login
+ * @param {ObjectId} userId - User ID
+ * @param {string} newPassword - New password
+ * @returns {Promise<Object>} Success message
+ */
+const resetPasswordFirstLogin = async (userId, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+
+  if (!user) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+  }
+
+  // Update password and clear first login flag
+  user.password = newPassword;
+  user.isFirstLogin = false;
+  await user.save();
+
+  logger.info(`User reset password on first login: ${user.email}`);
+
+  return { email: user.email };
+};
+
 module.exports = {
   login,
   changePassword,
@@ -273,4 +296,5 @@ module.exports = {
   updateProfile,
   forgotPassword,
   resetPassword,
+  resetPasswordFirstLogin,
 };

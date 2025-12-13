@@ -78,5 +78,10 @@ router.get("/me", authenticate, authController.getMe);
 // Password reset endpoints
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
+router.post(
+  "/reset-password-first-login",
+  validateBody(authValidation.resetPasswordFirstLogin),
+  authController.resetPasswordFirstLogin
+);
 
 module.exports = router;
