@@ -58,8 +58,6 @@ export default function CreateCoordinatorPage() {
           ...userData,
           role: "coordinator",
           password: generateDefaultPassword(),
-          isFirstLogin: true,
-          passwordResetRequired: true,
         }) || Promise.reject("User service not available")
       );
     },

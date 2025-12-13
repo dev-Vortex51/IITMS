@@ -18,13 +18,6 @@ const login = asyncHandler(async (req, res) => {
 
   const result = await authService.login(email, password);
 
-  // If password reset required
-  if (result.requiresPasswordReset) {
-    return res
-      .status(HTTP_STATUS.OK)
-      .json(formatResponse(true, "Password reset required", result));
-  }
-
   res
     .status(HTTP_STATUS.OK)
     .json(formatResponse(true, SUCCESS_MESSAGES.LOGIN_SUCCESS, result));

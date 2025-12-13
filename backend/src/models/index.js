@@ -13,6 +13,8 @@ const Placement = require("./Placement");
 const Logbook = require("./Logbook");
 const Assessment = require("./Assessment");
 const Notification = require("./Notification");
+const Invitation = require("./Invitation");
+const Attendance = require("./Attendance");
 
 module.exports = {
   User,
@@ -24,4 +26,6 @@ module.exports = {
   Logbook,
   Assessment,
   Notification,
+  Invitation,
+  Attendance,
 };

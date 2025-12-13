@@ -17,17 +17,13 @@ const getSupervisors = catchAsync(async (req, res) => {
     type: req.query.type,
     department: req.query.department,
     available: req.query.available,
+    companyName: req.query.companyName,
   };
 
   // If coordinator, filter by their department for departmental supervisors only
   // Industrial supervisors should be visible to all coordinators
   const { USER_ROLES } = require("../utils/constants");
   if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
-    // Only apply department filter if specifically requesting departmental supervisors
-    if (req.query.type === "departmental") {
-      filters.department = req.user.department;
-    }
-    // For coordinators, pass the user's department for mixed queries
     filters.coordinatorDepartment = req.user.department;
   }
 
@@ -104,6 +100,27 @@ const getAvailableSupervisors = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: "Available supervisors retrieved successfully",
+    data: supervisors,
+  });
+});
+
+/**
+ * @desc    Get supervisor suggestions for a student
+ * @route   GET /api/v1/supervisors/suggestions
+ * @access  Private (Coordinator, Admin)
+ */
+const getSupervisorSuggestions = catchAsync(async (req, res) => {
+  const { studentId, type } = req.query;
+
+  const supervisors = await supervisorService.suggestSupervisors(
+    studentId,
+    type,
+    req.user
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Supervisor suggestions retrieved successfully",
     data: supervisors,
   });
 });
@@ -194,4 +211,5 @@ module.exports = {
   unassignStudent,
   getSupervisorDashboard,
   getSupervisorsByDepartment,
+  getSupervisorSuggestions,
 };

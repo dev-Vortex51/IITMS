@@ -55,16 +55,6 @@ const authenticate = async (req, res, next) => {
         .json(formatResponse(false, "Account has been deactivated"));
     }
 
-    // Check if password reset is required (first login)
-    if (user.isFirstLogin || user.passwordResetRequired) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json(
-        formatResponse(false, ERROR_MESSAGES.PASSWORD_RESET_REQUIRED, {
-          isFirstLogin: user.isFirstLogin,
-          passwordResetRequired: user.passwordResetRequired,
-        })
-      );
-    }
-
     // Populate student/supervisor profile if applicable
     const { Student, Supervisor } = require("../models");
     const { ROLES } = require("../utils/constants");
@@ -75,7 +65,9 @@ const authenticate = async (req, res, next) => {
         user.studentProfile = studentProfile._id;
       }
     } else if (
-      [ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(user.role)
+      [ROLES.ACADEMIC_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(
+        user.role
+      )
     ) {
       const supervisorProfile = await Supervisor.findOne({ user: user._id });
       if (supervisorProfile) {

@@ -84,6 +84,13 @@ export default function CoordinatorPlacementsPage() {
         variant: "destructive" as const,
         text: "Rejected",
       },
+      withdrawn: {
+        icon: XCircle,
+        color: "text-gray-600",
+        bg: "bg-gray-50",
+        variant: "secondary" as const,
+        text: "Withdrawn",
+      },
     };
     return configs[status as keyof typeof configs] || configs.pending;
   };
@@ -96,6 +103,9 @@ export default function CoordinatorPlacementsPage() {
   ).length;
   const rejectedCount = placements.filter(
     (p: any) => p.status === "rejected"
+  ).length;
+  const withdrawnCount = placements.filter(
+    (p: any) => p.status === "withdrawn"
   ).length;
 
   return (
@@ -138,6 +148,7 @@ export default function CoordinatorPlacementsPage() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="withdrawn">Withdrawn</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -205,6 +216,22 @@ export default function CoordinatorPlacementsPage() {
               <XCircle className="h-5 w-5 text-red-600" />
               <span className="text-2xl font-bold text-red-600">
                 {rejectedCount}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Withdrawn
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-gray-600" />
+              <span className="text-2xl font-bold text-gray-600">
+                {withdrawnCount}
               </span>
             </div>
           </CardContent>

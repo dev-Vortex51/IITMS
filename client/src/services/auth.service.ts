@@ -27,19 +27,6 @@ export const authService = {
     }
   },
 
-  resetPasswordFirstLogin: async (password: string): Promise<void> => {
-    const userId = sessionStorage.getItem("resetUserId");
-    if (!userId) {
-      throw new Error("No user ID found for password reset");
-    }
-    await apiClient.post("/auth/reset-password-first-login", {
-      userId,
-      newPassword: password,
-    });
-    // Clear the stored userId after successful reset
-    sessionStorage.removeItem("resetUserId");
-  },
-
   resetPasswordWithToken: async (
     token: string,
     password: string

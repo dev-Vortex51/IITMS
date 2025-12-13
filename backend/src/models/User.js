@@ -47,15 +47,12 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Department Assignment (for Coordinators and Departmental Supervisors)
+    // Department Assignment (for Coordinators only - Academic Supervisors can supervise cross-department)
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
       required: function () {
-        return (
-          this.role === USER_ROLES.COORDINATOR ||
-          this.role === USER_ROLES.DEPT_SUPERVISOR
-        );
+        return this.role === USER_ROLES.COORDINATOR;
       },
       index: true,
     },
@@ -83,11 +80,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
       index: true,
-    },
-
-    isFirstLogin: {
-      type: Boolean,
-      default: true,
     },
 
     passwordResetRequired: {

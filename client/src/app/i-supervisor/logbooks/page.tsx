@@ -514,148 +514,159 @@ export default function ISupervisorLogbooksPage() {
       </div>
 
       {/* Review Dialog */}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Logbook Week {selectedLogbook?.weekNumber}
-            </DialogTitle>
-            <DialogDescription>
-              Review student&apos;s logbook entry
-            </DialogDescription>
-          </DialogHeader>
-          {selectedLogbook && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Period</Label>
-                <p className="text-sm">
-                  {new Date(selectedLogbook.startDate).toLocaleDateString()} -{" "}
-                  {new Date(selectedLogbook.endDate).toLocaleDateString()}
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Tasks Performed</Label>
-                <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                  {selectedLogbook.tasksPerformed}
-                </p>
-              </div>
-
-              {selectedLogbook.skillsAcquired && (
+      {reviewDialogOpen && (
+        <Dialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setReviewDialogOpen(false);
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Logbook Week {selectedLogbook?.weekNumber}
+              </DialogTitle>
+              <DialogDescription>
+                Review student&apos;s logbook entry
+              </DialogDescription>
+            </DialogHeader>
+            {selectedLogbook && (
+              <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Skills Acquired</Label>
-                  <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                    {selectedLogbook.skillsAcquired}
+                  <Label className="text-sm font-medium">Period</Label>
+                  <p className="text-sm">
+                    {new Date(selectedLogbook.startDate).toLocaleDateString()} -{" "}
+                    {new Date(selectedLogbook.endDate).toLocaleDateString()}
                   </p>
                 </div>
-              )}
 
-              {selectedLogbook.challenges && (
                 <div>
-                  <Label className="text-sm font-medium">Challenges</Label>
+                  <Label className="text-sm font-medium">Tasks Performed</Label>
                   <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                    {selectedLogbook.challenges}
+                    {selectedLogbook.tasksPerformed}
                   </p>
                 </div>
-              )}
 
-              {selectedLogbook.lessonsLearned && (
-                <div>
-                  <Label className="text-sm font-medium">Lessons Learned</Label>
-                  <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                    {selectedLogbook.lessonsLearned}
-                  </p>
-                </div>
-              )}
-
-              {selectedLogbook.evidence &&
-                selectedLogbook.evidence.length > 0 && (
+                {selectedLogbook.skillsAcquired && (
                   <div>
                     <Label className="text-sm font-medium">
-                      Evidence Files
+                      Skills Acquired
                     </Label>
-                    <div className="space-y-2 mt-1">
-                      {selectedLogbook.evidence.map((file, index) => (
-                        <a
-                          key={index}
-                          href={`${process.env.NEXT_PUBLIC_API_URL}${file.path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-primary hover:underline"
-                        >
-                          <FileText className="h-4 w-4" />
-                          {file.name}
-                        </a>
-                      ))}
-                    </div>
+                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
+                      {selectedLogbook.skillsAcquired}
+                    </p>
                   </div>
                 )}
 
-              {selectedLogbook.industrialReview?.status !== "submitted" && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <Label className="text-sm font-medium">
-                    Your Previous Review
-                  </Label>
-                  <p className="text-sm mt-2">
-                    {selectedLogbook.industrialReview?.comment}
-                  </p>
-                  {selectedLogbook.industrialReview?.rating && (
-                    <p className="text-sm mt-2">
-                      <span className="font-medium">Rating:</span>{" "}
-                      {selectedLogbook.industrialReview.rating}/10
+                {selectedLogbook.challenges && (
+                  <div>
+                    <Label className="text-sm font-medium">Challenges</Label>
+                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
+                      {selectedLogbook.challenges}
                     </p>
+                  </div>
+                )}
+
+                {selectedLogbook.lessonsLearned && (
+                  <div>
+                    <Label className="text-sm font-medium">
+                      Lessons Learned
+                    </Label>
+                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
+                      {selectedLogbook.lessonsLearned}
+                    </p>
+                  </div>
+                )}
+
+                {selectedLogbook.evidence &&
+                  selectedLogbook.evidence.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Evidence Files
+                      </Label>
+                      <div className="space-y-2 mt-1">
+                        {selectedLogbook.evidence.map((file, index) => (
+                          <a
+                            key={index}
+                            href={`${process.env.NEXT_PUBLIC_API_URL}${file.path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <FileText className="h-4 w-4" />
+                            {file.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
-              )}
 
-              {selectedLogbook.industrialReview?.status === "submitted" && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="rating">Rating (0-10) *</Label>
-                    <Input
-                      id="rating"
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={reviewRating}
-                      onChange={(e) => setReviewRating(e.target.value)}
-                      placeholder="Enter rating"
-                    />
+                {selectedLogbook.industrialReview?.status !== "submitted" && (
+                  <div className="bg-muted p-4 rounded-lg">
+                    <Label className="text-sm font-medium">
+                      Your Previous Review
+                    </Label>
+                    <p className="text-sm mt-2">
+                      {selectedLogbook.industrialReview?.comment}
+                    </p>
+                    {selectedLogbook.industrialReview?.rating && (
+                      <p className="text-sm mt-2">
+                        <span className="font-medium">Rating:</span>{" "}
+                        {selectedLogbook.industrialReview.rating}/10
+                      </p>
+                    )}
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="comment">Comment *</Label>
-                    <Textarea
-                      id="comment"
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      placeholder="Provide your feedback..."
-                      rows={4}
-                    />
-                  </div>
+                {selectedLogbook.industrialReview?.status === "submitted" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="rating">Rating (0-10) *</Label>
+                      <Input
+                        id="rating"
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={reviewRating}
+                        onChange={(e) => setReviewRating(e.target.value)}
+                        placeholder="Enter rating"
+                      />
+                    </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setReviewDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleReview}
-                      disabled={reviewMutation.isPending}
-                    >
-                      {reviewMutation.isPending
-                        ? "Submitting..."
-                        : "Submit Review"}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                    <div className="space-y-2">
+                      <Label htmlFor="comment">Comment *</Label>
+                      <Textarea
+                        id="comment"
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="Provide your feedback..."
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setReviewDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleReview}
+                        disabled={reviewMutation.isPending}
+                      >
+                        {reviewMutation.isPending
+                          ? "Submitting..."
+                          : "Submit Review"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

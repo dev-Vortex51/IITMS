@@ -39,14 +39,15 @@ import { toast } from "sonner";
 
 export default function SupervisorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("departmental");
+  const [activeTab, setActiveTab] = useState("industrial");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    specialization: "",
+    companyName: "",
+    position: "",
   });
 
   const queryClient = useQueryClient();
@@ -66,7 +67,7 @@ export default function SupervisorsPage() {
     },
   });
 
-  // Create supervisor mutation
+  // Create industrial supervisor mutation
   const createSupervisorMutation = useMutation({
     mutationFn: (data: any) =>
       adminService.supervisorService.createSupervisor(data),
@@ -79,9 +80,10 @@ export default function SupervisorsPage() {
         lastName: "",
         email: "",
         phone: "",
-        specialization: "",
+        companyName: "",
+        position: "",
       });
-      toast.success("Departmental supervisor created successfully");
+      toast.success("Industrial supervisor created successfully");
     },
     onError: (error: any) => {
       const errorMessage =
@@ -101,7 +103,7 @@ export default function SupervisorsPage() {
 
     createSupervisorMutation.mutate({
       ...formData,
-      role: "departmental_supervisor",
+      role: "industrial_supervisor",
       department:
         typeof user.department === "object"
           ? (user.department as any)._id
@@ -114,15 +116,15 @@ export default function SupervisorsPage() {
   // Debug: log supervisors to see what we're getting
   console.log("All supervisors:", allSupervisors);
 
-  // Split by type (you may need to check if your API differentiates types)
-  const departmentalSupervisors = allSupervisors.filter(
-    (s: any) => s.type === "departmental" || s.department
+  // Split by type - coordinators only manage industrial supervisors
+  const academicSupervisors = allSupervisors.filter(
+    (s: any) => s.type === "academic" || s.type === "departmental"
   );
   const industrialSupervisors = allSupervisors.filter(
     (s: any) => s.type === "industrial" || s.companyName
   );
 
-  console.log("Departmental supervisors:", departmentalSupervisors);
+  console.log("Academic supervisors:", academicSupervisors);
   console.log("Industrial supervisors:", industrialSupervisors);
 
   // Filter supervisors based on search query
@@ -138,12 +140,12 @@ export default function SupervisorsPage() {
     });
   };
 
-  const filteredDepartmental = filterSupervisors(departmentalSupervisors);
+  const filteredAcademic = filterSupervisors(academicSupervisors);
   const filteredIndustrial = filterSupervisors(industrialSupervisors);
 
   const renderSupervisorCard = (
     supervisor: any,
-    type: "departmental" | "industrial"
+    type: "academic" | "industrial"
   ) => (
     <Card
       key={supervisor._id}
@@ -154,10 +156,10 @@ export default function SupervisorsPage() {
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
               className={`p-2 rounded-lg shrink-0 ${
-                type === "departmental" ? "bg-primary/10" : "bg-accent/10"
+                type === "academic" ? "bg-primary/10" : "bg-accent/10"
               }`}
             >
-              {type === "departmental" ? (
+              {type === "academic" ? (
                 <Building className="h-5 w-5 text-primary" />
               ) : (
                 <Building2 className="h-5 w-5 text-accent-foreground" />
@@ -185,7 +187,7 @@ export default function SupervisorsPage() {
       </CardHeader>
       <CardContent className="flex-1">
         <div className="space-y-2">
-          {type === "departmental" ? (
+          {type === "academic" ? (
             <div className="flex items-center gap-2 text-sm">
               <Building className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-muted-foreground shrink-0">
@@ -194,7 +196,7 @@ export default function SupervisorsPage() {
               <span className="font-medium truncate">
                 {typeof supervisor.department === "object"
                   ? supervisor.department.name
-                  : supervisor.department || "N/A"}
+                  : supervisor.department || "Cross-department"}
               </span>
             </div>
           ) : (
@@ -232,21 +234,21 @@ export default function SupervisorsPage() {
         <div>
           <h1 className="text-3xl font-bold text-primary">Supervisors</h1>
           <p className="text-muted-foreground mt-2">
-            Manage departmental and industrial supervisors
+            Manage academic and industrial supervisors for your department
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add Departmental Supervisor
+              Add Industrial Supervisor
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Departmental Supervisor</DialogTitle>
+              <DialogTitle>Add Industrial Supervisor</DialogTitle>
               <DialogDescription>
-                Create a new departmental supervisor to assign to students
+                Create a new industrial supervisor from a company
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateSupervisor}>
@@ -280,7 +282,7 @@ export default function SupervisorsPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="supervisor@example.com"
+                    placeholder="supervisor@company.com"
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
@@ -300,15 +302,30 @@ export default function SupervisorsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="specialization">Specialization</Label>
+                  <Label htmlFor="companyName">Company Name *</Label>
                   <Input
-                    id="specialization"
-                    placeholder="Enter area of specialization"
-                    value={formData.specialization}
+                    id="companyName"
+                    placeholder="Enter company name"
+                    value={formData.companyName}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        specialization: e.target.value,
+                        companyName: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
+                    placeholder="e.g., Senior Engineer"
+                    value={formData.position}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        position: e.target.value,
                       })
                     }
                   />
@@ -378,14 +395,14 @@ export default function SupervisorsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Departmental
+              Academic
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Building className="h-5 w-5 text-primary" />
               <span className="text-2xl font-bold text-primary">
-                {departmentalSupervisors.length}
+                {academicSupervisors.length}
               </span>
             </div>
           </CardContent>
@@ -424,15 +441,15 @@ export default function SupervisorsPage() {
       {/* Supervisors List with Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="departmental">
-            Departmental ({departmentalSupervisors.length})
+          <TabsTrigger value="academic">
+            Academic ({academicSupervisors.length})
           </TabsTrigger>
           <TabsTrigger value="industrial">
             Industrial ({industrialSupervisors.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="departmental" className="mt-6">
+        <TabsContent value="academic" className="mt-6">
           {isLoading ? (
             <Card>
               <CardContent className="flex items-center justify-center py-10">
@@ -443,24 +460,24 @@ export default function SupervisorsPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : filteredDepartmental.length === 0 ? (
+          ) : filteredAcademic.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10">
                 <Building className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="font-semibold text-lg mb-2">
-                  No Departmental Supervisors
+                  No Academic Supervisors
                 </h3>
                 <p className="text-muted-foreground text-center">
                   {searchQuery
                     ? "No supervisors match your search criteria"
-                    : "Departmental supervisors will appear here once registered"}
+                    : "Academic supervisors are managed by administrators. Contact admin to assign supervisors."}
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredDepartmental.map((supervisor) =>
-                renderSupervisorCard(supervisor, "departmental")
+              {filteredAcademic.map((supervisor) =>
+                renderSupervisorCard(supervisor, "academic")
               )}
             </div>
           )}

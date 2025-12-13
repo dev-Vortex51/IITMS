@@ -2,7 +2,15 @@
 
 import { ReactNode } from "react";
 import DashboardShell from "@/components/layouts/dashboard-shell";
-import { LayoutDashboard, Users, BookOpen, Settings } from "lucide-react";
+import { NotificationProvider } from "../../components/notifications/NotificationProvider";
+import { NotificationsDropdown } from "../../components/notifications/NotificationsDropdown";
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Settings,
+  Clock,
+} from "lucide-react";
 
 const navItems = [
   {
@@ -21,6 +29,11 @@ const navItems = [
     icon: BookOpen,
   },
   {
+    title: "Attendance",
+    href: "/i-supervisor/attendance",
+    icon: Clock,
+  },
+  {
     title: "Settings",
     href: "/i-supervisor/settings",
     icon: Settings,
@@ -33,8 +46,16 @@ export default function IndustrialSupervisorLayout({
   children: ReactNode;
 }) {
   return (
-    <DashboardShell title="Industrial Supervisor Dashboard" navItems={navItems}>
-      {children}
-    </DashboardShell>
+    <NotificationProvider>
+      <DashboardShell
+        title="Industrial Supervisor Dashboard"
+        navItems={navItems}
+      >
+        <div className="flex justify-end mb-2">
+          <NotificationsDropdown />
+        </div>
+        {children}
+      </DashboardShell>
+    </NotificationProvider>
   );
 }

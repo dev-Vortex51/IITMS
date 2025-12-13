@@ -2,6 +2,8 @@
 
 import { ReactNode } from "react";
 import DashboardShell from "@/components/layouts/dashboard-shell";
+import { NotificationProvider } from "../../components/notifications/NotificationProvider";
+import { NotificationsDropdown } from "../../components/notifications/NotificationsDropdown";
 import {
   LayoutDashboard,
   Users,
@@ -39,17 +41,19 @@ const navItems = [
   },
 ];
 
-export default function DepartmentalSupervisorLayout({
+export default function AcademicSupervisorLayout({
   children,
 }: {
   children: ReactNode;
 }) {
   return (
-    <DashboardShell
-      title="Departmental Supervisor Dashboard"
-      navItems={navItems}
-    >
-      {children}
-    </DashboardShell>
+    <NotificationProvider>
+      <DashboardShell title="Academic Supervisor Dashboard" navItems={navItems}>
+        <div className="flex justify-end mb-2">
+          <NotificationsDropdown />
+        </div>
+        {children}
+      </DashboardShell>
+    </NotificationProvider>
   );
 }

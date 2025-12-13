@@ -4,7 +4,7 @@
 
 A complete **Next.js 14 + TypeScript + shadcn/ui** frontend for the SIWES Management System with:
 
-- ✅ **6 Complete Role Dashboards** (Admin, Faculty, Coordinator, D-Supervisor, I-Supervisor, Student)
+- ✅ **6 Complete Role Dashboards** (Admin, Faculty, Coordinator, Academic Supervisor, I-Supervisor, Student)
 - ✅ **Full Authentication Flow** (Login, Reset Password, Role-Based Routing)
 - ✅ **Complete Student Module** (6 pages: Dashboard, Placement, Logbook, Supervisors, Reports, Settings)
 - ✅ **10+ shadcn/ui Components** (Button, Input, Label, Card, Dialog, Textarea, Select, Badge, Separator, etc.)
@@ -71,7 +71,7 @@ Frontend runs on: `http://localhost:3000`
    - Coordinator → `/coordinator/dashboard`
    - Admin → `/admin/dashboard`
    - Faculty → `/faculty/dashboard`
-   - D-Supervisor → `/d-supervisor/dashboard`
+   - Academic Supervisor → `/d-supervisor/dashboard`
    - I-Supervisor → `/i-supervisor/dashboard`
 
 ---
@@ -92,7 +92,7 @@ client/
 │   │   │   ├── layout.tsx             ✅ Faculty layout
 │   │   │   └── dashboard/page.tsx     ✅ Departments overview
 │   │   ├── d-supervisor/
-│   │   │   ├── layout.tsx             ✅ D-Supervisor layout
+│   │   │   ├── layout.tsx             ✅ Academic Supervisor layout
 │   │   │   └── dashboard/page.tsx     ✅ Assigned students dashboard
 │   │   ├── i-supervisor/
 │   │   │   ├── layout.tsx             ✅ I-Supervisor layout
@@ -190,7 +190,7 @@ client/
 ### Other Roles (Dashboards + Layouts)
 
 - ✅ Faculty dashboard (departments overview)
-- ✅ D-Supervisor dashboard (assigned students stats)
+- ✅ Academic Supervisor dashboard (assigned students stats, up to 10 cross-department)
 - ✅ I-Supervisor dashboard (workplace supervision metrics)
 - ⏳ Remaining pages for these roles
 

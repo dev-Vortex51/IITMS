@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
@@ -157,6 +158,13 @@ export default function StudentDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Daily Check-In - Show only if placement is approved */}
+      {placement && placement.status === "approved" && (
+        <div className="space-y-4">
+          <AttendanceCheckIn />
+        </div>
+      )}
 
       {/* Placement Details - Show when submitted */}
       {placement && (

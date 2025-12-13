@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { studentService } from "@/services/student.service";
 import {
   Card,
@@ -12,15 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Users,
@@ -32,62 +23,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 import { LoadingCard } from "@/components/ui/loading";
 
 export default function CoordinatorStudentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    matricNumber: "",
-    phoneNumber: "",
-    level: "",
-    session: "",
-  });
-  const queryClient = useQueryClient();
 
   // Fetch all students
   const { data: studentsData, isLoading } = useQuery({
     queryKey: ["students"],
     queryFn: () => studentService.getAllStudents(),
   });
-
-  // Create student mutation
-  const createStudentMutation = useMutation({
-    mutationFn: (data: any) => studentService.createStudent(data),
-    onSuccess: (response) => {
-      const defaultPassword = response.data?.defaultPassword;
-      if (defaultPassword) {
-        toast.success(`Student created! Default password: ${defaultPassword}`, {
-          duration: 10000,
-        });
-      } else {
-        toast.success("Student created successfully");
-      }
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      setCreateDialogOpen(false);
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        matricNumber: "",
-        phoneNumber: "",
-        level: "",
-        session: "",
-      });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create student");
-    },
-  });
-
-  const handleCreateStudent = (e: React.FormEvent) => {
-    e.preventDefault();
-    createStudentMutation.mutate(formData);
-  };
 
   const students = studentsData?.data || [];
 
@@ -128,123 +73,12 @@ export default function CoordinatorStudentsPage() {
             Manage and monitor student placements
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Create Student
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Student</DialogTitle>
-              <DialogDescription>
-                Add a new student to the system
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateStudent} className="space-y-4">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, firstName: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastName: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matricNumber">Matric Number</Label>
-                  <Input
-                    id="matricNumber"
-                    value={formData.matricNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, matricNumber: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phoneNumber: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="level">Level</Label>
-                  <Input
-                    id="level"
-                    type="number"
-                    placeholder="e.g., 300"
-                    value={formData.level}
-                    onChange={(e) =>
-                      setFormData({ ...formData, level: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="session">Session</Label>
-                  <Input
-                    id="session"
-                    placeholder="e.g., 2024/2025"
-                    value={formData.session}
-                    onChange={(e) =>
-                      setFormData({ ...formData, session: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createStudentMutation.isPending}
-                >
-                  {createStudentMutation.isPending
-                    ? "Creating..."
-                    : "Create Student"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button asChild>
+          <Link href="/coordinator/invitations">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Invite Student
+          </Link>
+        </Button>
       </div>
 
       {/* Search Bar */}

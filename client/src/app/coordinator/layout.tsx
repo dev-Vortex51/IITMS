@@ -2,6 +2,8 @@
 
 import { ReactNode } from "react";
 import DashboardShell from "@/components/layouts/dashboard-shell";
+import { NotificationProvider } from "../../components/notifications/NotificationProvider";
+import { NotificationsDropdown } from "../../components/notifications/NotificationsDropdown";
 import {
   LayoutDashboard,
   Users,
@@ -10,6 +12,7 @@ import {
   UserCheck,
   FileText,
   Settings,
+  Mail,
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +20,11 @@ const navItems = [
     title: "Dashboard",
     href: "/coordinator/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Invitations",
+    href: "/coordinator/invitations",
+    icon: Mail,
   },
   {
     title: "Students",
@@ -51,8 +59,13 @@ export default function CoordinatorLayout({
   children: ReactNode;
 }) {
   return (
-    <DashboardShell title="Coordinator Dashboard" navItems={navItems}>
-      {children}
-    </DashboardShell>
+    <NotificationProvider>
+      <DashboardShell title="Coordinator Dashboard" navItems={navItems}>
+        <div className="flex justify-end mb-2">
+          <NotificationsDropdown />
+        </div>
+        {children}
+      </DashboardShell>
+    </NotificationProvider>
   );
 }

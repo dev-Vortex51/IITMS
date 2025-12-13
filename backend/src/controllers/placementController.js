@@ -192,6 +192,24 @@ const updatePlacementByCoordinator = catchAsync(async (req, res) => {
 });
 
 /**
+ * @desc    Withdraw placement
+ * @route   POST /api/v1/placements/:id/withdraw
+ * @access  Private (Student - owner only)
+ */
+const withdrawPlacement = catchAsync(async (req, res) => {
+  const placement = await placementService.withdrawPlacement(
+    req.params.id,
+    req.user._id
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Placement withdrawn successfully",
+    data: placement,
+  });
+});
+
+/**
  * @desc    Delete/withdraw placement
  * @route   DELETE /api/v1/placements/:id
  * @access  Private (Student - owner only)
@@ -210,6 +228,7 @@ module.exports = {
   getPlacements,
   getPlacementById,
   updatePlacement,
+  withdrawPlacement,
   reviewPlacement,
   approvePlacement,
   rejectPlacement,

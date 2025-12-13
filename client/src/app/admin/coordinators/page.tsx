@@ -92,9 +92,9 @@ export default function CoordinatorsPage() {
         </div>
 
         <Button asChild className="w-full sm:w-auto">
-          <Link href="/admin/coordinators/create">
+          <Link href="/admin/invitations">
             <UserCog className="h-4 w-4 mr-2" />
-            Create Coordinator
+            Invite Coordinator
           </Link>
         </Button>
       </div>

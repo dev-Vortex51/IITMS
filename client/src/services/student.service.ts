@@ -75,7 +75,17 @@ export const placementService = {
   },
 
   updatePlacement: async (id: string, data: Partial<Placement>) => {
+    const response = await apiClient.put(`/placements/${id}`, data);
+    return response.data;
+  },
+
+  updatePlacementByCoordinator: async (id: string, data: any) => {
     const response = await apiClient.patch(`/placements/${id}`, data);
+    return response.data;
+  },
+
+  withdrawPlacement: async (id: string) => {
+    const response = await apiClient.post(`/placements/${id}/withdraw`);
     return response.data;
   },
 
@@ -91,6 +101,12 @@ export const placementService = {
       remarks,
     });
     return response.data;
+  },
+
+  // Placements assigned to the current supervisor (academic/industrial)
+  getMyPlacements: async () => {
+    const response = await apiClient.get(`/placements`);
+    return response.data?.data || [];
   },
 };
 

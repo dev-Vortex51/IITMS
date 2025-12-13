@@ -75,7 +75,7 @@ router.get("/", logbookController.getLogbooks);
  */
 router.get(
   "/pending-review",
-  requireRole(ROLES.DEPT_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
+  requireRole(ROLES.ACADEMIC_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR),
   logbookController.getLogbooksPendingReview
 );
 
@@ -116,7 +116,7 @@ router.post(
  */
 router.post(
   "/:id/review",
-  requireRole(ROLES.DEPT_SUPERVISOR),
+  requireRole(ROLES.ACADEMIC_SUPERVISOR),
   logbookController.reviewLogbook
 );
 

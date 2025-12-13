@@ -20,18 +20,16 @@ const supervisorSchema = new mongoose.Schema(
     // Supervisor Type
     type: {
       type: String,
-      enum: ["departmental", "industrial"],
+      enum: ["academic", "industrial", "departmental"], // Keep "departmental" for backward compatibility
       required: [true, "Supervisor type is required"],
       index: true,
     },
 
-    // Department (for departmental supervisors)
+    // Department (optional - academic supervisors can supervise cross-department)
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: function () {
-        return this.type === "departmental";
-      },
+      required: false,
       index: true,
     },
 
@@ -82,8 +80,8 @@ const supervisorSchema = new mongoose.Schema(
     maxStudents: {
       type: Number,
       default: function () {
-        // Departmental supervisors: 5 students, Industrial: 10 students
-        return this.type === "departmental" ? 5 : 10;
+        // Academic supervisors: 10 students (cross-department), Industrial: 10 students
+        return this.type === "academic" ? 10 : 10;
       },
     },
 
@@ -170,11 +168,24 @@ supervisorSchema.pre("save", function (next) {
  * @returns {Promise<Array>} Array of available supervisors
  */
 supervisorSchema.statics.findAvailable = function (type, departmentId = null) {
-  const query = { type, isActive: true, isAvailable: true };
-  if (type === "departmental" && departmentId) {
-    query.department = departmentId;
+  const query = { isActive: true, isAvailable: true };
+
+  // Handle academic and departmental supervisors (treat them the same)
+  if (type === "academic" || type === "departmental") {
+    query.type = { $in: ["academic", "departmental"] };
+    // Filter by department if provided, or include cross-department supervisors
+    if (departmentId) {
+      query.$or = [
+        { department: departmentId },
+        { department: { $in: [null, undefined] } },
+      ];
+    }
+  } else {
+    // For industrial supervisors, just match the type
+    query.type = type;
   }
-  return this.find(query);
+
+  return this.find(query).populate("user", "firstName lastName email phone");
 };
 
 /**

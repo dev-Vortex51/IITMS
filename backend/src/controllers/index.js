@@ -14,6 +14,7 @@ const assessmentController = require("./assessmentController");
 const supervisorController = require("./supervisorController");
 const reportController = require("./reportController");
 const notificationController = require("./notificationController");
+const attendanceController = require("./attendanceController");
 
 module.exports = {
   authController,
@@ -27,4 +28,5 @@ module.exports = {
   supervisorController,
   reportController,
   notificationController,
+  attendanceController,
 };

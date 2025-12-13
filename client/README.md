@@ -57,7 +57,7 @@ client/
 │   │   │   │   ├── logbooks/
 │   │   │   │   ├── assessments/
 │   │   │   │   └── reports/
-│   │   │   ├── d-supervisor/          # Departmental Supervisor
+│   │   │   ├── d-supervisor/          # Academic Supervisor
 │   │   │   │   ├── dashboard/
 │   │   │   │   ├── students/
 │   │   │   │   ├── evaluations/
@@ -107,7 +107,7 @@ Six user roles with distinct dashboards:
 1. **Admin** - System-wide management
 2. **Faculty** - Faculty oversight
 3. **Coordinator** - Department SIWES coordination
-4. **Departmental Supervisor** - Academic supervision
+4. **Academic Supervisor** - Academic supervision
 5. **Industrial Supervisor** - Workplace supervision
 6. **Student** - Placement & logbook management
 

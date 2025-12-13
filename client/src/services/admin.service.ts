@@ -33,6 +33,13 @@ export const supervisorService = {
     );
     return response.data;
   },
+
+  getSupervisorSuggestions: async (studentId: string, type: string) => {
+    const response = await apiClient.get("/supervisors/suggestions", {
+      params: { studentId, type },
+    });
+    return response.data;
+  },
 };
 
 export const facultyService = {

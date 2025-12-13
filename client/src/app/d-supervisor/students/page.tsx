@@ -67,6 +67,7 @@ export default function DSupervisorStudentsPage() {
       approved: { text: "Approved", variant: "success" as const },
       pending: { text: "Pending", variant: "warning" as const },
       rejected: { text: "Rejected", variant: "destructive" as const },
+      withdrawn: { text: "Withdrawn", variant: "secondary" as const },
     };
     return (
       variants[status as keyof typeof variants] || {

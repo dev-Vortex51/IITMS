@@ -27,11 +27,16 @@ router.post(
 /**
  * @route   GET /api/v1/placements
  * @desc    Get all placements
- * @access  Admin, Coordinator
+ * @access  Admin, Coordinator, Academic Supervisor, Industrial Supervisor
  */
 router.get(
   "/",
-  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  requireRole(
+    ROLES.ADMIN,
+    ROLES.COORDINATOR,
+    ROLES.ACADEMIC_SUPERVISOR,
+    ROLES.INDUSTRIAL_SUPERVISOR
+  ),
   placementController.getPlacements
 );
 
@@ -51,6 +56,17 @@ router.put(
   "/:id",
   requireRole(ROLES.STUDENT),
   placementController.updatePlacement
+);
+
+/**
+ * @route   POST /api/v1/placements/:id/withdraw
+ * @desc    Withdraw placement
+ * @access  Student (owner)
+ */
+router.post(
+  "/:id/withdraw",
+  requireRole(ROLES.STUDENT),
+  placementController.withdrawPlacement
 );
 
 /**

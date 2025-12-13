@@ -45,7 +45,7 @@ router.get(
  */
 router.get(
   "/",
-  requireRole(ROLES.ADMIN, ROLES.COORDINATOR, ROLES.DEPT_SUPERVISOR),
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR, ROLES.ACADEMIC_SUPERVISOR),
   studentController.getStudents
 );
 

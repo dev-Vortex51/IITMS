@@ -53,43 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: (credentials: LoginCredentials) =>
       authService.login(credentials),
     onSuccess: async (data) => {
-      if (data.success && data.data) {
-        // Check if password reset is required
-        if (
-          "requiresPasswordReset" in data.data &&
-          data.data.requiresPasswordReset
-        ) {
-          // Store userId in session storage for password reset
-          if ("userId" in data.data) {
-            sessionStorage.setItem("resetUserId", data.data.userId);
-          }
-          router.push("/reset-password");
-          return;
-        }
+      if (data.success && data.data && "user" in data.data) {
+        const { user } = data.data;
 
-        // Normal login flow
-        if ("user" in data.data) {
-          const { user } = data.data;
+        // Redirect based on role
+        const roleRoutes: Record<string, string> = {
+          admin: "/admin/dashboard",
+          coordinator: "/coordinator/dashboard",
+          academic_supervisor: "/d-supervisor/dashboard",
+          departmental_supervisor: "/d-supervisor/dashboard", // Backward compatibility
+          industrial_supervisor: "/i-supervisor/dashboard",
+          student: "/student/dashboard",
+        };
 
-          // Handle first login or password reset (backup check)
-          if (user.isFirstLogin || user.passwordResetRequired) {
-            sessionStorage.setItem("resetUserId", user._id);
-            router.push("/reset-password");
-            return;
-          }
-
-          // Redirect based on role
-          const roleRoutes: Record<string, string> = {
-            admin: "/admin/dashboard",
-            coordinator: "/coordinator/dashboard",
-            departmental_supervisor: "/d-supervisor/dashboard",
-            industrial_supervisor: "/i-supervisor/dashboard",
-            student: "/student/dashboard",
-          };
-
-          const redirectPath = roleRoutes[user.role] || "/";
-          router.push(redirectPath);
-        }
+        const redirectPath = roleRoutes[user.role] || "/";
+        router.push(redirectPath);
       }
     },
   });
@@ -128,10 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};

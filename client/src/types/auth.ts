@@ -1,7 +1,7 @@
 export type UserRole =
   | "admin"
   | "coordinator"
-  | "departmental_supervisor"
+  | "academic_supervisor"
   | "industrial_supervisor"
   | "student";
 
@@ -11,7 +11,8 @@ export interface ProfileData {
   department?: any;
   // Student-specific fields
   currentPlacement?: any;
-  departmentalSupervisor?: any;
+  academicSupervisor?: any;
+  departmentalSupervisor?: any; // Backward compatibility
   industrialSupervisor?: any;
   // Supervisor-specific fields
   assignedStudents?: any[];
@@ -24,7 +25,6 @@ export interface User {
   firstName?: string;
   lastName?: string;
   name?: string;
-  isFirstLogin: boolean;
   passwordResetRequired: boolean;
   faculty?: string;
   department?: string;
@@ -47,7 +47,6 @@ export interface LoginResponse {
       }
     | {
         requiresPasswordReset: boolean;
-        isFirstLogin: boolean;
         userId: string;
         email: string;
         tempToken: string;

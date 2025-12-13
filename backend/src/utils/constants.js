@@ -14,8 +14,10 @@ const USER_ROLES = {
   DEPARTMENT: "department",
   COORDINATOR: "coordinator",
   STUDENT: "student",
-  DEPT_SUPERVISOR: "departmental_supervisor",
+  ACADEMIC_SUPERVISOR: "academic_supervisor",
   INDUSTRIAL_SUPERVISOR: "industrial_supervisor",
+  // Backward compatibility alias
+  DEPT_SUPERVISOR: "academic_supervisor",
 };
 
 // Backward compatibility alias for newly added modules expecting ROLES
@@ -62,6 +64,7 @@ const NOTIFICATION_TYPES = {
   PLACEMENT_APPROVED: "placement_approved",
   PLACEMENT_REJECTED: "placement_rejected",
   SUPERVISOR_ASSIGNED: "supervisor_assigned",
+  SUPERVISOR_UNASSIGNED: "supervisor_unassigned",
   LOGBOOK_COMMENT: "logbook_comment",
   LOGBOOK_APPROVED: "logbook_approved",
   LOGBOOK_REJECTED: "logbook_rejected",
@@ -80,6 +83,15 @@ const NOTIFICATION_PRIORITY = {
   MEDIUM: "medium",
   HIGH: "high",
   URGENT: "urgent",
+};
+
+/**
+ * Supervisor Types
+ */
+const SUPERVISOR_TYPES = {
+  ACADEMIC: "academic",
+  DEPARTMENTAL: "departmental",
+  INDUSTRIAL: "industrial",
 };
 
 /**
@@ -185,6 +197,7 @@ module.exports = {
   ASSESSMENT_STATUS,
   NOTIFICATION_TYPES,
   NOTIFICATION_PRIORITY,
+  SUPERVISOR_TYPES,
   ASSESSMENT_TYPES,
   UPLOAD_TYPES,
   HTTP_STATUS,

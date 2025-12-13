@@ -2,6 +2,8 @@
 
 import { ReactNode } from "react";
 import DashboardShell from "@/components/layouts/dashboard-shell";
+import { NotificationProvider } from "../../components/notifications/NotificationProvider";
+import { NotificationsDropdown } from "../../components/notifications/NotificationsDropdown";
 import {
   LayoutDashboard,
   Building,
@@ -9,6 +11,8 @@ import {
   UserCog,
   FileBarChart,
   Settings,
+  Users,
+  Mail,
 } from "lucide-react";
 
 const navItems = [
@@ -16,6 +20,11 @@ const navItems = [
     title: "Dashboard",
     href: "/admin/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Invitations",
+    href: "/admin/invitations",
+    icon: Mail,
   },
   {
     title: "Faculties",
@@ -33,6 +42,11 @@ const navItems = [
     icon: UserCog,
   },
   {
+    title: "Academic Supervisors",
+    href: "/admin/academic-supervisors",
+    icon: Users,
+  },
+  {
     title: "Reports",
     href: "/admin/reports",
     icon: FileBarChart,
@@ -46,8 +60,13 @@ const navItems = [
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <DashboardShell title="Admin Dashboard" navItems={navItems}>
-      {children}
-    </DashboardShell>
+    <NotificationProvider>
+      <DashboardShell title="Admin Dashboard" navItems={navItems}>
+        <div className="flex justify-end mb-2">
+          <NotificationsDropdown />
+        </div>
+        {children}
+      </DashboardShell>
+    </NotificationProvider>
   );
 }

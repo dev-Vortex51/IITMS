@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentService, placementService } from "@/services/student.service";
 import adminService from "@/services/admin.service";
@@ -40,6 +40,7 @@ export default function StudentSupervisorsPage({
 }) {
   const queryClient = useQueryClient();
   const [departmentalSupervisorId, setDepartmentalSupervisorId] = useState("");
+  const [industrialSupervisorId, setIndustrialSupervisorId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -57,6 +58,34 @@ export default function StudentSupervisorsPage({
     enabled: !!params.id,
   });
 
+  // Suggested academic supervisors (faculty-constrained)
+  const {
+    data: academicSuggestionsData,
+    isLoading: academicSuggestionsLoading,
+  } = useQuery({
+    queryKey: ["supervisors", "suggestions", "academic", params.id],
+    queryFn: () =>
+      adminService.supervisorService.getSupervisorSuggestions(
+        params.id,
+        "academic"
+      ),
+    enabled: !!params.id,
+  });
+
+  // Suggested industrial supervisors (company-matched)
+  const {
+    data: industrialSuggestionsData,
+    isLoading: industrialSuggestionsLoading,
+  } = useQuery({
+    queryKey: ["supervisors", "suggestions", "industrial", params.id],
+    queryFn: () =>
+      adminService.supervisorService.getSupervisorSuggestions(
+        params.id,
+        "industrial"
+      ),
+    enabled: !!params.id,
+  });
+
   // Fetch all departmental supervisors
   const { data: dSupervisorsData } = useQuery({
     queryKey: ["supervisors", "departmental"],
@@ -66,24 +95,67 @@ export default function StudentSupervisorsPage({
       }),
   });
 
-  const departmentalSupervisors = dSupervisorsData?.data || [];
+  // Fetch all industrial supervisors (manual override) - filtered by student's company if available
+  const { data: industrialSupervisorsData } = useQuery({
+    queryKey: ["supervisors", "industrial", placement?.companyName],
+    queryFn: () => {
+      const params: any = { type: "industrial" };
+      if (placement?.companyName) {
+        params.companyName = placement.companyName;
+      }
+      return adminService.supervisorService.getAllSupervisors(params);
+    },
+    enabled: !!placement,
+  });
 
-  // Set initial values when student data loads
-  useState(() => {
+  const departmentalSupervisors = dSupervisorsData?.data || [];
+  const academicSuggestions = academicSuggestionsData?.data || [];
+  const industrialSuggestions = industrialSuggestionsData?.data || [];
+  const industrialSupervisors = industrialSupervisorsData?.data || [];
+  const academicList = departmentalSupervisors.length
+    ? departmentalSupervisors
+    : academicSuggestions;
+  const industrialList = industrialSuggestions.length
+    ? industrialSuggestions
+    : industrialSupervisors;
+
+  // Set initial values when student data or suggestions load
+  useEffect(() => {
     if (student?.departmentalSupervisor) {
       const dsId =
         typeof student.departmentalSupervisor === "object"
           ? student.departmentalSupervisor._id
           : student.departmentalSupervisor;
       setDepartmentalSupervisorId(dsId || "");
+    } else if (!departmentalSupervisorId && academicSuggestions.length > 0) {
+      setDepartmentalSupervisorId(academicSuggestions[0]._id);
     }
-  });
+
+    if (student?.industrialSupervisor) {
+      const isId =
+        typeof student.industrialSupervisor === "object"
+          ? student.industrialSupervisor._id
+          : student.industrialSupervisor;
+      setIndustrialSupervisorId(isId || "");
+    } else if (!industrialSupervisorId && industrialSuggestions.length > 0) {
+      setIndustrialSupervisorId(industrialSuggestions[0]._id);
+    }
+  }, [
+    student,
+    academicSuggestions,
+    industrialSuggestions,
+    departmentalSupervisorId,
+    industrialSupervisorId,
+  ]);
 
   // Update departmental supervisor mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: { departmentalSupervisor: string }) => {
+    mutationFn: async (data: {
+      departmentalSupervisor?: string;
+      industrialSupervisor?: string;
+    }) => {
       if (!placement) throw new Error("No placement found");
-      return placementService.updatePlacement(placement._id, data);
+      return placementService.updatePlacementByCoordinator(placement._id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["placement", params.id] });
@@ -100,11 +172,22 @@ export default function StudentSupervisorsPage({
 
   const handleSave = () => {
     if (!departmentalSupervisorId) {
-      setError("Please select a departmental supervisor");
+      setError("Please select an academic supervisor");
       return;
     }
 
-    updateMutation.mutate({ departmentalSupervisor: departmentalSupervisorId });
+    const payload: {
+      departmentalSupervisor?: string;
+      industrialSupervisor?: string;
+    } = {
+      departmentalSupervisor: departmentalSupervisorId,
+    };
+
+    if (industrialSupervisorId) {
+      payload.industrialSupervisor = industrialSupervisorId;
+    }
+
+    updateMutation.mutate(payload as any);
   };
 
   if (placementLoading) {
@@ -164,10 +247,10 @@ export default function StudentSupervisorsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-primary">
-            Assign Departmental Supervisor
+            Assign Academic Supervisor
           </h1>
           <p className="text-muted-foreground mt-1">
-            Assign a departmental supervisor to this student
+            Assign an academic supervisor to this student
           </p>
         </div>
       </div>
@@ -178,9 +261,10 @@ export default function StudentSupervisorsPage({
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Building className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">
-                Departmental Supervisor
-              </CardTitle>
+              <CardTitle className="text-base">Academic Supervisor</CardTitle>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded ml-auto">
+                Faculty-based
+              </span>
             </div>
           </CardHeader>
           <CardContent>
@@ -263,9 +347,11 @@ export default function StudentSupervisorsPage({
               <UserCheck className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle>Assign Departmental Supervisor</CardTitle>
+              <CardTitle>Assign Academic Supervisor</CardTitle>
               <CardDescription>
-                Select a departmental supervisor for this student
+                Select an academic supervisor from your faculty. Academic
+                supervisors are faculty-constrained and can oversee up to 10
+                students cross-department.
               </CardDescription>
             </div>
           </div>
@@ -285,19 +371,17 @@ export default function StudentSupervisorsPage({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="departmental-supervisor">
-              Departmental Supervisor
-            </Label>
+            <Label htmlFor="departmental-supervisor">Academic Supervisor</Label>
             <Select
               value={departmentalSupervisorId}
               onValueChange={setDepartmentalSupervisorId}
             >
               <SelectTrigger id="departmental-supervisor">
-                <SelectValue placeholder="Select departmental supervisor" />
+                <SelectValue placeholder="Select academic supervisor" />
               </SelectTrigger>
               <SelectContent>
-                {departmentalSupervisors.length > 0 ? (
-                  departmentalSupervisors.map((supervisor: any) => {
+                {academicList.length > 0 ? (
+                  academicList.map((supervisor: any) => {
                     const studentCount =
                       supervisor.assignedStudents?.length || 0;
                     const maxStudents = supervisor.maxStudents || 5;
@@ -312,8 +396,11 @@ export default function StudentSupervisorsPage({
                         disabled={isFull && !isCurrentlyAssigned}
                       >
                         {supervisor.name} -{" "}
-                        {supervisor.department?.name || "N/A"}({studentCount}/
-                        {maxStudents} students)
+                        {supervisor.department?.name || "Cross-dept"}(
+                        {studentCount}/{maxStudents} students)
+                        {supervisor.suggestionReason
+                          ? ` • ${supervisor.suggestionReason}`
+                          : ""}
                         {isFull && !isCurrentlyAssigned && " - Full"}
                       </SelectItem>
                     );
@@ -326,8 +413,75 @@ export default function StudentSupervisorsPage({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {departmentalSupervisors.length} available
+              {academicList.length} available
             </p>
+            {academicSuggestions.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                <p className="text-xs text-blue-900 font-medium">Recommended</p>
+                <p className="text-xs text-blue-800">
+                  {academicSuggestions[0].name} •{" "}
+                  {academicSuggestions[0].suggestionReason || "Available"}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="industrial-supervisor">Industrial Supervisor</Label>
+            <Select
+              value={industrialSupervisorId}
+              onValueChange={setIndustrialSupervisorId}
+            >
+              <SelectTrigger id="industrial-supervisor">
+                <SelectValue placeholder="Select industrial supervisor" />
+              </SelectTrigger>
+              <SelectContent>
+                {industrialList.length > 0 ? (
+                  industrialList.map((supervisor: any) => {
+                    const studentCount =
+                      supervisor.assignedStudents?.length || 0;
+                    const maxStudents = supervisor.maxStudents || 10;
+                    const isFull = studentCount >= maxStudents;
+                    const isCurrentlyAssigned =
+                      industrialSupervisorId === supervisor._id;
+
+                    return (
+                      <SelectItem
+                        key={supervisor._id}
+                        value={supervisor._id}
+                        disabled={isFull && !isCurrentlyAssigned}
+                      >
+                        {supervisor.name} -{" "}
+                        {supervisor.companyName || "Company"} ({studentCount}/
+                        {maxStudents} students)
+                        {supervisor.suggestionReason
+                          ? ` • ${supervisor.suggestionReason}`
+                          : ""}
+                        {isFull && !isCurrentlyAssigned && " - Full"}
+                      </SelectItem>
+                    );
+                  })
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No industrial supervisors available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {industrialList.length} available
+            </p>
+            {industrialSuggestions.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded p-2 mt-2">
+                <p className="text-xs text-green-900 font-medium">
+                  Recommended
+                </p>
+                <p className="text-xs text-green-800">
+                  {industrialSuggestions[0].name} •{" "}
+                  {industrialSuggestions[0].suggestionReason || "Available"}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

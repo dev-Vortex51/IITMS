@@ -161,9 +161,18 @@ const getDepartments = async (filters = {}, pagination = {}, user = null) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "coordinators",
+        foreignField: "_id",
+        as: "coordinators",
+      },
+    },
+    {
       $project: {
         students: 0,
         "createdBy.password": 0,
+        "coordinators.password": 0,
       },
     },
     { $sort: { "faculty.name": 1, name: 1 } },

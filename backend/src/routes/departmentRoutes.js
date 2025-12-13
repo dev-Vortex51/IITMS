@@ -11,18 +11,29 @@ const {
   adminOnly,
   adminOrCoordinator,
 } = require("../middleware/authorization");
+const { ROLES } = require("../utils/constants");
 const { validateBody, validateObjectId } = require("../middleware/validation");
 const { departmentValidation } = require("../utils/validators");
 
 /**
  * @route   GET /api/v1/departments
  * @desc    Get all departments
- * @access  Private (Admin, Coordinator)
+ * @access  Private (Admin, Coordinator, Academic Supervisor)
  */
 router.get(
   "/",
   authenticate,
-  adminOrCoordinator,
+  (req, res, next) => {
+    if (
+      [ROLES.ADMIN, ROLES.COORDINATOR, ROLES.ACADEMIC_SUPERVISOR].includes(
+        req.user.role
+      )
+    ) {
+      next();
+    } else {
+      res.status(403).json({ success: false, message: "Forbidden" });
+    }
+  },
   departmentController.getDepartments
 );
 
@@ -42,12 +53,22 @@ router.post(
 /**
  * @route   GET /api/v1/departments/:id
  * @desc    Get department by ID
- * @access  Private (Admin, Coordinator)
+ * @access  Private (Admin, Coordinator, Academic Supervisor)
  */
 router.get(
   "/:id",
   authenticate,
-  adminOrCoordinator,
+  (req, res, next) => {
+    if (
+      [ROLES.ADMIN, ROLES.COORDINATOR, ROLES.ACADEMIC_SUPERVISOR].includes(
+        req.user.role
+      )
+    ) {
+      next();
+    } else {
+      res.status(403).json({ success: false, message: "Forbidden" });
+    }
+  },
   validateObjectId("id"),
   departmentController.getDepartmentById
 );

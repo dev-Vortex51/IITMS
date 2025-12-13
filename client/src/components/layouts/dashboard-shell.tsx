@@ -95,7 +95,9 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
                       ? "bg-accent text-accent-foreground font-medium"
                       : "hover:bg-primary/90 text-primary-foreground"
                   )}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={() => {
+                    setSidebarOpen(false);
+                  }}
                 >
                   <Icon className="h-5 w-5" />
                   <span>{item.title}</span>
@@ -125,8 +127,13 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
       {/* Sidebar Overlay (Mobile) */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden cursor-pointer"
           onClick={() => setSidebarOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSidebarOpen(false);
+          }}
+          role="button"
+          tabIndex={0}
         />
       )}
     </div>

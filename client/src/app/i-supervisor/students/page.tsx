@@ -75,6 +75,11 @@ export default function ISupervisorStudentsPage() {
         variant: "destructive" as const,
         className: "",
       },
+      withdrawn: {
+        text: "Withdrawn",
+        variant: "secondary" as const,
+        className: "bg-gray-500 hover:bg-gray-600",
+      },
     };
     return (
       variants[status as keyof typeof variants] || {

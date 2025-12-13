@@ -53,17 +53,6 @@ const login = async (email, password) => {
   user.lastLogin = Date.now();
   await user.save();
 
-  // Check if first login or password reset required
-  if (user.isFirstLogin || user.passwordResetRequired) {
-    return {
-      requiresPasswordReset: true,
-      isFirstLogin: user.isFirstLogin,
-      userId: user._id,
-      email: user.email,
-      tempToken: generateToken(user), // Temporary token for password reset
-    };
-  }
-
   // Generate tokens
   const accessToken = generateToken(user);
   const refreshToken = generateRefreshToken(user);
@@ -73,7 +62,7 @@ const login = async (email, password) => {
   if (user.role === "student") {
     profileData = await Student.findOne({ user: user._id });
   } else if (
-    ["departmental_supervisor", "industrial_supervisor"].includes(user.role)
+    ["academic_supervisor", "industrial_supervisor"].includes(user.role)
   ) {
     profileData = await Supervisor.findOne({ user: user._id });
   }
@@ -88,51 +77,7 @@ const login = async (email, password) => {
       lastName: user.lastName,
       fullName: user.fullName,
       role: user.role,
-      isFirstLogin: user.isFirstLogin,
       profileData,
-    },
-    accessToken,
-    refreshToken,
-  };
-};
-
-/**
- * Reset password on first login
- * @param {ObjectId} userId - User ID
- * @param {string} newPassword - New password
- * @returns {Promise<Object>} User and tokens
- */
-const resetPasswordFirstLogin = async (userId, newPassword) => {
-  const user = await User.findById(userId).select("+password");
-
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
-  }
-
-  if (!user.isFirstLogin && !user.passwordResetRequired) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Password reset not required");
-  }
-
-  // Update password and flags
-  user.password = newPassword;
-  user.isFirstLogin = false;
-  user.passwordResetRequired = false;
-  await user.save();
-
-  // Generate tokens
-  const accessToken = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  logger.info(`User completed first login password reset: ${user.email}`);
-
-  return {
-    user: {
-      id: user._id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: user.fullName,
-      role: user.role,
     },
     accessToken,
     refreshToken,
@@ -220,7 +165,7 @@ const getProfile = async (userId) => {
       .populate("departmentalSupervisor")
       .populate("industrialSupervisor");
   } else if (
-    ["departmental_supervisor", "industrial_supervisor"].includes(user.role)
+    ["academic_supervisor", "industrial_supervisor"].includes(user.role)
   ) {
     profileData = await Supervisor.findOne({ user: user._id })
       .populate("department")
@@ -316,15 +261,12 @@ const resetPassword = async (token, newPassword) => {
   user.password = newPassword;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
-  user.isFirstLogin = false;
-  user.passwordResetRequired = false;
   await user.save();
   return { email: user.email };
 };
 
 module.exports = {
   login,
-  resetPasswordFirstLogin,
   changePassword,
   logout,
   getProfile,

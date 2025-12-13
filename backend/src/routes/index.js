@@ -18,6 +18,8 @@ const supervisorRoutes = require("./supervisorRoutes");
 const notificationRoutes = require("./notificationRoutes");
 const reportRoutes = require("./reportRoutes");
 const settingsRoutes = require("./settingsRoutes");
+const invitationRoutes = require("./invitationRoutes");
+const attendanceRoutes = require("./attendanceRoutes");
 
 /**
  * Health check endpoint
@@ -58,5 +60,7 @@ router.use("/supervisors", supervisorRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/reports", reportRoutes);
 router.use("/settings", settingsRoutes);
+router.use("/invitations", invitationRoutes);
+router.use("/attendance", attendanceRoutes);
 
 module.exports = router;

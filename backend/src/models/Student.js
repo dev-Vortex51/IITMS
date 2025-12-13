@@ -14,7 +14,7 @@ const studentSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "User reference is required"],
       unique: true,
-      index: true,
+      // index removed; schema-level index declared below
     },
 
     // Academic Information
@@ -189,12 +189,12 @@ studentSchema.statics.findWithApprovedPlacements = function (
 
 /**
  * Instance method to assign supervisor
- * @param {string} type - 'departmental' or 'industrial'
+ * @param {string} type - 'departmental' (academic) or 'industrial'
  * @param {ObjectId} supervisorId - Supervisor ID
  * @returns {Promise<Student>} Updated student
  */
 studentSchema.methods.assignSupervisor = async function (type, supervisorId) {
-  if (type === "departmental") {
+  if (type === "departmental" || type === "academic") {
     this.departmentalSupervisor = supervisorId;
   } else if (type === "industrial") {
     this.industrialSupervisor = supervisorId;

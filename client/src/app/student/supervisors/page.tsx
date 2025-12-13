@@ -113,7 +113,7 @@ export default function StudentSupervisorsPage() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Departmental Supervisor */}
+          {/* Academic Supervisor */}
           {student.departmentalSupervisor &&
             isSupervisorObject(student.departmentalSupervisor) && (
               <Card>
@@ -123,7 +123,7 @@ export default function StudentSupervisorsPage() {
                       <Building2 className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <CardTitle>Departmental Supervisor</CardTitle>
+                      <CardTitle>Academic Supervisor</CardTitle>
                       <CardDescription>
                         Institution-based supervisor
                       </CardDescription>

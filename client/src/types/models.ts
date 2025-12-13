@@ -12,9 +12,10 @@ export interface Student {
   phoneNumber?: string;
   placement?: string;
   currentPlacement?: Placement;
-  departmental_supervisor?: string;
+  departmental_supervisor?: string; // Backward compatibility
   industrial_supervisor?: string;
-  departmentalSupervisor?: string | Supervisor;
+  academicSupervisor?: string | Supervisor;
+  departmentalSupervisor?: string | Supervisor; // Backward compatibility
   industrialSupervisor?: string | Supervisor;
   logbooks?: any[];
   createdAt?: string;
@@ -32,7 +33,8 @@ export interface Placement {
   acceptanceLetter?: string;
   status: "pending" | "approved" | "rejected";
   coordinator_remarks?: string;
-  departmentalSupervisor?: string | Supervisor;
+  academicSupervisor?: string | Supervisor;
+  departmentalSupervisor?: string | Supervisor; // Backward compatibility
   industrialSupervisor?: string | Supervisor;
   createdAt?: string;
   updatedAt?: string;

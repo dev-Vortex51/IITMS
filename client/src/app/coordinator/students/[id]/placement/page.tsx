@@ -343,18 +343,14 @@ export default function StudentPlacementPage({
                   Student&apos;s supervisor at the placement organization
                 </CardDescription>
               </div>
-              {placement.status === "approved" &&
-                !supervisorExists &&
-                placement.supervisorEmail && (
-                  <Button
-                    onClick={handlePrefillSupervisor}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Create Supervisor Account
-                  </Button>
-                )}
+
+              <Button
+                onClick={handlePrefillSupervisor}
+                variant="default"
+                size="sm"
+              >
+                <Link href="/coordinator/invitations">Invite Supervisor</Link>
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -464,150 +460,6 @@ export default function StudentPlacementPage({
           </CardContent>
         </Card>
       )}
-
-      {/* Create Industrial Supervisor Dialog */}
-      <Dialog
-        open={isCreateSupervisorOpen}
-        onOpenChange={setIsCreateSupervisorOpen}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Industrial Supervisor Account</DialogTitle>
-            <DialogDescription>
-              Create a supervisor account based on the placement information
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateSupervisor}>
-            <div className="space-y-4 py-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={supervisorFormData.firstName}
-                    onChange={(e) =>
-                      setSupervisorFormData({
-                        ...supervisorFormData,
-                        firstName: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={supervisorFormData.lastName}
-                    onChange={(e) =>
-                      setSupervisorFormData({
-                        ...supervisorFormData,
-                        lastName: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={supervisorFormData.email}
-                    onChange={(e) =>
-                      setSupervisorFormData({
-                        ...supervisorFormData,
-                        email: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={supervisorFormData.phone}
-                    onChange={(e) =>
-                      setSupervisorFormData({
-                        ...supervisorFormData,
-                        phone: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name *</Label>
-                <Input
-                  id="companyName"
-                  value={supervisorFormData.companyName}
-                  onChange={(e) =>
-                    setSupervisorFormData({
-                      ...supervisorFormData,
-                      companyName: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="companyAddress">Company Address *</Label>
-                <Input
-                  id="companyAddress"
-                  value={supervisorFormData.companyAddress}
-                  onChange={(e) =>
-                    setSupervisorFormData({
-                      ...supervisorFormData,
-                      companyAddress: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="position">Position/Title *</Label>
-                <Input
-                  id="position"
-                  value={supervisorFormData.position}
-                  onChange={(e) =>
-                    setSupervisorFormData({
-                      ...supervisorFormData,
-                      position: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateSupervisorOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createSupervisorMutation.isPending}
-              >
-                {createSupervisorMutation.isPending
-                  ? "Creating..."
-                  : "Create Supervisor"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

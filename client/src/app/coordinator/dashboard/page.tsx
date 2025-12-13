@@ -370,9 +370,21 @@ export default function CoordinatorDashboardPage() {
                     bg: "bg-red-50",
                     text: "Rejected",
                   },
+                  withdrawn: {
+                    color: "text-gray-700",
+                    bg: "bg-gray-100",
+                    text: "Withdrawn",
+                  },
                 };
-                const config =
-                  statusConfig[placement.status as keyof typeof statusConfig];
+                const config = statusConfig[
+                  placement.status as keyof typeof statusConfig
+                ] || {
+                  color: "text-gray-600",
+                  bg: "bg-gray-100",
+                  text: placement.status
+                    ? String(placement.status).toUpperCase()
+                    : "Unknown",
+                };
 
                 return (
                   <div

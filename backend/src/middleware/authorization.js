@@ -59,7 +59,7 @@ const studentOnly = authorize(USER_ROLES.STUDENT);
  * Supervisor only access (both types)
  */
 const supervisorOnly = authorize(
-  USER_ROLES.DEPT_SUPERVISOR,
+  USER_ROLES.ACADEMIC_SUPERVISOR,
   USER_ROLES.INDUSTRIAL_SUPERVISOR
 );
 
@@ -159,7 +159,7 @@ const studentDataAccess = async (req, res, next) => {
 
   // Supervisors can access their assigned students
   if (
-    [USER_ROLES.DEPT_SUPERVISOR, USER_ROLES.INDUSTRIAL_SUPERVISOR].includes(
+    [USER_ROLES.ACADEMIC_SUPERVISOR, USER_ROLES.INDUSTRIAL_SUPERVISOR].includes(
       req.user.role
     )
   ) {
@@ -198,9 +198,10 @@ const supervisorAccess = async (req, res, next) => {
 
   // Must be a supervisor
   if (
-    ![USER_ROLES.DEPT_SUPERVISOR, USER_ROLES.INDUSTRIAL_SUPERVISOR].includes(
-      req.user.role
-    )
+    ![
+      USER_ROLES.ACADEMIC_SUPERVISOR,
+      USER_ROLES.INDUSTRIAL_SUPERVISOR,
+    ].includes(req.user.role)
   ) {
     return res
       .status(HTTP_STATUS.FORBIDDEN)
@@ -228,7 +229,7 @@ const supervisorAccess = async (req, res, next) => {
 const roleLimits = {
   [USER_ROLES.ADMIN]: 1000,
   [USER_ROLES.COORDINATOR]: 500,
-  [USER_ROLES.DEPT_SUPERVISOR]: 300,
+  [USER_ROLES.ACADEMIC_SUPERVISOR]: 300,
   [USER_ROLES.INDUSTRIAL_SUPERVISOR]: 300,
   [USER_ROLES.STUDENT]: 200,
 };

@@ -24,17 +24,6 @@ router.post(
 );
 
 /**
- * @route   POST /api/v1/auth/reset-password-first-login
- * @desc    Reset password on first login
- * @access  Public
- */
-router.post(
-  "/reset-password-first-login",
-  validateBody(authValidation.resetPasswordFirstLogin),
-  authController.resetPasswordFirstLogin
-);
-
-/**
  * @route   POST /api/v1/auth/change-password
  * @desc    Change password
  * @access  Private

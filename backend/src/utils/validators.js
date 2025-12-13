@@ -80,11 +80,7 @@ const userValidation = {
       .required(),
     phone: customValidators.phone.optional(),
     department: customValidators.objectId.when("role", {
-      is: Joi.valid(
-        USER_ROLES.STUDENT,
-        USER_ROLES.COORDINATOR,
-        USER_ROLES.DEPT_SUPERVISOR
-      ),
+      is: Joi.valid(USER_ROLES.STUDENT, USER_ROLES.COORDINATOR),
       then: Joi.required(),
       otherwise: Joi.optional(),
     }),
@@ -92,7 +88,9 @@ const userValidation = {
     isFirstLogin: Joi.boolean().optional(),
     passwordResetRequired: Joi.boolean().optional(),
     // Additional fields for supervisors
-    type: Joi.string().valid("departmental", "industrial").optional(),
+    type: Joi.string()
+      .valid("academic", "industrial", "departmental")
+      .optional(),
     companyName: Joi.string().when("role", {
       is: USER_ROLES.INDUSTRIAL_SUPERVISOR,
       then: Joi.required(),

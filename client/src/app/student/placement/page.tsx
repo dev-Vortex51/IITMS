@@ -95,7 +95,12 @@ export default function StudentPlacementPage() {
   const createPlacementMutation = useMutation({
     mutationFn: (data: any) => placementService.createPlacement(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["placement", student?._id] });
+      // Invalidate both student and placement queries
+      queryClient.invalidateQueries({
+        queryKey: ["student", studentProfileId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["placement"] });
+      // Force refetch placement
       queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
       setIsDialogOpen(false);
       setFormData({
@@ -116,6 +121,44 @@ export default function StudentPlacementPage() {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "Failed to submit placement");
+    },
+  });
+
+  // Update placement mutation (edit before approval or change after approval)
+  const updatePlacementMutation = useMutation({
+    mutationFn: (data: any) =>
+      placementService.updatePlacement(placement._id, data),
+    onSuccess: () => {
+      // Invalidate both student and placement queries
+      queryClient.invalidateQueries({
+        queryKey: ["student", studentProfileId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["placement"] });
+      queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
+      setIsDialogOpen(false);
+      toast.success("Placement updated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to update placement");
+    },
+  });
+
+  // Withdraw placement mutation
+  const withdrawPlacementMutation = useMutation({
+    mutationFn: () => placementService.withdrawPlacement(placement._id),
+    onSuccess: () => {
+      // Invalidate both student and placement queries
+      queryClient.invalidateQueries({
+        queryKey: ["student", studentProfileId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["placement"] });
+      queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
+      toast.success("Placement withdrawn successfully");
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.message || "Failed to withdraw placement"
+      );
     },
   });
 
@@ -146,18 +189,46 @@ export default function StudentPlacementPage() {
     createPlacementMutation.mutate(data);
   };
 
-  if (isLoadingStudent || isLoadingPlacement) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground mt-4">
-            Loading placement information...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleEditOrChangeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const data = {
+      companyName: formData.companyName,
+      companyAddress: formData.companyAddress,
+      companySector: formData.companySector,
+      companyEmail: formData.companyEmail,
+      companyPhone: formData.companyPhone,
+      position: formData.position,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      supervisorName: formData.supervisorName,
+      supervisorEmail: formData.supervisorEmail,
+      supervisorPhone: formData.supervisorPhone,
+      supervisorPosition: formData.supervisorPosition,
+    };
+
+    updatePlacementMutation.mutate(data);
+  };
+
+  const handleOpenEditDialog = () => {
+    if (placement) {
+      setFormData({
+        companyName: placement.companyName || "",
+        companyAddress: placement.companyAddress || "",
+        companySector: placement.companySector || "",
+        companyEmail: placement.companyEmail || "",
+        companyPhone: placement.companyPhone || "",
+        position: placement.position || "",
+        startDate: placement.startDate?.split("T")[0] || "",
+        endDate: placement.endDate?.split("T")[0] || "",
+        supervisorName: placement.supervisorName || "",
+        supervisorEmail: placement.supervisorEmail || "",
+        supervisorPhone: placement.supervisorPhone || "",
+        supervisorPosition: placement.supervisorPosition || "",
+      });
+      setIsDialogOpen(true);
+    }
+  };
 
   const statusConfig = {
     approved: {
@@ -181,6 +252,13 @@ export default function StudentPlacementPage() {
       badgeVariant: "destructive" as const,
       text: "Rejected",
     },
+    withdrawn: {
+      icon: XCircle,
+      color: "text-gray-600",
+      bg: "bg-gray-50",
+      badgeVariant: "secondary" as const,
+      text: "Withdrawn",
+    },
   };
 
   return (
@@ -195,265 +273,292 @@ export default function StudentPlacementPage() {
             Manage your industrial training placement information
           </p>
         </div>
-        {!placement && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          {(!placement ||
+            ["withdrawn", "rejected"].includes(placement.status)) && (
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 Submit Placement
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Submit Placement Details</DialogTitle>
-                <DialogDescription>
-                  Provide information about your industrial training placement
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit}>
-                <div className="space-y-4 py-4">
+          )}
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {placement &&
+                !["withdrawn", "rejected"].includes(placement.status)
+                  ? "Update Placement Details"
+                  : "Submit Placement Details"}
+              </DialogTitle>
+              <DialogDescription>
+                {placement
+                  ? placement.status === "approved"
+                    ? "Update your placement and resubmit for coordinator review"
+                    : ["withdrawn", "rejected"].includes(placement.status)
+                    ? "Submit a new placement application"
+                    : "Update your placement details before approval"
+                  : "Provide information about your industrial training placement"}
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={
+                placement &&
+                !["withdrawn", "rejected"].includes(placement.status)
+                  ? handleEditOrChangeSubmit
+                  : handleSubmit
+              }
+            >
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Company Name *</Label>
+                  <Input
+                    id="companyName"
+                    value={formData.companyName}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        companyName: e.target.value,
+                      })
+                    }
+                    required
+                    placeholder="ABC Corporation Ltd"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="companyAddress">Company Address *</Label>
+                  <Input
+                    id="companyAddress"
+                    value={formData.companyAddress}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        companyAddress: e.target.value,
+                      })
+                    }
+                    required
+                    placeholder="123 Business Street, City, State"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="companySector">Company Sector</Label>
+                  <Input
+                    id="companySector"
+                    value={formData.companySector}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        companySector: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., Information Technology, Manufacturing"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Label htmlFor="companyEmail">Company Email *</Label>
                     <Input
-                      id="companyName"
-                      value={formData.companyName}
+                      id="companyEmail"
+                      type="email"
+                      value={formData.companyEmail}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          companyName: e.target.value,
+                          companyEmail: e.target.value,
                         })
                       }
                       required
-                      placeholder="ABC Corporation Ltd"
+                      placeholder="hr@company.com"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="companyAddress">Company Address *</Label>
+                    <Label htmlFor="companyPhone">Company Phone *</Label>
                     <Input
-                      id="companyAddress"
-                      value={formData.companyAddress}
+                      id="companyPhone"
+                      type="tel"
+                      value={formData.companyPhone}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          companyAddress: e.target.value,
+                          companyPhone: e.target.value,
                         })
                       }
                       required
-                      placeholder="123 Business Street, City, State"
+                      placeholder="+234 800 000 0000"
                     />
                   </div>
+                </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="position">Your Position/Role *</Label>
+                  <Input
+                    id="position"
+                    value={formData.position}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        position: e.target.value,
+                      })
+                    }
+                    required
+                    placeholder="e.g., Software Development Intern"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="companySector">Company Sector</Label>
+                    <Label htmlFor="startDate">Start Date *</Label>
                     <Input
-                      id="companySector"
-                      value={formData.companySector}
+                      id="startDate"
+                      type="date"
+                      value={formData.startDate}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          companySector: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., Information Technology, Manufacturing"
-                    />
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="companyEmail">Company Email *</Label>
-                      <Input
-                        id="companyEmail"
-                        type="email"
-                        value={formData.companyEmail}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            companyEmail: e.target.value,
-                          })
-                        }
-                        required
-                        placeholder="hr@company.com"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="companyPhone">Company Phone *</Label>
-                      <Input
-                        id="companyPhone"
-                        type="tel"
-                        value={formData.companyPhone}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            companyPhone: e.target.value,
-                          })
-                        }
-                        required
-                        placeholder="+234 800 000 0000"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="position">Your Position/Role *</Label>
-                    <Input
-                      id="position"
-                      value={formData.position}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          position: e.target.value,
+                          startDate: e.target.value,
                         })
                       }
                       required
-                      placeholder="e.g., Software Development Intern"
                     />
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date *</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, endDate: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Industrial Supervisor Section */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-3">
+                    Industrial Supervisor Details
+                  </h4>
+
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="startDate">Start Date *</Label>
+                      <Label htmlFor="supervisorName">Supervisor Name *</Label>
                       <Input
-                        id="startDate"
-                        type="date"
-                        value={formData.startDate}
+                        id="supervisorName"
+                        value={formData.supervisorName}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            startDate: e.target.value,
+                            supervisorName: e.target.value,
                           })
                         }
                         required
+                        placeholder="John Doe"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="endDate">End Date *</Label>
-                      <Input
-                        id="endDate"
-                        type="date"
-                        value={formData.endDate}
-                        onChange={(e) =>
-                          setFormData({ ...formData, endDate: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Industrial Supervisor Section */}
-                  <div className="pt-4 border-t">
-                    <h4 className="font-semibold mb-3">
-                      Industrial Supervisor Details
-                    </h4>
-
-                    <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="supervisorName">
-                          Supervisor Name *
+                        <Label htmlFor="supervisorEmail">
+                          Supervisor Email *
                         </Label>
                         <Input
-                          id="supervisorName"
-                          value={formData.supervisorName}
+                          id="supervisorEmail"
+                          type="email"
+                          value={formData.supervisorEmail}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              supervisorName: e.target.value,
+                              supervisorEmail: e.target.value,
                             })
                           }
                           required
-                          placeholder="John Doe"
+                          placeholder="supervisor@company.com"
                         />
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="supervisorEmail">
-                            Supervisor Email *
-                          </Label>
-                          <Input
-                            id="supervisorEmail"
-                            type="email"
-                            value={formData.supervisorEmail}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                supervisorEmail: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="supervisor@company.com"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="supervisorPhone">
-                            Supervisor Phone *
-                          </Label>
-                          <Input
-                            id="supervisorPhone"
-                            type="tel"
-                            value={formData.supervisorPhone}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                supervisorPhone: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="+234 800 000 0000"
-                          />
-                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="supervisorPosition">
-                          Supervisor Position *
+                        <Label htmlFor="supervisorPhone">
+                          Supervisor Phone *
                         </Label>
                         <Input
-                          id="supervisorPosition"
-                          value={formData.supervisorPosition}
+                          id="supervisorPhone"
+                          type="tel"
+                          value={formData.supervisorPhone}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              supervisorPosition: e.target.value,
+                              supervisorPhone: e.target.value,
                             })
                           }
                           required
-                          placeholder="e.g., Senior Software Engineer"
+                          placeholder="+234 800 000 0000"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="supervisorPosition">
+                        Supervisor Position *
+                      </Label>
+                      <Input
+                        id="supervisorPosition"
+                        value={formData.supervisorPosition}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            supervisorPosition: e.target.value,
+                          })
+                        }
+                        required
+                        placeholder="e.g., Senior Software Engineer"
+                      />
                     </div>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createPlacementMutation.isPending}
-                  >
-                    {createPlacementMutation.isPending
-                      ? "Submitting..."
-                      : "Submit Placement"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    placement &&
+                    !["withdrawn", "rejected"].includes(placement.status)
+                      ? updatePlacementMutation.isPending
+                      : createPlacementMutation.isPending
+                  }
+                >
+                  {placement &&
+                  !["withdrawn", "rejected"].includes(placement.status)
+                    ? updatePlacementMutation.isPending
+                      ? "Updating..."
+                      : "Update Placement"
+                    : createPlacementMutation.isPending
+                    ? "Submitting..."
+                    : "Submit Placement"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Placement Details or Empty State */}
       {placement ? (
         <div className="space-y-6">
-          {/* Status Card */}
+          {/* Status Card with Actions */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -485,17 +590,115 @@ export default function StudentPlacementPage() {
                     </CardDescription>
                   </div>
                 </div>
-                <Badge
-                  variant={
-                    statusConfig[placement.status as keyof typeof statusConfig]
-                      ?.badgeVariant || "secondary"
-                  }
-                >
-                  {statusConfig[placement.status as keyof typeof statusConfig]
-                    ?.text || placement.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      statusConfig[
+                        placement.status as keyof typeof statusConfig
+                      ]?.badgeVariant || "secondary"
+                    }
+                  >
+                    {statusConfig[placement.status as keyof typeof statusConfig]
+                      ?.text || placement.status}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
+            <CardContent className="flex gap-2 flex-wrap">
+              {placement.status === "pending" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenEditDialog}
+                    disabled={updatePlacementMutation.isPending}
+                  >
+                    Edit Details
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => withdrawPlacementMutation.mutate()}
+                    disabled={withdrawPlacementMutation.isPending}
+                  >
+                    {withdrawPlacementMutation.isPending
+                      ? "Withdrawing..."
+                      : "Withdraw"}
+                  </Button>
+                </>
+              )}
+              {placement.status === "approved" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenEditDialog}
+                    disabled={updatePlacementMutation.isPending}
+                  >
+                    Change Placement
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => withdrawPlacementMutation.mutate()}
+                    disabled={withdrawPlacementMutation.isPending}
+                  >
+                    {withdrawPlacementMutation.isPending
+                      ? "Withdrawing..."
+                      : "Withdraw"}
+                  </Button>
+                </>
+              )}
+              {placement.status === "rejected" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Open new submission with empty form
+                      setFormData({
+                        companyName: "",
+                        companyAddress: "",
+                        companySector: "",
+                        companyEmail: "",
+                        companyPhone: "",
+                        position: "",
+                        startDate: "",
+                        endDate: "",
+                        supervisorName: "",
+                        supervisorEmail: "",
+                        supervisorPhone: "",
+                        supervisorPosition: "",
+                      });
+                      setIsDialogOpen(true);
+                    }}
+                    disabled={createPlacementMutation.isPending}
+                  >
+                    Submit New Placement
+                  </Button>
+                </>
+              )}
+              {placement.status === "withdrawn" && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setFormData({
+                      companyName: "",
+                      companyAddress: "",
+                      companySector: "",
+                      companyEmail: "",
+                      companyPhone: "",
+                      position: "",
+                      startDate: "",
+                      endDate: "",
+                      supervisorName: "",
+                      supervisorEmail: "",
+                      supervisorPhone: "",
+                      supervisorPosition: "",
+                    });
+                    setIsDialogOpen(true);
+                  }}
+                  disabled={createPlacementMutation.isPending}
+                >
+                  Submit New Placement
+                </Button>
+              )}
+            </CardContent>
           </Card>
 
           {/* Company Information */}

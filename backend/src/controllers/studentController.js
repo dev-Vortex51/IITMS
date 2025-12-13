@@ -201,10 +201,11 @@ const createStudent = catchAsync(async (req, res) => {
 const getStudentPlacement = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  // Find the student's placement
+  // Find the student's most recent placement (sorted by creation date)
   const placement = await Placement.findOne({ student: id })
     .populate("industrialSupervisor", "firstName lastName email phone")
-    .populate("reviewedBy", "firstName lastName email");
+    .populate("reviewedBy", "firstName lastName email")
+    .sort({ createdAt: -1 }); // Get the most recent placement
 
   if (!placement) {
     return res.status(HTTP_STATUS.NOT_FOUND).json({

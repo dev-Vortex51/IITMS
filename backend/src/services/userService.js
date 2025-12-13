@@ -26,11 +26,12 @@ const createUser = async (userData, creatorUser) => {
 
   // Check permissions based on creator role
   if (creatorUser.role === USER_ROLES.ADMIN) {
-    // Admin can create: Faculty, Department, Coordinator
+    // Admin can create: Faculty, Department, Coordinator, Academic Supervisor
     const allowedRoles = [
       USER_ROLES.FACULTY,
       USER_ROLES.DEPARTMENT,
       USER_ROLES.COORDINATOR,
+      USER_ROLES.ACADEMIC_SUPERVISOR,
     ];
     if (!allowedRoles.includes(role)) {
       throw new ApiError(
@@ -39,12 +40,8 @@ const createUser = async (userData, creatorUser) => {
       );
     }
   } else if (creatorUser.role === USER_ROLES.COORDINATOR) {
-    // Coordinator can create: Student, Departmental Supervisor, Industrial Supervisor
-    const allowedRoles = [
-      USER_ROLES.STUDENT,
-      USER_ROLES.DEPT_SUPERVISOR,
-      USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    ];
+    // Coordinator can create: Student, Industrial Supervisor (Academic supervisors created by Admin)
+    const allowedRoles = [USER_ROLES.STUDENT, USER_ROLES.INDUSTRIAL_SUPERVISOR];
     if (!allowedRoles.includes(role)) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
@@ -68,13 +65,7 @@ const createUser = async (userData, creatorUser) => {
   }
 
   // Validate department/faculty requirements
-  if (
-    [
-      USER_ROLES.STUDENT,
-      USER_ROLES.COORDINATOR,
-      USER_ROLES.DEPT_SUPERVISOR,
-    ].includes(role)
-  ) {
+  if ([USER_ROLES.STUDENT, USER_ROLES.COORDINATOR].includes(role)) {
     if (!department) {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
@@ -82,6 +73,14 @@ const createUser = async (userData, creatorUser) => {
       );
     }
 
+    const deptExists = await Department.findById(department);
+    if (!deptExists) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
+    }
+  }
+
+  // Academic supervisors can optionally have a department but not required
+  if (role === USER_ROLES.ACADEMIC_SUPERVISOR && department) {
     const deptExists = await Department.findById(department);
     if (!deptExists) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
@@ -102,34 +101,44 @@ const createUser = async (userData, creatorUser) => {
     passwordResetRequired: true,
     phone: userData.phone,
     address: userData.address,
-    department: department, // Add department for coordinators and dept supervisors
+    // Only assign department for coordinators and students (academic supervisors are cross-department)
+    department: [USER_ROLES.COORDINATOR, USER_ROLES.STUDENT].includes(role)
+      ? department
+      : undefined,
   });
 
   // Create role-specific profile
   console.log("[userService] Creating user with role:", role);
   console.log("[userService] USER_ROLES.STUDENT:", USER_ROLES.STUDENT);
   console.log(
-    "[userService] USER_ROLES.DEPT_SUPERVISOR:",
-    USER_ROLES.DEPT_SUPERVISOR
+    "[userService] USER_ROLES.ACADEMIC_SUPERVISOR:",
+    USER_ROLES.ACADEMIC_SUPERVISOR
   );
 
   if (role === USER_ROLES.STUDENT) {
     console.log("[userService] Creating student profile");
     await createStudentProfile(user._id, userData, creatorUser._id);
-  } else if (role === USER_ROLES.DEPT_SUPERVISOR) {
-    console.log("[userService] Creating departmental supervisor profile");
+  } else if (role === USER_ROLES.ACADEMIC_SUPERVISOR) {
+    console.log("[userService] Creating academic supervisor profile");
     console.log(
-      "[userService] Department ID:",
-      userData.department || department
+      "[userService] Department ID (optional):",
+      userData.department || department || "None (cross-department)"
     );
     try {
       const supervisor = await createSupervisorProfile(
         user._id,
-        "departmental",
-        { ...userData, department: userData.department || department },
+        "academic",
+        {
+          ...userData,
+          department: userData.department || department,
+          maxStudents: 10,
+        },
         creatorUser._id
       );
-      console.log("[userService] Supervisor profile created:", supervisor._id);
+      console.log(
+        "[userService] Academic supervisor profile created:",
+        supervisor._id
+      );
     } catch (error) {
       console.error(
         "[userService] ERROR creating supervisor profile:",
@@ -276,8 +285,11 @@ const createSupervisorProfile = async (
   };
 
   // Add type-specific fields
-  if (type === "departmental") {
-    supervisorPayload.department = supervisorData.department;
+  if (type === "academic") {
+    // Academic supervisors can optionally have a department (for reference only)
+    if (supervisorData.department) {
+      supervisorPayload.department = supervisorData.department;
+    }
   } else if (type === "industrial") {
     // For industrial supervisors, companyName is required
     console.log(

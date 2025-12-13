@@ -56,20 +56,20 @@ const seedDatabase = async () => {
 
     // Clear existing data (ordered to respect dependencies)
     logger.info("Clearing existing data...");
-    await Notification.deleteMany({});
-    await Assessment.deleteMany({});
-    await Logbook.deleteMany({});
-    await Placement.deleteMany({});
-    await Supervisor.deleteMany({});
-    await Student.deleteMany({});
-    await Department.deleteMany({});
-    await Faculty.deleteMany({});
-    await User.deleteMany({});
+    // await Notification.deleteMany({});
+    // await Assessment.deleteMany({});
+    // await Logbook.deleteMany({});
+    // await Placement.deleteMany({});
+    // await Supervisor.deleteMany({});
+    // await Student.deleteMany({});
+    // await Department.deleteMany({});
+    // await Faculty.deleteMany({});
+    await User.deleteOne({ email: "supervisor@company.com" });
 
     // Create Admin
     logger.info("Creating admin user...");
-    const admin = await User.create(sampleData.admin);
-    logger.info(`Admin created: ${admin.email}`);
+    // const admin = await User.create(sampleData.admin);
+    // logger.info(`Admin created: ${admin.email}`);
 
     logger.info("╔════════════════════════════════════════════════╗");
     logger.info("║  Database seeding completed successfully!     ║");

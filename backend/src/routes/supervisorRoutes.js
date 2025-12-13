@@ -16,11 +16,16 @@ router.use(authenticate);
 /**
  * @route   GET /api/v1/supervisors
  * @desc    Get all supervisors
- * @access  Admin, Coordinator
+ * @access  Admin, Coordinator, Academic Supervisor, Industrial Supervisor
  */
 router.get(
   "/",
-  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  requireRole(
+    ROLES.ADMIN,
+    ROLES.COORDINATOR,
+    ROLES.ACADEMIC_SUPERVISOR,
+    ROLES.INDUSTRIAL_SUPERVISOR
+  ),
   supervisorController.getSupervisors
 );
 
@@ -33,6 +38,17 @@ router.get(
   "/available",
   requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
   supervisorController.getAvailableSupervisors
+);
+
+/**
+ * @route   GET /api/v1/supervisors/suggestions
+ * @desc    Get supervisor suggestions for a student
+ * @access  Admin, Coordinator
+ */
+router.get(
+  "/suggestions",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  supervisorController.getSupervisorSuggestions
 );
 
 /**
@@ -52,7 +68,7 @@ router.put(
   requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
-    ROLES.DEPT_SUPERVISOR,
+    ROLES.ACADEMIC_SUPERVISOR,
     ROLES.INDUSTRIAL_SUPERVISOR
   ),
   supervisorController.updateSupervisor
@@ -68,7 +84,7 @@ router.get(
   requireRole(
     ROLES.ADMIN,
     ROLES.COORDINATOR,
-    ROLES.DEPT_SUPERVISOR,
+    ROLES.ACADEMIC_SUPERVISOR,
     ROLES.INDUSTRIAL_SUPERVISOR
   ),
   supervisorController.getSupervisorDashboard

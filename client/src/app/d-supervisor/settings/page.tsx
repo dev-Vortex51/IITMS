@@ -111,7 +111,7 @@ export default function DSupervisorSettingsPage() {
             </div>
             <div>
               <Label className="text-muted-foreground">Role</Label>
-              <p className="font-medium capitalize">Departmental Supervisor</p>
+              <p className="font-medium capitalize">Academic Supervisor</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Account Created</Label>
