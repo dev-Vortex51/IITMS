@@ -27,7 +27,12 @@ export interface Placement {
   student: string | Student;
   companyName: string;
   companyAddress?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyWebsite?: string;
   companySector?: string;
+  position?: string;
+  department?: string;
   startDate: string;
   endDate: string;
   acceptanceLetter?: string;
