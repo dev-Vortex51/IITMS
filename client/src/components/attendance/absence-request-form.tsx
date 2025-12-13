@@ -148,7 +148,7 @@ export function AbsenceRequestForm() {
               <li>Approval is not guaranteed - provide clear, valid reasons</li>
               <li>
                 If approved, the absence will be marked as &quot;Excused
-                Absence"
+                Absence&quot;
               </li>
               <li>Supporting documents may be required for verification</li>
             </ul>

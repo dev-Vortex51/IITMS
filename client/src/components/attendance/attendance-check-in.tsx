@@ -325,7 +325,8 @@ export function AttendanceCheckIn() {
                 <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>
-                    You have completed today's attendance. See you tomorrow!
+                    You have completed today&apos;s attendance. See you
+                    tomorrow!
                   </span>
                 </div>
               )}
