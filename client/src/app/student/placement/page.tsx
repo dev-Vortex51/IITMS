@@ -126,8 +126,10 @@ export default function StudentPlacementPage() {
 
   // Update placement mutation (edit before approval or change after approval)
   const updatePlacementMutation = useMutation({
-    mutationFn: (data: any) =>
-      placementService.updatePlacement(placement._id, data),
+    mutationFn: (data: any) => {
+      if (!placement?._id) throw new Error("Placement not found");
+      return placementService.updatePlacement(placement._id, data);
+    },
     onSuccess: () => {
       // Invalidate both student and placement queries
       queryClient.invalidateQueries({
@@ -145,7 +147,10 @@ export default function StudentPlacementPage() {
 
   // Withdraw placement mutation
   const withdrawPlacementMutation = useMutation({
-    mutationFn: () => placementService.withdrawPlacement(placement._id),
+    mutationFn: () => {
+      if (!placement?._id) throw new Error("Placement not found");
+      return placementService.withdrawPlacement(placement._id);
+    },
     onSuccess: () => {
       // Invalidate both student and placement queries
       queryClient.invalidateQueries({
