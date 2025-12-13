@@ -354,7 +354,10 @@ export default function CoordinatorDashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {placements.slice(0, 5).map((placement: any) => {
-                const statusConfig = {
+                const statusConfig: Record<
+                  string,
+                  { color: string; bg: string; text: string }
+                > = {
                   pending: {
                     color: "text-yellow-600",
                     bg: "bg-yellow-50",
@@ -376,15 +379,16 @@ export default function CoordinatorDashboardPage() {
                     text: "Withdrawn",
                   },
                 };
-                const config = statusConfig[
-                  placement.status as keyof typeof statusConfig
-                ] || {
-                  color: "text-gray-600",
-                  bg: "bg-gray-100",
-                  text: placement.status
-                    ? String(placement.status).toUpperCase()
-                    : "Unknown",
-                };
+                const config: { color: string; bg: string; text: string } =
+                  statusConfig[
+                    placement.status as keyof typeof statusConfig
+                  ] || {
+                    color: "text-gray-600",
+                    bg: "bg-gray-100",
+                    text: placement.status
+                      ? String(placement.status).toUpperCase()
+                      : "Unknown",
+                  };
 
                 return (
                   <div
