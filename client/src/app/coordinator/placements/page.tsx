@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+useEffect(() => {
+  document.title = "Placements | ITMS";
+}, []);
 import { useQuery } from "@tanstack/react-query";
 import { studentService, placementService } from "@/services/student.service";
 import {
@@ -33,6 +37,10 @@ import Link from "next/link";
 import { LoadingCard } from "@/components/ui/loading";
 
 export default function CoordinatorPlacementsPage() {
+  useEffect(() => {
+    document.title = "Placements | ITMS";
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 

@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+
+useEffect(() => {
+  document.title = "Login | ITMS";
+}, []);
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +20,10 @@ import { GraduationCap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
+  useEffect(() => {
+    document.title = "Login | ITMS";
+  }, []);
+
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

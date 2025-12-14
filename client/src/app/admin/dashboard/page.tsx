@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+
+export const metadata = {
+  title: "Admin Dashboard",
+};
 import adminService from "@/services/admin.service";
 import { studentService, placementService } from "@/services/student.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +34,10 @@ import {
 } from "recharts";
 
 export default function AdminDashboardPage() {
+  useEffect(() => {
+    document.title = "Admin Dashboard | ITMS";
+  }, []);
+
   // Fetch system data
   const { data: facultiesData } = useQuery({
     queryKey: ["faculties"],

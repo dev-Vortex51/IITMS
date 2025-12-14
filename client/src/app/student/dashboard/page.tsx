@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+
+export const metadata = {
+  title: "Student Dashboard",
+};
 import { studentService, placementService } from "@/services/student.service";
 import { logbookService } from "@/services/logbook.service";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -26,6 +31,10 @@ import { Button } from "@/components/ui/button";
 import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
 
 export default function StudentDashboardPage() {
+  useEffect(() => {
+    document.title = "Student Dashboard | ITMS";
+  }, []);
+
   const { user } = useAuth();
 
   // Get student profile ID from authenticated user

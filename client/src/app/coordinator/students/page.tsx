@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+
+useEffect(() => {
+  document.title = "Students | ITMS";
+}, []);
 import { studentService } from "@/services/student.service";
 import {
   Card,
@@ -26,6 +31,10 @@ import { useState } from "react";
 import { LoadingCard } from "@/components/ui/loading";
 
 export default function CoordinatorStudentsPage() {
+  useEffect(() => {
+    document.title = "Students | ITMS";
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all students

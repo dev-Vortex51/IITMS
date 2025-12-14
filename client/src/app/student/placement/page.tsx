@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { studentService, placementService } from "@/services/student.service";
@@ -41,6 +41,10 @@ import {
 import { toast } from "sonner";
 
 export default function StudentPlacementPage() {
+  useEffect(() => {
+    document.title = "Placement | ITMS";
+  }, []);
+
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);

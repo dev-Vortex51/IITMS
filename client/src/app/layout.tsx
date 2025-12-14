@@ -8,8 +8,11 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SIWES Management System",
-  description: "Institutional Industrial Training Management System",
+  title: {
+    default: "ITMS - Industrial Training Management System",
+    template: "%s | ITMS",
+  },
+  description: "Industrial Training Management System for SIWES/IT Programs",
 };
 
 export default function RootLayout({

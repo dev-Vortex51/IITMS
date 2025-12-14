@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+useEffect(() => {
+  document.title = "Logbook | ITMS";
+}, []);
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Loading, LoadingCard } from "@/components/ui/loading";
@@ -45,6 +49,10 @@ import {
 } from "lucide-react";
 
 export default function StudentLogbookPage() {
+  useEffect(() => {
+    document.title = "Logbook | ITMS";
+  }, []);
+
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);

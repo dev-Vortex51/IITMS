@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
+
+useEffect(() => {
+  document.title = "Attendance | ITMS";
+}, []);
 import { AttendanceHistory } from "@/components/attendance/attendance-history";
 import { AbsenceRequestForm } from "@/components/attendance/absence-request-form";
 import { AttendanceSummaryCard } from "@/components/attendance/attendance-summary";
@@ -9,6 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, FileText, BarChart3, AlertCircle } from "lucide-react";
 
 export default function StudentAttendancePage() {
+  useEffect(() => {
+    document.title = "Attendance | ITMS";
+  }, []);
+
   const { user } = useAuth();
   const studentId = user?.profileData?._id;
 
