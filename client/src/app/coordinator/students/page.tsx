@@ -2,10 +2,6 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-
-useEffect(() => {
-  document.title = "Students | ITMS";
-}, []);
 import { studentService } from "@/services/student.service";
 import {
   Card,

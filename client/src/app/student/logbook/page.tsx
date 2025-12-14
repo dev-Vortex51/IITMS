@@ -1,10 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-useEffect(() => {
-  document.title = "Logbook | ITMS";
-}, []);
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Loading, LoadingCard } from "@/components/ui/loading";

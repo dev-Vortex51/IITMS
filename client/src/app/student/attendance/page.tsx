@@ -2,10 +2,6 @@
 
 import { useEffect } from "react";
 import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
-
-useEffect(() => {
-  document.title = "Attendance | ITMS";
-}, []);
 import { AttendanceHistory } from "@/components/attendance/attendance-history";
 import { AbsenceRequestForm } from "@/components/attendance/absence-request-form";
 import { AttendanceSummaryCard } from "@/components/attendance/attendance-summary";

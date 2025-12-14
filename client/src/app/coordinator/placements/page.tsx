@@ -1,10 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-useEffect(() => {
-  document.title = "Placements | ITMS";
-}, []);
 import { useQuery } from "@tanstack/react-query";
 import { studentService, placementService } from "@/services/student.service";
 import {
