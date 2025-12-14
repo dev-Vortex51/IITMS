@@ -36,7 +36,7 @@ export interface Placement {
   startDate: string;
   endDate: string;
   acceptanceLetter?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "withdrawn";
   coordinator_remarks?: string;
   academicSupervisor?: string | Supervisor;
   departmentalSupervisor?: string | Supervisor; // Backward compatibility
