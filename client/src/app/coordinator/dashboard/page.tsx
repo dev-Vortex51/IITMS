@@ -2,10 +2,6 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-
-export const metadata = {
-  title: "Coordinator Dashboard",
-};
 import { studentService, placementService } from "@/services/student.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
