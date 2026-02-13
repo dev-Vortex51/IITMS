@@ -27,7 +27,7 @@ const startServer = async () => {
 ║  Port:        ${String(config.port).padEnd(42)}║
 ║  API Version: ${config.apiVersion.padEnd(42)}║
 ║  URL:         http://localhost:${config.port}/api/${config.apiVersion.padEnd(
-        19
+        19,
       )}║
 ╚════════════════════════════════════════════════════════════╝
       `);

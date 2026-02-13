@@ -1,8 +1,3 @@
-/**
- * Middleware Index
- * Central export point for all middleware
- */
-
 const auth = require("./auth");
 const authorization = require("./authorization");
 const validation = require("./validation");

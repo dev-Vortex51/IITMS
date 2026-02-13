@@ -1,8 +1,3 @@
-/**
- * Routes Index
- * Central routing configuration
- */
-
 const express = require("express");
 const router = express.Router();
 

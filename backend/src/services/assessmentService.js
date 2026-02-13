@@ -1,8 +1,3 @@
-/**
- * Assessment Service
- * Business logic for student assessment and evaluation
- */
-
 const { Assessment, Student, Supervisor } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const {
@@ -35,7 +30,7 @@ const createAssessment = async (assessmentData, supervisorId) => {
   if (!supervisor.assignedStudents.includes(studentId)) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You are not assigned to this student"
+      "You are not assigned to this student",
     );
   }
 
@@ -49,7 +44,7 @@ const createAssessment = async (assessmentData, supervisorId) => {
   if (existingAssessment) {
     throw new ApiError(
       HTTP_STATUS.CONFLICT,
-      `${type} assessment already exists for this student`
+      `${type} assessment already exists for this student`,
     );
   }
 
@@ -140,14 +135,14 @@ const updateAssessment = async (assessmentId, updateData, supervisorId) => {
   if (assessment.supervisor.toString() !== supervisorId.toString()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You can only update your own assessments"
+      "You can only update your own assessments",
     );
   }
 
   if (assessment.status === ASSESSMENT_STATUS.COMPLETED) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot update completed assessment"
+      "Cannot update completed assessment",
     );
   }
 
@@ -172,7 +167,7 @@ const submitAssessment = async (assessmentId, supervisorId) => {
   if (assessment.supervisor.toString() !== supervisorId.toString()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You can only submit your own assessments"
+      "You can only submit your own assessments",
     );
   }
 
@@ -212,7 +207,7 @@ const verifyAssessment = async (assessmentId, coordinatorId, comment = "") => {
   if (assessment.status !== ASSESSMENT_STATUS.SUBMITTED) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Assessment must be submitted before verification"
+      "Assessment must be submitted before verification",
     );
   }
 
@@ -260,7 +255,7 @@ const getStudentFinalGrade = async (studentId) => {
   if (!departmentalAssessment || !industrialAssessment) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Both departmental and industrial assessments must be completed"
+      "Both departmental and industrial assessments must be completed",
     );
   }
 
@@ -286,10 +281,10 @@ const getStudentAssessments = async (studentId) => {
     pending: assessments.filter((a) => a.status === ASSESSMENT_STATUS.PENDING)
       .length,
     submitted: assessments.filter(
-      (a) => a.status === ASSESSMENT_STATUS.SUBMITTED
+      (a) => a.status === ASSESSMENT_STATUS.SUBMITTED,
     ).length,
     completed: assessments.filter(
-      (a) => a.status === ASSESSMENT_STATUS.COMPLETED
+      (a) => a.status === ASSESSMENT_STATUS.COMPLETED,
     ).length,
     assessments,
   };

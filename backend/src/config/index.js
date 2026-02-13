@@ -1,19 +1,9 @@
-/**
- * Environment Configuration Module
- * Loads and validates environment variables for the application
- * Ensures all required configuration is present before app starts
- */
-
 const dotenv = require("dotenv");
 const path = require("path");
 
 // Load environment variables from .env file
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
-/**
- * Configuration object containing all environment variables
- * Organized by concern for maintainability
- */
 const config = {
   // Environment
   env: process.env.NODE_ENV || "development",
@@ -95,10 +85,6 @@ const config = {
   },
 };
 
-/**
- * Validates required environment variables
- * Throws error if critical configuration is missing
- */
 const validateConfig = () => {
   const required = ["MONGODB_URI", "JWT_SECRET"];
   const missing = [];
@@ -111,13 +97,13 @@ const validateConfig = () => {
 
   if (missing.length > 0 && config.env === "production") {
     throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`
+      `Missing required environment variables: ${missing.join(", ")}`,
     );
   }
 
   if (config.env === "production" && config.jwt.secret.includes("fallback")) {
     console.warn(
-      "WARNING: Using fallback JWT secret in production! Please set JWT_SECRET."
+      "WARNING: Using fallback JWT secret in production! Please set JWT_SECRET.",
     );
   }
 };

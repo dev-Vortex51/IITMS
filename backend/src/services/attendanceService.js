@@ -1,23 +1,11 @@
-/**
- * Attendance Service
- * Handles business logic for student attendance tracking
- */
-
 const { Attendance, Student, Placement, Supervisor } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const { USER_ROLES } = require("../utils/constants");
 
-/**
- * Student checks in for the day
- * @param {ObjectId} studentId - Student ID
- * @param {Object} data - Check-in data (location, notes)
- * @returns {Promise<Object>} Created attendance record
- */
 const checkIn = async (studentId, data = {}) => {
   // Get student and verify they have an approved placement
-  const student = await Student.findById(studentId).populate(
-    "currentPlacement"
-  );
+  const student =
+    await Student.findById(studentId).populate("currentPlacement");
   if (!student) {
     throw new ApiError(404, "Student not found");
   }
@@ -65,12 +53,6 @@ const checkIn = async (studentId, data = {}) => {
   ]);
 };
 
-/**
- * Student checks out for the day
- * @param {ObjectId} studentId - Student ID
- * @param {Object} data - Check-out data (location, notes)
- * @returns {Promise<Object>} Updated attendance record
- */
 const checkOut = async (studentId, data = {}) => {
   // Get student
   const student = await Student.findById(studentId);
@@ -137,11 +119,6 @@ const checkOut = async (studentId, data = {}) => {
   ]);
 };
 
-/**
- * Get student's check-in status for today
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Object|null>} Today's attendance record or null
- */
 const getTodayCheckIn = async (studentId) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -164,13 +141,6 @@ const getTodayCheckIn = async (studentId) => {
   return attendance;
 };
 
-/**
- * Get student's attendance history
- * @param {ObjectId} studentId - Student ID
- * @param {Object} filters - Optional filters (startDate, endDate, status)
- * @param {Object} user - Authenticated user
- * @returns {Promise<Array>} Attendance records
- */
 const getAttendanceHistory = async (studentId, filters = {}, user) => {
   // Verify access permissions
   if (user.role === USER_ROLES.STUDENT) {
@@ -232,12 +202,6 @@ const getAttendanceHistory = async (studentId, filters = {}, user) => {
   return attendance;
 };
 
-/**
- * Get student's attendance statistics
- * @param {ObjectId} studentId - Student ID
- * @param {Object} user - Authenticated user
- * @returns {Promise<Object>} Attendance statistics
- */
 const getAttendanceStats = async (studentId, user) => {
   // Verify access permissions
   if (user.role === USER_ROLES.STUDENT) {
@@ -281,13 +245,6 @@ const getAttendanceStats = async (studentId, user) => {
   };
 };
 
-/**
- * Get attendance records for a placement (for supervisors)
- * @param {ObjectId} placementId - Placement ID
- * @param {Object} filters - Optional filters
- * @param {Object} user - Authenticated user
- * @returns {Promise<Array>} Attendance records
- */
 const getPlacementAttendance = async (placementId, filters = {}, user) => {
   // Verify supervisor has access to this placement
   const placement = await Placement.findById(placementId);
@@ -307,18 +264,18 @@ const getPlacementAttendance = async (placementId, filters = {}, user) => {
   let supervisorDoc = null;
   if (isSupervisor) {
     supervisorDoc = await Supervisor.findOne({ user: user._id }).select(
-      "_id assignedStudents"
+      "_id assignedStudents",
     );
     supervisorId = supervisorId || supervisorDoc?._id;
   }
 
   // Load student to cross-check supervisor assignments
   const studentDoc = await Student.findById(placement.student).select(
-    "industrialSupervisor departmentalSupervisor"
+    "industrialSupervisor departmentalSupervisor",
   );
 
   const assignedToSupervisor = supervisorDoc?.assignedStudents?.some(
-    (sid) => sid.toString() === placement.student.toString()
+    (sid) => sid.toString() === placement.student.toString(),
   );
 
   const studentHasSupervisorMatch =
@@ -346,7 +303,7 @@ const getPlacementAttendance = async (placementId, filters = {}, user) => {
   if (!allowed) {
     throw new ApiError(
       403,
-      "You can only view attendance for your assigned students"
+      "You can only view attendance for your assigned students",
     );
   }
 
@@ -386,16 +343,9 @@ const getPlacementAttendance = async (placementId, filters = {}, user) => {
   return attendance;
 };
 
-/**
- * Supervisor acknowledges student's attendance
- * @param {ObjectId} attendanceId - Attendance record ID
- * @param {ObjectId} supervisorId - Supervisor ID
- * @returns {Promise<Object>} Updated attendance record
- */
 const acknowledgeAttendance = async (attendanceId, supervisorId) => {
-  const attendance = await Attendance.findById(attendanceId).populate(
-    "placement"
-  );
+  const attendance =
+    await Attendance.findById(attendanceId).populate("placement");
   if (!attendance) {
     throw new ApiError(404, "Attendance record not found");
   }
@@ -429,18 +379,10 @@ const acknowledgeAttendance = async (attendanceId, supervisorId) => {
   ]);
 };
 
-/**
- * Submit absence request
- * @param {ObjectId} studentId - Student ID
- * @param {Date} date - Date of absence
- * @param {String} reason - Reason for absence
- * @returns {Promise<Object>} Created attendance record with absence
- */
 const submitAbsenceRequest = async (studentId, date, reason) => {
   // Get student and verify they have an approved placement
-  const student = await Student.findById(studentId).populate(
-    "currentPlacement"
-  );
+  const student =
+    await Student.findById(studentId).populate("currentPlacement");
   if (!student) {
     throw new ApiError(404, "Student not found");
   }
@@ -448,7 +390,7 @@ const submitAbsenceRequest = async (studentId, date, reason) => {
   if (!student.hasPlacement || !student.placementApproved) {
     throw new ApiError(
       400,
-      "You must have an approved placement to submit absence requests"
+      "You must have an approved placement to submit absence requests",
     );
   }
 
@@ -472,14 +414,14 @@ const submitAbsenceRequest = async (studentId, date, reason) => {
   if (existingRecord && existingRecord.approvalStatus === "APPROVED") {
     throw new ApiError(
       400,
-      "Cannot request absence for an already approved attendance"
+      "Cannot request absence for an already approved attendance",
     );
   }
 
   if (existingRecord && existingRecord.checkInTime) {
     throw new ApiError(
       400,
-      "Cannot request absence for a day you already checked in"
+      "Cannot request absence for a day you already checked in",
     );
   }
 
@@ -514,17 +456,9 @@ const submitAbsenceRequest = async (studentId, date, reason) => {
   ]);
 };
 
-/**
- * Approve attendance/absence
- * @param {ObjectId} attendanceId - Attendance record ID
- * @param {ObjectId} supervisorId - Supervisor ID
- * @param {String} comment - Optional supervisor comment
- * @returns {Promise<Object>} Updated attendance record
- */
 const approveAttendance = async (attendanceId, supervisorId, comment = "") => {
-  const attendance = await Attendance.findById(attendanceId).populate(
-    "placement"
-  );
+  const attendance =
+    await Attendance.findById(attendanceId).populate("placement");
   if (!attendance) {
     throw new ApiError(404, "Attendance record not found");
   }
@@ -541,7 +475,7 @@ const approveAttendance = async (attendanceId, supervisorId, comment = "") => {
 
   // Load student to cross-check supervisor assignments
   const studentDoc = await Student.findById(placement.student).select(
-    "industrialSupervisor departmentalSupervisor"
+    "industrialSupervisor departmentalSupervisor",
   );
 
   const placementMatch =
@@ -558,7 +492,7 @@ const approveAttendance = async (attendanceId, supervisorId, comment = "") => {
         supervisorEntityId.toString());
 
   const assignedListMatch = supervisorDoc?.assignedStudents?.some(
-    (sid) => sid.toString() === placement.student.toString()
+    (sid) => sid.toString() === placement.student.toString(),
   );
 
   const isAssigned = placementMatch || studentMatch || assignedListMatch;
@@ -597,17 +531,9 @@ const approveAttendance = async (attendanceId, supervisorId, comment = "") => {
   ]);
 };
 
-/**
- * Reject attendance/absence
- * @param {ObjectId} attendanceId - Attendance record ID
- * @param {ObjectId} supervisorId - Supervisor ID
- * @param {String} comment - Rejection reason
- * @returns {Promise<Object>} Updated attendance record
- */
 const rejectAttendance = async (attendanceId, supervisorId, comment) => {
-  const attendance = await Attendance.findById(attendanceId).populate(
-    "placement"
-  );
+  const attendance =
+    await Attendance.findById(attendanceId).populate("placement");
   if (!attendance) {
     throw new ApiError(404, "Attendance record not found");
   }
@@ -624,7 +550,7 @@ const rejectAttendance = async (attendanceId, supervisorId, comment) => {
 
   // Load student to cross-check supervisor assignments
   const studentDoc = await Student.findById(placement.student).select(
-    "industrialSupervisor departmentalSupervisor"
+    "industrialSupervisor departmentalSupervisor",
   );
 
   const placementMatch =
@@ -641,7 +567,7 @@ const rejectAttendance = async (attendanceId, supervisorId, comment) => {
         supervisorEntityId.toString());
 
   const assignedListMatch = supervisorDoc?.assignedStudents?.some(
-    (sid) => sid.toString() === placement.student.toString()
+    (sid) => sid.toString() === placement.student.toString(),
   );
 
   const isAssigned = placementMatch || studentMatch || assignedListMatch;
@@ -673,23 +599,14 @@ const rejectAttendance = async (attendanceId, supervisorId, comment) => {
   ]);
 };
 
-/**
- * Reclassify attendance day status
- * @param {ObjectId} attendanceId - Attendance record ID
- * @param {ObjectId} supervisorId - Supervisor ID
- * @param {String} newDayStatus - New day status (HALF_DAY, PRESENT_ON_TIME, etc.)
- * @param {String} comment - Reason for reclassification
- * @returns {Promise<Object>} Updated attendance record
- */
 const reclassifyAttendance = async (
   attendanceId,
   supervisorId,
   newDayStatus,
-  comment
+  comment,
 ) => {
-  const attendance = await Attendance.findById(attendanceId).populate(
-    "placement"
-  );
+  const attendance =
+    await Attendance.findById(attendanceId).populate("placement");
   if (!attendance) {
     throw new ApiError(404, "Attendance record not found");
   }
@@ -706,7 +623,7 @@ const reclassifyAttendance = async (
 
   // Load student to cross-check supervisor assignments
   const studentDoc = await Student.findById(placement.student).select(
-    "industrialSupervisor departmentalSupervisor"
+    "industrialSupervisor departmentalSupervisor",
   );
 
   const placementMatch =
@@ -723,7 +640,7 @@ const reclassifyAttendance = async (
         supervisorEntityId.toString());
 
   const assignedListMatch = supervisorDoc?.assignedStudents?.some(
-    (sid) => sid.toString() === placement.student.toString()
+    (sid) => sid.toString() === placement.student.toString(),
   );
 
   const isAssigned = placementMatch || studentMatch || assignedListMatch;
@@ -769,12 +686,6 @@ const reclassifyAttendance = async (
   ]);
 };
 
-/**
- * Get attendance summary for a student
- * @param {ObjectId} studentId - Student ID
- * @param {Object} user - Authenticated user
- * @returns {Promise<Object>} Attendance summary with statistics
- */
 const getAttendanceSummary = async (studentId, user) => {
   // Verify access permissions
   if (user.role === USER_ROLES.STUDENT) {
@@ -879,7 +790,7 @@ const getAttendanceSummary = async (studentId, user) => {
       type: "FREQUENT_LATENESS",
       severity: "MEDIUM",
       description: `${Math.round(
-        (summary.presentLate / presentDays) * 100
+        (summary.presentLate / presentDays) * 100,
       )}% late arrivals detected`,
     });
   }
@@ -890,7 +801,7 @@ const getAttendanceSummary = async (studentId, user) => {
       type: "HIGH_ABSENCE_RATE",
       severity: "HIGH",
       description: `${Math.round(
-        (summary.absent / summary.total) * 100
+        (summary.absent / summary.total) * 100,
       )}% absence rate`,
     });
   }
@@ -929,13 +840,6 @@ const getAttendanceSummary = async (studentId, user) => {
   return summary;
 };
 
-/**
- * Mark students as absent for a specific date
- * Automatically creates absent records for all students with approved placements
- * who did not check in on that date
- * @param {Date} targetDate - Date to mark absences for (defaults to yesterday)
- * @returns {Promise<Array>} Created absent records
- */
 const markAbsent = async (targetDate = null) => {
   // Default to yesterday if no date provided
   let dateToProcess = targetDate ? new Date(targetDate) : new Date();
@@ -966,7 +870,7 @@ const markAbsent = async (targetDate = null) => {
   }).select("student");
 
   const studentsWithRecords = new Set(
-    existingRecords.map((r) => r.student.toString())
+    existingRecords.map((r) => r.student.toString()),
   );
 
   // Create absent records for students without check-in

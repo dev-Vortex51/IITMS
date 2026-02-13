@@ -1,9 +1,3 @@
-/**
- * User Management Service
- * Handles user creation and management by admins and coordinators
- * Implements user creation flow as per system requirements
- */
-
 const { User, Department, Faculty, Student, Supervisor } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
@@ -12,14 +6,6 @@ const config = require("../config");
 const logger = require("../utils/logger");
 const notificationService = require("./notificationService");
 
-/**
- * Create a new user
- * Admin creates: Faculty, Department, Coordinator
- * Coordinator creates: Student, Departmental Supervisor
- * @param {Object} userData - User creation data
- * @param {Object} creatorUser - User creating this account
- * @returns {Promise<Object>} Created user with default password
- */
 const createUser = async (userData, creatorUser) => {
   const { email, firstName, lastName, role, department, faculty, password } =
     userData;
@@ -36,7 +22,7 @@ const createUser = async (userData, creatorUser) => {
     if (!allowedRoles.includes(role)) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
-        `Admin cannot create users with role: ${role}`
+        `Admin cannot create users with role: ${role}`,
       );
     }
   } else if (creatorUser.role === USER_ROLES.COORDINATOR) {
@@ -45,13 +31,13 @@ const createUser = async (userData, creatorUser) => {
     if (!allowedRoles.includes(role)) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
-        `Coordinator cannot create users with role: ${role}`
+        `Coordinator cannot create users with role: ${role}`,
       );
     }
   } else {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You do not have permission to create users"
+      "You do not have permission to create users",
     );
   }
 
@@ -60,7 +46,7 @@ const createUser = async (userData, creatorUser) => {
   if (existingUser) {
     throw new ApiError(
       HTTP_STATUS.CONFLICT,
-      "User with this email already exists"
+      "User with this email already exists",
     );
   }
 
@@ -69,7 +55,7 @@ const createUser = async (userData, creatorUser) => {
     if (!department) {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        "Department is required for this role"
+        "Department is required for this role",
       );
     }
 
@@ -108,22 +94,10 @@ const createUser = async (userData, creatorUser) => {
   });
 
   // Create role-specific profile
-  console.log("[userService] Creating user with role:", role);
-  console.log("[userService] USER_ROLES.STUDENT:", USER_ROLES.STUDENT);
-  console.log(
-    "[userService] USER_ROLES.ACADEMIC_SUPERVISOR:",
-    USER_ROLES.ACADEMIC_SUPERVISOR
-  );
 
   if (role === USER_ROLES.STUDENT) {
-    console.log("[userService] Creating student profile");
     await createStudentProfile(user._id, userData, creatorUser._id);
   } else if (role === USER_ROLES.ACADEMIC_SUPERVISOR) {
-    console.log("[userService] Creating academic supervisor profile");
-    console.log(
-      "[userService] Department ID (optional):",
-      userData.department || department || "None (cross-department)"
-    );
     try {
       const supervisor = await createSupervisorProfile(
         user._id,
@@ -133,33 +107,19 @@ const createUser = async (userData, creatorUser) => {
           department: userData.department || department,
           maxStudents: 10,
         },
-        creatorUser._id
-      );
-      console.log(
-        "[userService] Academic supervisor profile created:",
-        supervisor._id
+        creatorUser._id,
       );
     } catch (error) {
-      console.error(
-        "[userService] ERROR creating supervisor profile:",
-        error.message
-      );
       console.error("[userService] Full error:", error);
       throw error; // Re-throw to prevent user creation without profile
     }
   } else if (role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
-    console.log("[userService] Creating industrial supervisor profile");
-    console.log("[userService] userData:", JSON.stringify(userData, null, 2));
     try {
       const supervisor = await createSupervisorProfile(
         user._id,
         "industrial",
         userData,
-        creatorUser._id
-      );
-      console.log(
-        "[userService] Industrial supervisor profile created:",
-        supervisor._id
+        creatorUser._id,
       );
 
       // Auto-assign to students with pending/approved placements with this supervisor email
@@ -191,14 +151,11 @@ const createUser = async (userData, creatorUser) => {
 
       if (supervisor.assignedStudents.length > 0) {
         await supervisor.save();
-        console.log(
-          `[userService] Assigned ${supervisor.assignedStudents.length} students to new supervisor`
-        );
       }
     } catch (error) {
       console.error(
         "[userService] ERROR creating industrial supervisor profile:",
-        error.message
+        error.message,
       );
       console.error("[userService] Full error:", error);
       throw error; // Re-throw to prevent user creation without profile
@@ -229,13 +186,6 @@ const createUser = async (userData, creatorUser) => {
   };
 };
 
-/**
- * Create student profile
- * @param {ObjectId} userId - User ID
- * @param {Object} studentData - Student-specific data
- * @param {ObjectId} creatorId - Creator user ID
- * @returns {Promise<Object>} Created student profile
- */
 const createStudentProfile = async (userId, studentData, creatorId) => {
   const student = await Student.create({
     user: userId,
@@ -250,29 +200,12 @@ const createStudentProfile = async (userId, studentData, creatorId) => {
   return student;
 };
 
-/**
- * Create supervisor profile
- * @param {ObjectId} userId - User ID
- * @param {string} type - 'departmental' or 'industrial'
- * @param {Object} supervisorData - Supervisor-specific data
- * @param {ObjectId} creatorId - Creator user ID
- * @returns {Promise<Object>} Created supervisor profile
- */
 const createSupervisorProfile = async (
   userId,
   type,
   supervisorData,
-  creatorId
+  creatorId,
 ) => {
-  console.log("[createSupervisorProfile] Creating supervisor with data:", {
-    userId,
-    type,
-    department: supervisorData.department,
-    companyName: supervisorData.companyName,
-    companyAddress: supervisorData.companyAddress,
-    position: supervisorData.position,
-  });
-
   const supervisorPayload = {
     user: userId,
     type,
@@ -291,20 +224,10 @@ const createSupervisorProfile = async (
       supervisorPayload.department = supervisorData.department;
     }
   } else if (type === "industrial") {
-    // For industrial supervisors, companyName is required
-    console.log(
-      "[createSupervisorProfile] Industrial supervisor data - companyName:",
-      supervisorData.companyName
-    );
-    console.log(
-      "[createSupervisorProfile] Industrial supervisor data - companyAddress:",
-      supervisorData.companyAddress
-    );
-
     if (!supervisorData.companyName) {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        "Company name is required for industrial supervisors. Please provide companyName in the request."
+        "Company name is required for industrial supervisors. Please provide companyName in the request.",
       );
     }
     supervisorPayload.companyName = supervisorData.companyName;
@@ -315,19 +238,9 @@ const createSupervisorProfile = async (
 
   const supervisor = await Supervisor.create(supervisorPayload);
 
-  console.log(
-    "[createSupervisorProfile] Supervisor created successfully:",
-    supervisor._id
-  );
   return supervisor;
 };
 
-/**
- * Create industrial supervisor (after placement approval)
- * @param {Object} supervisorData - Supervisor data
- * @param {ObjectId} creatorId - Creator user ID
- * @returns {Promise<Object>} Created supervisor
- */
 const createIndustrialSupervisor = async (supervisorData, creatorId) => {
   const {
     email,
@@ -372,7 +285,7 @@ const createIndustrialSupervisor = async (supervisorData, creatorId) => {
     user._id,
     "industrial",
     { companyName, companyAddress, position, ...supervisorData },
-    creatorId
+    creatorId,
   );
 
   logger.info(`Industrial supervisor created: ${user.email}`);
@@ -380,12 +293,6 @@ const createIndustrialSupervisor = async (supervisorData, creatorId) => {
   return { user, supervisor };
 };
 
-/**
- * Get all users with pagination and filtering
- * @param {Object} filters - Filter criteria
- * @param {Object} pagination - Pagination params
- * @returns {Promise<Object>} Users and metadata
- */
 const getUsers = async (filters = {}, pagination = {}) => {
   const { page = 1, limit = 20 } = pagination;
   const skip = (page - 1) * limit;
@@ -420,11 +327,6 @@ const getUsers = async (filters = {}, pagination = {}) => {
   };
 };
 
-/**
- * Get user by ID
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} User
- */
 const getUserById = async (userId) => {
   const user = await User.findById(userId);
 
@@ -435,12 +337,6 @@ const getUserById = async (userId) => {
   return user;
 };
 
-/**
- * Update user
- * @param {ObjectId} userId - User ID
- * @param {Object} updateData - Update data
- * @returns {Promise<Object>} Updated user
- */
 const updateUser = async (userId, updateData) => {
   const allowedFields = [
     "firstName",
@@ -471,16 +367,11 @@ const updateUser = async (userId, updateData) => {
   return user;
 };
 
-/**
- * Delete user (soft delete by deactivating)
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} Deleted user
- */
 const deleteUser = async (userId) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { isActive: false },
-    { new: true }
+    { new: true },
   );
 
   if (!user) {

@@ -1,19 +1,8 @@
-/**
- * Department Service
- * Business logic for department management
- */
-
 const { Department, Faculty, User, Student } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 const mongoose = require("mongoose");
 
-/**
- * Create a new department
- * @param {Object} departmentData - Department creation data
- * @param {Object} creatorUser - User creating the department
- * @returns {Promise<Object>} Created department
- */
 const createDepartment = async (departmentData, creatorUser) => {
   const { name, code, faculty, description } = departmentData;
 
@@ -35,7 +24,7 @@ const createDepartment = async (departmentData, creatorUser) => {
   if (existingDepartment) {
     throw new ApiError(
       HTTP_STATUS.CONFLICT,
-      "Department with this name or code already exists in the faculty"
+      "Department with this name or code already exists in the faculty",
     );
   }
 
@@ -53,13 +42,6 @@ const createDepartment = async (departmentData, creatorUser) => {
     .populate("createdBy", "firstName lastName email");
 };
 
-/**
- * Get all departments with pagination and filtering
- * @param {Object} filters - Filter criteria
- * @param {Object} pagination - Pagination options
- * @param {Object} user - Current user for access control
- * @returns {Promise<Object>} Paginated departments
- */
 const getDepartments = async (filters = {}, pagination = {}, user = null) => {
   const { page = 1, limit = 10 } = pagination;
   const skip = (page - 1) * limit;
@@ -90,21 +72,6 @@ const getDepartments = async (filters = {}, pagination = {}, user = null) => {
     ];
   }
 
-  console.log("Department Service - Query:", JSON.stringify(query, null, 2));
-  console.log("Department Service - Filters:", filters);
-  console.log("Department Service - User role:", user?.role);
-
-  // Debug: Check total students in database
-  const totalStudents = await Student.countDocuments();
-  console.log("Total students in database:", totalStudents);
-
-  // Debug: Sample student to check structure (lean to get raw data)
-  const sampleStudent = await Student.findOne().lean();
-  console.log("Sample student (lean):", JSON.stringify(sampleStudent, null, 2));
-  console.log(
-    "Sample student department type:",
-    typeof sampleStudent?.department
-  );
   // Get departments with student count
   const departments = await Department.aggregate([
     { $match: query },
@@ -180,12 +147,6 @@ const getDepartments = async (filters = {}, pagination = {}, user = null) => {
     { $limit: parseInt(limit) },
   ]);
 
-  console.log(
-    "Aggregation result - First department:",
-    JSON.stringify(departments[0], null, 2)
-  );
-  console.log("Total departments found:", departments.length);
-
   const totalCount = await Department.countDocuments(query);
 
   return {
@@ -196,19 +157,13 @@ const getDepartments = async (filters = {}, pagination = {}, user = null) => {
   };
 };
 
-/**
- * Get department by ID
- * @param {string} departmentId - Department ID
- * @param {Object} user - Current user for access control
- * @returns {Promise<Object>} Department details
- */
 const getDepartmentById = async (departmentId, user = null) => {
   // Coordinator access control - only access their own department
   if (user && user.role === USER_ROLES.COORDINATOR && user.department) {
     if (user.department.toString() !== departmentId) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
-        "Access denied. You can only view your own department."
+        "Access denied. You can only view your own department.",
       );
     }
   }
@@ -234,13 +189,6 @@ const getDepartmentById = async (departmentId, user = null) => {
   };
 };
 
-/**
- * Update department
- * @param {string} departmentId - Department ID
- * @param {Object} updateData - Update data
- * @param {Object} updaterUser - User updating the department
- * @returns {Promise<Object>} Updated department
- */
 const updateDepartment = async (departmentId, updateData, updaterUser) => {
   const department = await Department.findById(departmentId);
 
@@ -254,7 +202,7 @@ const updateDepartment = async (departmentId, updateData, updaterUser) => {
     if (!facultyDoc || !facultyDoc.isActive) {
       throw new ApiError(
         HTTP_STATUS.NOT_FOUND,
-        "Faculty not found or inactive"
+        "Faculty not found or inactive",
       );
     }
   }
@@ -282,7 +230,7 @@ const updateDepartment = async (departmentId, updateData, updaterUser) => {
     if (existingDepartment) {
       throw new ApiError(
         HTTP_STATUS.CONFLICT,
-        "Department with this name or code already exists in the faculty"
+        "Department with this name or code already exists in the faculty",
       );
     }
   }
@@ -295,7 +243,7 @@ const updateDepartment = async (departmentId, updateData, updaterUser) => {
       code: updateData.code ? updateData.code.toUpperCase() : department.code,
       updatedAt: new Date(),
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   )
     .populate("faculty", "name code")
     .populate("createdBy", "firstName lastName email");
@@ -303,12 +251,6 @@ const updateDepartment = async (departmentId, updateData, updaterUser) => {
   return updatedDepartment;
 };
 
-/**
- * Delete (deactivate) department
- * @param {string} departmentId - Department ID
- * @param {Object} deleterUser - User deleting the department
- * @returns {Promise<void>}
- */
 const deleteDepartment = async (departmentId, deleterUser) => {
   const department = await Department.findById(departmentId);
 
@@ -325,7 +267,7 @@ const deleteDepartment = async (departmentId, deleterUser) => {
   if (activeStudents > 0) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot delete department with active students. Please transfer or deactivate all students first."
+      "Cannot delete department with active students. Please transfer or deactivate all students first.",
     );
   }
 
@@ -336,11 +278,6 @@ const deleteDepartment = async (departmentId, deleterUser) => {
   });
 };
 
-/**
- * Get departments by faculty
- * @param {string} facultyId - Faculty ID
- * @returns {Promise<Array>} Faculty departments
- */
 const getDepartmentsByFaculty = async (facultyId) => {
   const faculty = await Faculty.findById(facultyId);
 
@@ -358,11 +295,6 @@ const getDepartmentsByFaculty = async (facultyId) => {
   return departments;
 };
 
-/**
- * Get department statistics
- * @param {string} departmentId - Department ID
- * @returns {Promise<Object>} Department statistics
- */
 const getDepartmentStats = async (departmentId) => {
   const department = await Department.findById(departmentId);
 
@@ -382,13 +314,6 @@ const getDepartmentStats = async (departmentId) => {
   };
 };
 
-/**
- * Assign coordinator to department
- * @param {string} departmentId - Department ID
- * @param {string} coordinatorId - Coordinator user ID
- * @param {Object} assignerUser - User assigning the coordinator
- * @returns {Promise<Object>} Updated department
- */
 const assignCoordinator = async (departmentId, coordinatorId, assignerUser) => {
   const department = await Department.findById(departmentId);
 
@@ -412,7 +337,7 @@ const assignCoordinator = async (departmentId, coordinatorId, assignerUser) => {
     if (coordinator.department.toString() !== departmentId) {
       // Get department names for better error message
       const coordinatorDept = await Department.findById(
-        coordinator.department
+        coordinator.department,
       ).select("name");
       const targetDept = await Department.findById(departmentId).select("name");
 
@@ -424,7 +349,7 @@ const assignCoordinator = async (departmentId, coordinatorId, assignerUser) => {
           coordinatorDept?.name || "another department"
         } and cannot be assigned to ${
           targetDept?.name || "this department"
-        }. Coordinators can only be assigned to their own department.`
+        }. Coordinators can only be assigned to their own department.`,
       );
     }
   } else {
@@ -457,12 +382,6 @@ const assignCoordinator = async (departmentId, coordinatorId, assignerUser) => {
   return updatedDepartment;
 };
 
-/**
- * Get coordinators available for assignment to a specific department
- * Business rule: Only coordinators from this department or unassigned coordinators
- * @param {string} departmentId - Department ID
- * @returns {Promise<Array>} Available coordinators
- */
 const getCoordinatorsForDepartment = async (departmentId) => {
   const coordinators = await User.find({
     role: USER_ROLES.COORDINATOR,

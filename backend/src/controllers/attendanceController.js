@@ -1,17 +1,7 @@
-/**
- * Attendance Controller
- * Handles HTTP requests for attendance tracking
- */
-
 const attendanceService = require("../services/attendanceService");
 const { asyncHandler } = require("../middleware/errorHandler");
 const { formatResponse } = require("../utils/helpers");
 
-/**
- * Student checks in for the day
- * POST /api/v1/attendance/check-in
- * @access Student only
- */
 const checkIn = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id || req.body.studentId;
 
@@ -27,15 +17,10 @@ const checkIn = asyncHandler(async (req, res) => {
     formatResponse(true, "Check-in successful", attendance, {
       status: attendance.status,
       checkInTime: attendance.checkInTime,
-    })
+    }),
   );
 });
 
-/**
- * Get today's check-in status
- * GET /api/v1/attendance/today
- * @access Student only
- */
 const getTodayCheckIn = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id;
 
@@ -51,16 +36,11 @@ const getTodayCheckIn = asyncHandler(async (req, res) => {
     formatResponse(
       true,
       attendance ? "Check-in record found" : "Not checked in today",
-      attendance
-    )
+      attendance,
+    ),
   );
 });
 
-/**
- * Get attendance history for authenticated student
- * GET /api/v1/attendance/my-attendance
- * @access Student only
- */
 const getMyAttendance = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id;
 
@@ -79,7 +59,7 @@ const getMyAttendance = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.getAttendanceHistory(
     studentId,
     filters,
-    req.user
+    req.user,
   );
 
   res.json(
@@ -87,16 +67,11 @@ const getMyAttendance = asyncHandler(async (req, res) => {
       true,
       "Attendance history retrieved successfully",
       attendance,
-      { count: attendance.length }
-    )
+      { count: attendance.length },
+    ),
   );
 });
 
-/**
- * Get attendance statistics for authenticated student
- * GET /api/v1/attendance/my-stats
- * @access Student only
- */
 const getMyStats = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id;
 
@@ -109,15 +84,10 @@ const getMyStats = asyncHandler(async (req, res) => {
   const stats = await attendanceService.getAttendanceStats(studentId, req.user);
 
   res.json(
-    formatResponse(true, "Attendance statistics retrieved successfully", stats)
+    formatResponse(true, "Attendance statistics retrieved successfully", stats),
   );
 });
 
-/**
- * Get attendance history for a specific student
- * GET /api/v1/attendance/student/:studentId
- * @access Coordinator, Supervisor, Admin
- */
 const getStudentAttendance = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
@@ -130,7 +100,7 @@ const getStudentAttendance = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.getAttendanceHistory(
     studentId,
     filters,
-    req.user
+    req.user,
   );
 
   res.json(
@@ -138,16 +108,11 @@ const getStudentAttendance = asyncHandler(async (req, res) => {
       true,
       "Student attendance retrieved successfully",
       attendance,
-      { count: attendance.length }
-    )
+      { count: attendance.length },
+    ),
   );
 });
 
-/**
- * Get attendance statistics for a specific student
- * GET /api/v1/attendance/student/:studentId/stats
- * @access Coordinator, Supervisor, Admin
- */
 const getStudentStats = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
@@ -157,16 +122,11 @@ const getStudentStats = asyncHandler(async (req, res) => {
     formatResponse(
       true,
       "Student attendance statistics retrieved successfully",
-      stats
-    )
+      stats,
+    ),
   );
 });
 
-/**
- * Get attendance records for a placement
- * GET /api/v1/attendance/placement/:placementId
- * @access Supervisor, Coordinator, Admin
- */
 const getPlacementAttendance = asyncHandler(async (req, res) => {
   const { placementId } = req.params;
 
@@ -179,7 +139,7 @@ const getPlacementAttendance = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.getPlacementAttendance(
     placementId,
     filters,
-    req.user
+    req.user,
   );
 
   res.json(
@@ -187,16 +147,11 @@ const getPlacementAttendance = asyncHandler(async (req, res) => {
       true,
       "Placement attendance retrieved successfully",
       attendance,
-      { count: attendance.length }
-    )
+      { count: attendance.length },
+    ),
   );
 });
 
-/**
- * Supervisor acknowledges student attendance
- * POST /api/v1/attendance/:attendanceId/acknowledge
- * @access Supervisor only
- */
 const acknowledgeAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
   const supervisorId = req.user.supervisorProfile?._id;
@@ -209,19 +164,14 @@ const acknowledgeAttendance = asyncHandler(async (req, res) => {
 
   const attendance = await attendanceService.acknowledgeAttendance(
     attendanceId,
-    supervisorId
+    supervisorId,
   );
 
   res.json(
-    formatResponse(true, "Attendance acknowledged successfully", attendance)
+    formatResponse(true, "Attendance acknowledged successfully", attendance),
   );
 });
 
-/**
- * Student checks out for the day
- * PUT /api/v1/attendance/check-out
- * @access Student only
- */
 const checkOut = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id;
 
@@ -238,15 +188,10 @@ const checkOut = asyncHandler(async (req, res) => {
       checkOutTime: attendance.checkOutTime,
       hoursWorked: attendance.hoursWorked,
       dayStatus: attendance.dayStatus,
-    })
+    }),
   );
 });
 
-/**
- * Submit absence request
- * POST /api/v1/attendance/absence-request
- * @access Student only
- */
 const submitAbsenceRequest = asyncHandler(async (req, res) => {
   const studentId = req.user.studentProfile?._id;
 
@@ -267,21 +212,20 @@ const submitAbsenceRequest = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.submitAbsenceRequest(
     studentId,
     date,
-    reason
+    reason,
   );
 
   res
     .status(201)
     .json(
-      formatResponse(true, "Absence request submitted successfully", attendance)
+      formatResponse(
+        true,
+        "Absence request submitted successfully",
+        attendance,
+      ),
     );
 });
 
-/**
- * Approve attendance/absence
- * POST /api/v1/attendance/:attendanceId/approve
- * @access Supervisor only
- */
 const approveAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
   const supervisorId = req.user.supervisorProfile?._id;
@@ -297,19 +241,14 @@ const approveAttendance = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.approveAttendance(
     attendanceId,
     supervisorId,
-    comment
+    comment,
   );
 
   res.json(
-    formatResponse(true, "Attendance approved successfully", attendance)
+    formatResponse(true, "Attendance approved successfully", attendance),
   );
 });
 
-/**
- * Reject attendance/absence
- * POST /api/v1/attendance/:attendanceId/reject
- * @access Supervisor only
- */
 const rejectAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
   const supervisorId = req.user.supervisorProfile?._id;
@@ -331,19 +270,14 @@ const rejectAttendance = asyncHandler(async (req, res) => {
   const attendance = await attendanceService.rejectAttendance(
     attendanceId,
     supervisorId,
-    comment
+    comment,
   );
 
   res.json(
-    formatResponse(true, "Attendance rejected successfully", attendance)
+    formatResponse(true, "Attendance rejected successfully", attendance),
   );
 });
 
-/**
- * Reclassify attendance day status
- * PATCH /api/v1/attendance/:attendanceId/reclassify
- * @access Supervisor only
- */
 const reclassifyAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
   const supervisorId = req.user.supervisorProfile?._id;
@@ -366,37 +300,27 @@ const reclassifyAttendance = asyncHandler(async (req, res) => {
     attendanceId,
     supervisorId,
     dayStatus,
-    comment
+    comment,
   );
 
   res.json(
-    formatResponse(true, "Attendance reclassified successfully", attendance)
+    formatResponse(true, "Attendance reclassified successfully", attendance),
   );
 });
 
-/**
- * Get attendance summary for a student
- * GET /api/v1/attendance/summary/:studentId
- * @access Student (own), Supervisor, Coordinator, Admin
- */
 const getAttendanceSummary = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
   const summary = await attendanceService.getAttendanceSummary(
     studentId,
-    req.user
+    req.user,
   );
 
   res.json(
-    formatResponse(true, "Attendance summary retrieved successfully", summary)
+    formatResponse(true, "Attendance summary retrieved successfully", summary),
   );
 });
 
-/**
- * Mark students as absent for a specific date
- * POST /api/v1/attendance/mark-absent
- * @access Coordinator, Admin
- */
 const markAbsentForDate = asyncHandler(async (req, res) => {
   const { date } = req.body; // Optional: specific date, defaults to yesterday
 
@@ -407,8 +331,8 @@ const markAbsentForDate = asyncHandler(async (req, res) => {
       true,
       `Marked ${absentRecords.length} students as absent`,
       absentRecords,
-      { count: absentRecords.length }
-    )
+      { count: absentRecords.length },
+    ),
   );
 });
 

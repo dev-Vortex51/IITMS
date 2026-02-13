@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           admin: "/admin/dashboard",
           coordinator: "/coordinator/dashboard",
           academic_supervisor: "/d-supervisor/dashboard",
-          departmental_supervisor: "/d-supervisor/dashboard", // Backward compatibility
+          departmental_supervisor: "/d-supervisor/dashboard",
           industrial_supervisor: "/i-supervisor/dashboard",
           student: "/student/dashboard",
         };

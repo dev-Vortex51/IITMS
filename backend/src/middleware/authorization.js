@@ -1,9 +1,3 @@
-/**
- * Authorization Middleware
- * Role-based access control (RBAC)
- * Restricts access to routes based on user roles
- */
-
 const {
   USER_ROLES,
   HTTP_STATUS,
@@ -12,11 +6,6 @@ const {
 const { formatResponse } = require("../utils/helpers");
 const logger = require("../utils/logger");
 
-/**
- * Check if user has required role(s)
- * @param  {...string} roles - Allowed roles
- * @returns {Function} Middleware function
- */
 const authorize = (...roles) => {
   return (req, res, next) => {
     // Check if user is authenticated
@@ -29,7 +18,7 @@ const authorize = (...roles) => {
     // Check if user's role is in the allowed roles
     if (!roles.includes(req.user.role)) {
       logger.warn(
-        `Unauthorized access attempt by user ${req.user.email} with role ${req.user.role}`
+        `Unauthorized access attempt by user ${req.user.email} with role ${req.user.role}`,
       );
       return res
         .status(HTTP_STATUS.FORBIDDEN)
@@ -40,38 +29,19 @@ const authorize = (...roles) => {
   };
 };
 
-/**
- * Admin only access
- */
 const adminOnly = authorize(USER_ROLES.ADMIN);
 
-/**
- * Coordinator only access
- */
 const coordinatorOnly = authorize(USER_ROLES.COORDINATOR);
 
-/**
- * Student only access
- */
 const studentOnly = authorize(USER_ROLES.STUDENT);
 
-/**
- * Supervisor only access (both types)
- */
 const supervisorOnly = authorize(
   USER_ROLES.ACADEMIC_SUPERVISOR,
-  USER_ROLES.INDUSTRIAL_SUPERVISOR
+  USER_ROLES.INDUSTRIAL_SUPERVISOR,
 );
 
-/**
- * Admin or Coordinator access
- */
 const adminOrCoordinator = authorize(USER_ROLES.ADMIN, USER_ROLES.COORDINATOR);
 
-/**
- * Check if user can access specific department
- * Used for coordinators and department supervisors
- */
 const canAccessDepartment = (req, res, next) => {
   if (!req.user) {
     return res
@@ -92,16 +62,9 @@ const canAccessDepartment = (req, res, next) => {
       .json(formatResponse(false, "Department ID is required"));
   }
 
-  // For coordinators and department supervisors, check department association
-  // This would require loading the coordinator/supervisor record
-  // For now, we'll allow and rely on service layer to enforce
   next();
 };
 
-/**
- * Check if user owns the resource or is admin
- * Used for profile updates, etc.
- */
 const ownerOrAdmin = async (req, res, next) => {
   if (!req.user) {
     return res
@@ -126,9 +89,6 @@ const ownerOrAdmin = async (req, res, next) => {
   next();
 };
 
-/**
- * Check if student can access their own data or if supervisor/coordinator can access
- */
 const studentDataAccess = async (req, res, next) => {
   if (!req.user) {
     return res
@@ -157,10 +117,9 @@ const studentDataAccess = async (req, res, next) => {
     return next();
   }
 
-  // Supervisors can access their assigned students
   if (
     [USER_ROLES.ACADEMIC_SUPERVISOR, USER_ROLES.INDUSTRIAL_SUPERVISOR].includes(
-      req.user.role
+      req.user.role,
     )
   ) {
     const { Supervisor } = require("../models");
@@ -222,10 +181,6 @@ const supervisorAccess = async (req, res, next) => {
   next();
 };
 
-/**
- * Rate limiting for specific roles
- * More restrictive for students
- */
 const roleLimits = {
   [USER_ROLES.ADMIN]: 1000,
   [USER_ROLES.COORDINATOR]: 500,
@@ -236,7 +191,6 @@ const roleLimits = {
 
 module.exports = {
   authorize,
-  // Backward compatibility: routes may import requireRole
   requireRole: authorize,
   adminOnly,
   coordinatorOnly,

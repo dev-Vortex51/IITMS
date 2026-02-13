@@ -35,7 +35,7 @@ export default function LoginPage() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("message") === "password-changed") {
       toast.success(
-        "Password changed successfully! You can now login with your new password."
+        "Password changed successfully! You can now login with your new password.",
       );
       // Clear the URL parameter
       window.history.replaceState({}, "", "/login");
@@ -55,7 +55,7 @@ export default function LoginPage() {
         err.message?.includes("Network Error")
       ) {
         setError(
-          "Cannot connect to server. Please ensure the backend is running on http://localhost:5000"
+          "Login failed, Please Try again or check your internet connection!",
         );
       } else {
         const errorMessage =
@@ -151,9 +151,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            First time? You&apos;ll be prompted to reset your password.
-          </p>
         </CardContent>
       </Card>
     </div>

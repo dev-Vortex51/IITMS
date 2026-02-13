@@ -1,23 +1,12 @@
-/**
- * Database Connection Module
- * Handles MongoDB connection with retry logic and event listeners
- * Implements connection pooling and graceful shutdown
- */
-
 const mongoose = require("mongoose");
 const config = require("./index");
 const logger = require("../utils/logger");
 
-/**
- * Connect to MongoDB with retry logic
- * @param {number} retries - Number of connection retry attempts
- * @returns {Promise<void>}
- */
 const connectDB = async (retries = 5) => {
   try {
     const conn = await mongoose.connect(
       config.database.uri,
-      config.database.options
+      config.database.options,
     );
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
@@ -38,7 +27,7 @@ const connectDB = async (retries = 5) => {
 
     mongoose.connection.on("reconnectFailed", () => {
       logger.error(
-        "MongoDB reconnection failed. Please check your database connection."
+        "MongoDB reconnection failed. Please check your database connection.",
       );
     });
 
@@ -48,7 +37,7 @@ const connectDB = async (retries = 5) => {
 
     if (retries > 0) {
       logger.info(`Retrying connection... (${retries} attempts remaining)`);
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds before retry
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       return connectDB(retries - 1);
     } else {
       logger.error("Max retries reached. Could not connect to MongoDB.");
@@ -57,10 +46,6 @@ const connectDB = async (retries = 5) => {
   }
 };
 
-/**
- * Disconnect from MongoDB gracefully
- * @returns {Promise<void>}
- */
 const disconnectDB = async () => {
   try {
     await mongoose.connection.close();
@@ -71,10 +56,6 @@ const disconnectDB = async () => {
   }
 };
 
-/**
- * Drop database (useful for testing)
- * @returns {Promise<void>}
- */
 const dropDB = async () => {
   if (config.env !== "test") {
     throw new Error("Cannot drop database outside of test environment");
@@ -89,10 +70,6 @@ const dropDB = async () => {
   }
 };
 
-/**
- * Setup graceful shutdown handlers
- * Ensures database connections are closed properly on app termination
- */
 const setupGracefulShutdown = () => {
   const shutdown = async (signal) => {
     logger.info(`${signal} received. Closing MongoDB connection...`);

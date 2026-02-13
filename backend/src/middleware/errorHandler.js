@@ -1,9 +1,3 @@
-/**
- * Error Handling Middleware
- * Centralized error handling for the entire application
- * Formats errors consistently and logs them appropriately
- */
-
 const { HTTP_STATUS, ERROR_MESSAGES } = require("../utils/constants");
 const { formatResponse } = require("../utils/helpers");
 const logger = require("../utils/logger");
@@ -26,17 +20,11 @@ class ApiError extends Error {
   }
 }
 
-/**
- * Handle Mongoose CastError (invalid ObjectId)
- */
 const handleCastError = (err) => {
   const message = `Invalid ${err.path}: ${err.value}`;
   return new ApiError(HTTP_STATUS.BAD_REQUEST, message);
 };
 
-/**
- * Handle Mongoose Duplicate Key Error
- */
 const handleDuplicateKeyError = (err) => {
   const field = Object.keys(err.keyValue)[0];
   const value = err.keyValue[field];
@@ -44,47 +32,32 @@ const handleDuplicateKeyError = (err) => {
   return new ApiError(HTTP_STATUS.CONFLICT, message);
 };
 
-/**
- * Handle Mongoose Validation Error
- */
 const handleValidationError = (err) => {
   const errors = Object.values(err.errors).map((el) => el.message);
   const message = `Invalid input data: ${errors.join(". ")}`;
   return new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, message);
 };
 
-/**
- * Handle JWT Error
- */
 const handleJWTError = () => {
   return new ApiError(HTTP_STATUS.UNAUTHORIZED, ERROR_MESSAGES.INVALID_TOKEN);
 };
 
-/**
- * Handle JWT Expired Error
- */
 const handleJWTExpiredError = () => {
   return new ApiError(
     HTTP_STATUS.UNAUTHORIZED,
-    "Token has expired. Please login again."
+    "Token has expired. Please login again.",
   );
 };
 
-/**
- * Send error response in development
- */
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json(
     formatResponse(false, err.message, {
       error: err,
       stack: err.stack,
-    })
+    }),
   );
 };
 
-/**
- * Send error response in production
- */
 const sendErrorProd = (err, res) => {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
@@ -100,10 +73,6 @@ const sendErrorProd = (err, res) => {
   }
 };
 
-/**
- * Global error handling middleware
- * Must be placed after all routes
- */
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
   err.message = err.message || ERROR_MESSAGES.SERVER_ERROR;
@@ -160,24 +129,17 @@ const errorHandler = (err, req, res, next) => {
 const notFound = (req, res, next) => {
   const error = new ApiError(
     HTTP_STATUS.NOT_FOUND,
-    `Route ${req.originalUrl} not found`
+    `Route ${req.originalUrl} not found`,
   );
   next(error);
 };
 
-/**
- * Async error wrapper
- * Catches errors in async route handlers
- */
 const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-/**
- * Handle unhandled promise rejections
- */
 process.on("unhandledRejection", (err) => {
   logger.error("UNHANDLED REJECTION! 💥 Shutting down...");
   logger.error(err.name, err.message);
@@ -188,9 +150,6 @@ process.on("unhandledRejection", (err) => {
   }
 });
 
-/**
- * Handle uncaught exceptions
- */
 process.on("uncaughtException", (err) => {
   logger.error("UNCAUGHT EXCEPTION! 💥 Shutting down...");
   logger.error(err.name, err.message);

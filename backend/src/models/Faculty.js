@@ -1,9 +1,3 @@
-/**
- * Faculty Model
- * Represents academic faculties within the institution
- * Contains departments and manages faculty-level operations
- */
-
 const mongoose = require("mongoose");
 
 const facultySchema = new mongoose.Schema(
@@ -57,7 +51,7 @@ const facultySchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Virtual populate for departments
@@ -88,18 +82,10 @@ facultySchema.pre("save", function (next) {
 facultySchema.index({ isActive: 1, createdAt: -1 });
 facultySchema.index({ name: 1, code: 1 });
 
-/**
- * Static method to find active faculties
- * @returns {Promise<Array>} Array of active faculties
- */
 facultySchema.statics.findActive = function () {
   return this.find({ isActive: true }).populate("departments");
 };
 
-/**
- * Instance method to get all departments
- * @returns {Promise<Array>} Array of departments
- */
 facultySchema.methods.getDepartments = async function () {
   const Department = mongoose.model("Department");
   return await Department.find({ faculty: this._id, isActive: true });

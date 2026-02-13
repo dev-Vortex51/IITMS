@@ -1,9 +1,3 @@
-/**
- * Supervisor Model
- * Represents both Departmental and Industrial Supervisors
- * Manages supervisor assignments and student supervision
- */
-
 const mongoose = require("mongoose");
 
 const supervisorSchema = new mongoose.Schema(
@@ -118,7 +112,7 @@ const supervisorSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Indexes
@@ -161,12 +155,6 @@ supervisorSchema.pre("save", function (next) {
   next();
 });
 
-/**
- * Static method to find available supervisors
- * @param {string} type - Supervisor type ('departmental' or 'industrial')
- * @param {ObjectId} departmentId - Department ID (for departmental supervisors)
- * @returns {Promise<Array>} Array of available supervisors
- */
 supervisorSchema.statics.findAvailable = function (type, departmentId = null) {
   const query = { isActive: true, isAvailable: true };
 
@@ -188,11 +176,6 @@ supervisorSchema.statics.findAvailable = function (type, departmentId = null) {
   return this.find(query).populate("user", "firstName lastName email phone");
 };
 
-/**
- * Instance method to assign student
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Supervisor>} Updated supervisor
- */
 supervisorSchema.methods.assignStudent = async function (studentId) {
   if (this.assignedStudents.length >= this.maxStudents) {
     throw new Error("Supervisor has reached maximum student capacity");
@@ -206,23 +189,14 @@ supervisorSchema.methods.assignStudent = async function (studentId) {
   return this;
 };
 
-/**
- * Instance method to remove student
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Supervisor>} Updated supervisor
- */
 supervisorSchema.methods.removeStudent = async function (studentId) {
   this.assignedStudents = this.assignedStudents.filter(
-    (id) => id.toString() !== studentId.toString()
+    (id) => id.toString() !== studentId.toString(),
   );
   await this.save();
   return this;
 };
 
-/**
- * Instance method to get assigned students with details
- * @returns {Promise<Array>} Array of students
- */
 supervisorSchema.methods.getAssignedStudents = async function () {
   const Student = mongoose.model("Student");
   return await Student.find({ _id: { $in: this.assignedStudents } })

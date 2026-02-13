@@ -1,8 +1,3 @@
-/**
- * Report Service
- * Business logic for generating reports and analytics
- */
-
 const {
   Student,
   Placement,
@@ -216,10 +211,10 @@ const getStudentProgressReport = async (studentId) => {
   };
 
   const departmentalAssessment = assessments.find(
-    (a) => a.type === "departmental" && a.status === "completed"
+    (a) => a.type === "departmental" && a.status === "completed",
   );
   const industrialAssessment = assessments.find(
-    (a) => a.type === "industrial" && a.status === "completed"
+    (a) => a.type === "industrial" && a.status === "completed",
   );
 
   let finalGrade = null;
@@ -243,9 +238,8 @@ const getStudentProgressReport = async (studentId) => {
  * Get supervisor performance report
  */
 const getSupervisorPerformanceReport = async (supervisorId) => {
-  const supervisor = await Supervisor.findById(supervisorId).populate(
-    "assignedStudents"
-  );
+  const supervisor =
+    await Supervisor.findById(supervisorId).populate("assignedStudents");
 
   if (!supervisor) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");

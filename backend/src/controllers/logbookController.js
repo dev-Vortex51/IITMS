@@ -1,24 +1,14 @@
-/**
- * Logbook Controller
- * HTTP request handlers for logbook management
- */
-
 const { logbookService } = require("../services");
 const { HTTP_STATUS } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
-/**
- * @desc    Create logbook entry
- * @route   POST /api/v1/logbooks
- * @access  Private (Student)
- */
 const createLogbookEntry = catchAsync(async (req, res) => {
   const studentId = req.user.studentProfile;
 
   const logbook = await logbookService.createLogbookEntry(
     studentId,
     req.body,
-    req.files || []
+    req.files || [],
   );
 
   res.status(HTTP_STATUS.CREATED).json({
@@ -28,11 +18,6 @@ const createLogbookEntry = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get all logbooks
- * @route   GET /api/v1/logbooks
- * @access  Private
- */
 const getLogbooks = catchAsync(async (req, res) => {
   const filters = {
     student: req.query.student,
@@ -62,11 +47,6 @@ const getLogbooks = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get logbook by ID
- * @route   GET /api/v1/logbooks/:id
- * @access  Private
- */
 const getLogbookById = catchAsync(async (req, res) => {
   const logbook = await logbookService.getLogbookById(req.params.id);
 
@@ -77,16 +57,11 @@ const getLogbookById = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update logbook entry
- * @route   PUT /api/v1/logbooks/:id
- * @access  Private (Student - owner only)
- */
 const updateLogbookEntry = catchAsync(async (req, res) => {
   const logbook = await logbookService.updateLogbookEntry(
     req.params.id,
     req.body,
-    req.user._id
+    req.user._id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -96,15 +71,10 @@ const updateLogbookEntry = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Submit logbook entry
- * @route   POST /api/v1/logbooks/:id/submit
- * @access  Private (Student - owner only)
- */
 const submitLogbookEntry = catchAsync(async (req, res) => {
   const logbook = await logbookService.submitLogbookEntry(
     req.params.id,
-    req.user._id
+    req.user._id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -114,11 +84,6 @@ const submitLogbookEntry = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Review logbook
- * @route   POST /api/v1/logbooks/:id/review
- * @access  Private (Supervisor)
- */
 const reviewLogbook = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
   const supervisorType = req.user.supervisorType; // From auth middleware
@@ -135,7 +100,7 @@ const reviewLogbook = catchAsync(async (req, res) => {
     req.params.id,
     req.body,
     supervisorId,
-    supervisorType
+    supervisorType,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -145,11 +110,6 @@ const reviewLogbook = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get pending logbooks for supervisor
- * @route   GET /api/v1/logbooks/pending-review
- * @access  Private (Supervisor)
- */
 const getLogbooksPendingReview = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
@@ -162,14 +122,9 @@ const getLogbooksPendingReview = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student logbook summary
- * @route   GET /api/v1/students/:studentId/logbooks/summary
- * @access  Private
- */
 const getStudentLogbookSummary = catchAsync(async (req, res) => {
   const summary = await logbookService.getStudentLogbookSummary(
-    req.params.studentId
+    req.params.studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -179,18 +134,13 @@ const getStudentLogbookSummary = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Industrial supervisor review logbook
- * @route   POST /api/v1/logbooks/:id/industrial-review
- * @access  Private (Industrial Supervisor)
- */
 const industrialReviewLogbook = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
   const logbook = await logbookService.industrialReviewLogbook(
     req.params.id,
     supervisorId,
-    req.body
+    req.body,
   );
 
   res.status(HTTP_STATUS.OK).json({

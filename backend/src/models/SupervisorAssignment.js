@@ -1,8 +1,3 @@
-/**
- * SupervisorAssignment Model
- * Tracks the relationship between a student and an industrial supervisor with status
- */
-
 const mongoose = require("mongoose");
 
 const supervisorAssignmentSchema = new mongoose.Schema(
@@ -39,16 +34,16 @@ const supervisorAssignmentSchema = new mongoose.Schema(
       type: Date,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Ensure uniqueness per student-supervisor per placement
 supervisorAssignmentSchema.index(
   { student: 1, supervisor: 1, placement: 1 },
-  { unique: true }
+  { unique: true },
 );
 
 module.exports = mongoose.model(
   "SupervisorAssignment",
-  supervisorAssignmentSchema
+  supervisorAssignmentSchema,
 );

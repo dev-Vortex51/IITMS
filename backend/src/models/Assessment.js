@@ -1,9 +1,3 @@
-/**
- * Assessment Model
- * Represents student performance assessments by supervisors
- * Tracks scores across multiple criteria and provides feedback
- */
-
 const mongoose = require("mongoose");
 const { ASSESSMENT_STATUS, ASSESSMENT_TYPES } = require("../utils/constants");
 
@@ -161,13 +155,13 @@ const assessmentSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Composite index - one assessment per type per supervisor per student
 assessmentSchema.index(
   { student: 1, supervisor: 1, type: 1 },
-  { unique: true }
+  { unique: true },
 );
 assessmentSchema.index({ status: 1, submittedAt: -1 });
 
@@ -291,29 +285,14 @@ assessmentSchema.pre(/^find/, function (next) {
   next();
 });
 
-/**
- * Static method to find assessments by student
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Array>} Array of assessments
- */
 assessmentSchema.statics.findByStudent = function (studentId) {
   return this.find({ student: studentId }).sort({ createdAt: -1 });
 };
 
-/**
- * Static method to find assessments by supervisor
- * @param {ObjectId} supervisorId - Supervisor ID
- * @returns {Promise<Array>} Array of assessments
- */
 assessmentSchema.statics.findBySupervisor = function (supervisorId) {
   return this.find({ supervisor: supervisorId }).sort({ createdAt: -1 });
 };
 
-/**
- * Static method to find pending assessments
- * @param {ObjectId} supervisorId - Optional supervisor filter
- * @returns {Promise<Array>} Array of assessments
- */
 assessmentSchema.statics.findPending = function (supervisorId = null) {
   const query = { status: ASSESSMENT_STATUS.PENDING };
   if (supervisorId) {
@@ -322,10 +301,6 @@ assessmentSchema.statics.findPending = function (supervisorId = null) {
   return this.find(query).sort({ createdAt: 1 });
 };
 
-/**
- * Instance method to submit assessment
- * @returns {Promise<Assessment>} Updated assessment
- */
 assessmentSchema.methods.submit = async function () {
   this.status = ASSESSMENT_STATUS.SUBMITTED;
   this.submittedAt = Date.now();
@@ -333,12 +308,6 @@ assessmentSchema.methods.submit = async function () {
   return this;
 };
 
-/**
- * Instance method to verify assessment (by coordinator)
- * @param {ObjectId} coordinatorId - Coordinator ID
- * @param {string} comment - Verification comment
- * @returns {Promise<Assessment>} Updated assessment
- */
 assessmentSchema.methods.verify = async function (coordinatorId, comment = "") {
   this.status = ASSESSMENT_STATUS.COMPLETED;
   this.verifiedBy = coordinatorId;
@@ -348,12 +317,6 @@ assessmentSchema.methods.verify = async function (coordinatorId, comment = "") {
   return this;
 };
 
-/**
- * Instance method to calculate final grade for student
- * Combines departmental and industrial assessments
- * @param {Assessment} otherAssessment - The other assessment (dept or industrial)
- * @returns {Object} Combined grade information
- */
 assessmentSchema.methods.calculateFinalGrade = function (otherAssessment) {
   const thisScore = parseFloat(this.averageScore);
   const otherScore = parseFloat(otherAssessment.averageScore);

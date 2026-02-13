@@ -1,7 +1,4 @@
-/**
- * Logbook Service
- * Business logic for logbook management
- */
+
 
 const { Logbook, Student } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");

@@ -5,12 +5,6 @@ const logger = require("../utils/logger");
 const emailService = require("../utils/emailService");
 
 class InvitationService {
-  /**
-   * Create a new invitation
-   * @param {Object} inviterUser - The user sending the invitation
-   * @param {Object} invitationData - Invitation details
-   * @returns {Promise<Object>} Created invitation
-   */
   async createInvitation(inviterUser, invitationData) {
     const { email, role, metadata = {} } = invitationData;
 
@@ -33,7 +27,7 @@ class InvitationService {
     if (pendingInvitation) {
       throw new ApiError(
         400,
-        "An active invitation already exists for this email"
+        "An active invitation already exists for this email",
       );
     }
 
@@ -79,18 +73,12 @@ class InvitationService {
     }
 
     logger.info(
-      `Invitation created for ${email} as ${role} by ${inviterUser.email}`
+      `Invitation created for ${email} as ${role} by ${inviterUser.email}`,
     );
 
     return invitation;
   }
 
-  /**
-   * Validate if inviter has permission to invite the specified role
-   * @param {string} inviterRole - Role of the person inviting
-   * @param {string} inviteeRole - Role being invited
-   * @throws {ApiError} If permission denied
-   */
   validateInvitationPermissions(inviterRole, inviteeRole) {
     const permissions = {
       [USER_ROLES.ADMIN]: [
@@ -109,17 +97,11 @@ class InvitationService {
     if (!allowedRoles || !allowedRoles.includes(inviteeRole)) {
       throw new ApiError(
         403,
-        `You do not have permission to invite users with role: ${inviteeRole}`
+        `You do not have permission to invite users with role: ${inviteeRole}`,
       );
     }
   }
 
-  /**
-   * Get all invitations (with optional filters)
-   * @param {Object} user - Current user
-   * @param {Object} filters - Filter options
-   * @returns {Promise<Array>} List of invitations
-   */
   async getInvitations(user, filters = {}) {
     const query = {};
 
@@ -147,12 +129,6 @@ class InvitationService {
     return invitations;
   }
 
-  /**
-   * Get invitation by ID
-   * @param {string} invitationId - Invitation ID
-   * @param {Object} user - Current user
-   * @returns {Promise<Object>} Invitation details
-   */
   async getInvitationById(invitationId, user) {
     const invitation = await Invitation.findById(invitationId)
       .populate("invitedBy", "firstName lastName email")
@@ -173,11 +149,6 @@ class InvitationService {
     return invitation;
   }
 
-  /**
-   * Verify invitation token
-   * @param {string} token - Invitation token
-   * @returns {Promise<Object>} Invitation details if valid
-   */
   async verifyToken(token) {
     const invitation = await Invitation.findOne({ token })
       .populate("metadata.department", "name code")
@@ -208,12 +179,6 @@ class InvitationService {
     return invitation;
   }
 
-  /**
-   * Resend invitation email
-   * @param {string} invitationId - Invitation ID
-   * @param {Object} user - Current user
-   * @returns {Promise<Object>} Updated invitation
-   */
   async resendInvitation(invitationId, user) {
     const invitation = await this.getInvitationById(invitationId, user);
 
@@ -224,7 +189,7 @@ class InvitationService {
     if (!invitation.canResend()) {
       throw new ApiError(
         400,
-        "Please wait at least 5 minutes before resending"
+        "Please wait at least 5 minutes before resending",
       );
     }
 
@@ -259,12 +224,6 @@ class InvitationService {
     return invitation;
   }
 
-  /**
-   * Cancel an invitation
-   * @param {string} invitationId - Invitation ID
-   * @param {Object} user - Current user
-   * @returns {Promise<Object>} Updated invitation
-   */
   async cancelInvitation(invitationId, user) {
     const invitation = await this.getInvitationById(invitationId, user);
 
@@ -277,18 +236,12 @@ class InvitationService {
     await invitation.save();
 
     logger.info(
-      `Invitation cancelled for ${invitation.email} by ${user.email}`
+      `Invitation cancelled for ${invitation.email} by ${user.email}`,
     );
 
     return invitation;
   }
 
-  /**
-   * Complete first-time setup and create user account
-   * @param {string} token - Invitation token
-   * @param {Object} userData - User registration data
-   * @returns {Promise<Object>} Created user
-   */
   async completeSetup(token, userData) {
     // Verify token
     const invitation = await this.verifyToken(token);
@@ -300,7 +253,7 @@ class InvitationService {
     if (!firstName || !lastName || !password) {
       throw new ApiError(
         400,
-        "First name, last name, and password are required"
+        "First name, last name, and password are required",
       );
     }
 
@@ -319,7 +272,7 @@ class InvitationService {
       if (!invitation.metadata?.department) {
         throw new ApiError(
           400,
-          "Department is required for coordinator account creation"
+          "Department is required for coordinator account creation",
         );
       }
       userPayload.department = invitation.metadata.department;
@@ -345,7 +298,7 @@ class InvitationService {
       await Department.findByIdAndUpdate(
         invitation.metadata.department,
         { $addToSet: { coordinators: user._id } },
-        { new: true }
+        { new: true },
       );
     }
 
@@ -409,7 +362,7 @@ class InvitationService {
     }
 
     logger.info(
-      `User account created for ${user.email} via invitation (${invitation.role})`
+      `User account created for ${user.email} via invitation (${invitation.role})`,
     );
 
     // Return user without password
@@ -419,21 +372,12 @@ class InvitationService {
     return userObject;
   }
 
-  /**
-   * Cleanup expired invitations
-   * @returns {Promise<number>} Number of expired invitations
-   */
   async cleanupExpired() {
     const result = await Invitation.cleanupExpired();
     logger.info(`Cleaned up ${result.modifiedCount} expired invitations`);
     return result.modifiedCount;
   }
 
-  /**
-   * Get invitation statistics
-   * @param {Object} user - Current user
-   * @returns {Promise<Object>} Statistics
-   */
   async getStatistics(user) {
     const query = {};
 

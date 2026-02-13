@@ -1,9 +1,3 @@
-/**
- * Authentication Middleware
- * Handles JWT token verification and user authentication
- * Protects routes that require authentication
- */
-
 const jwt = require("jsonwebtoken");
 const { User } = require("../models");
 const config = require("../config");
@@ -11,10 +5,6 @@ const { HTTP_STATUS, ERROR_MESSAGES } = require("../utils/constants");
 const { formatResponse } = require("../utils/helpers");
 const logger = require("../utils/logger");
 
-/**
- * Verify JWT token and authenticate user
- * Attaches authenticated user to req.user
- */
 const authenticate = async (req, res, next) => {
   try {
     // Get token from header
@@ -66,7 +56,7 @@ const authenticate = async (req, res, next) => {
       }
     } else if (
       [ROLES.ACADEMIC_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(
-        user.role
+        user.role,
       )
     ) {
       const supervisorProfile = await Supervisor.findOne({ user: user._id });
@@ -87,10 +77,6 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-/**
- * Optional authentication
- * Does not fail if no token provided, but verifies if present
- */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -120,10 +106,6 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-/**
- * Check if password reset is NOT required
- * Used for routes that should only be accessible after password reset
- */
 const requirePasswordReset = (req, res, next) => {
   if (!req.user) {
     return res
@@ -135,18 +117,13 @@ const requirePasswordReset = (req, res, next) => {
     return res
       .status(HTTP_STATUS.FORBIDDEN)
       .json(
-        formatResponse(false, "Password has already been reset. Please login.")
+        formatResponse(false, "Password has already been reset. Please login."),
       );
   }
 
   next();
 };
 
-/**
- * Generate JWT token for user
- * @param {Object} user - User object
- * @returns {string} JWT token
- */
 const generateToken = (user) => {
   const payload = {
     id: user._id,
@@ -159,11 +136,6 @@ const generateToken = (user) => {
   });
 };
 
-/**
- * Generate refresh token
- * @param {Object} user - User object
- * @returns {string} Refresh token
- */
 const generateRefreshToken = (user) => {
   const payload = {
     id: user._id,
@@ -175,9 +147,6 @@ const generateRefreshToken = (user) => {
   });
 };
 
-/**
- * Verify refresh token and generate new access token
- */
 const refreshAccessToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -225,7 +194,7 @@ const refreshAccessToken = async (req, res, next) => {
           role: user.role,
           fullName: user.fullName,
         },
-      })
+      }),
     );
   } catch (error) {
     logger.error(`Token refresh error: ${error.message}`);

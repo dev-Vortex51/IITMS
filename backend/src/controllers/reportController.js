@@ -1,20 +1,10 @@
-/**
- * Report Controller
- * HTTP request handlers for reports and analytics
- */
-
 const { reportService } = require("../services");
 const { HTTP_STATUS } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
-/**
- * @desc    Get department statistics
- * @route   GET /api/v1/reports/departments/:departmentId/statistics
- * @access  Private (Coordinator, Admin)
- */
 const getDepartmentStatistics = catchAsync(async (req, res) => {
   const stats = await reportService.getDepartmentStatistics(
-    req.params.departmentId
+    req.params.departmentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -24,11 +14,6 @@ const getDepartmentStatistics = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get faculty statistics
- * @route   GET /api/v1/reports/faculties/:facultyId/statistics
- * @access  Private (Admin)
- */
 const getFacultyStatistics = catchAsync(async (req, res) => {
   const stats = await reportService.getFacultyStatistics(req.params.facultyId);
 
@@ -39,11 +24,6 @@ const getFacultyStatistics = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get institutional overview
- * @route   GET /api/v1/reports/institutional-overview
- * @access  Private (Admin)
- */
 const getInstitutionalOverview = catchAsync(async (req, res) => {
   const overview = await reportService.getInstitutionalOverview();
 
@@ -54,14 +34,9 @@ const getInstitutionalOverview = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student progress report
- * @route   GET /api/v1/reports/students/:studentId/progress
- * @access  Private
- */
 const getStudentProgressReport = catchAsync(async (req, res) => {
   const report = await reportService.getStudentProgressReport(
-    req.params.studentId
+    req.params.studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -71,14 +46,9 @@ const getStudentProgressReport = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get supervisor performance report
- * @route   GET /api/v1/reports/supervisors/:supervisorId/performance
- * @access  Private (Coordinator, Admin)
- */
 const getSupervisorPerformanceReport = catchAsync(async (req, res) => {
   const report = await reportService.getSupervisorPerformanceReport(
-    req.params.supervisorId
+    req.params.supervisorId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -88,11 +58,6 @@ const getSupervisorPerformanceReport = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get placement report
- * @route   GET /api/v1/reports/placements
- * @access  Private (Coordinator, Admin)
- */
 const getPlacementReport = catchAsync(async (req, res) => {
   const filters = {
     department: req.query.department,
@@ -110,14 +75,9 @@ const getPlacementReport = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Export student report
- * @route   GET /api/v1/reports/students/:studentId/export
- * @access  Private
- */
 const exportStudentReport = catchAsync(async (req, res) => {
   const reportData = await reportService.exportStudentReport(
-    req.params.studentId
+    req.params.studentId,
   );
 
   // TODO: Generate PDF using PDFKit

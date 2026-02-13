@@ -1,19 +1,9 @@
-/**
- * Student Controller
- * HTTP request handlers for student management
- */
-
 const { studentService } = require("../services");
 const userService = require("../services/userService");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 const Placement = require("../models/Placement");
 
-/**
- * @desc    Get all students (no filters, for stats)
- * @route   GET /api/v1/students/all
- * @access  Private (Admin, Coordinator)
- */
 const getAllStudents = catchAsync(async (req, res) => {
   const logger = require("../utils/logger");
   logger.info(`getAllStudents called by ${req.user?.email || "unknown"}`);
@@ -28,7 +18,7 @@ const getAllStudents = catchAsync(async (req, res) => {
   logger.info(
     `getAllStudents returned ${
       Array.isArray(result) ? result.length : 0
-    } records`
+    } records`,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -38,11 +28,6 @@ const getAllStudents = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get all students
- * @route   GET /api/v1/students
- * @access  Private (Admin, Coordinator)
- */
 const getStudents = catchAsync(async (req, res) => {
   const filters = {};
 
@@ -68,7 +53,7 @@ const getStudents = catchAsync(async (req, res) => {
   const result = await studentService.getStudents(
     filters,
     pagination,
-    req.user
+    req.user,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -79,11 +64,6 @@ const getStudents = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student by ID
- * @route   GET /api/v1/students/:id
- * @access  Private
- */
 const getStudentById = catchAsync(async (req, res) => {
   const student = await studentService.getStudentById(req.params.id);
 
@@ -94,11 +74,6 @@ const getStudentById = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update student profile
- * @route   PUT /api/v1/students/:id
- * @access  Private (Student, Coordinator, Admin)
- */
 const updateStudent = catchAsync(async (req, res) => {
   const student = await studentService.updateStudent(req.params.id, req.body);
 
@@ -109,11 +84,6 @@ const updateStudent = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student dashboard
- * @route   GET /api/v1/students/:id/dashboard
- * @access  Private (Student)
- */
 const getStudentDashboard = catchAsync(async (req, res) => {
   const dashboard = await studentService.getStudentDashboard(req.params.id);
 
@@ -124,18 +94,13 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Assign supervisor to student
- * @route   POST /api/v1/students/:id/assign-supervisor
- * @access  Private (Coordinator, Admin)
- */
 const assignSupervisor = catchAsync(async (req, res) => {
   const { supervisorId, type } = req.body;
 
   const student = await studentService.assignSupervisor(
     req.params.id,
     supervisorId,
-    type
+    type,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -145,11 +110,6 @@ const assignSupervisor = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get students by department
- * @route   GET /api/v1/departments/:departmentId/students
- * @access  Private (Coordinator, Admin)
- */
 const getStudentsByDepartment = catchAsync(async (req, res) => {
   const filters = {
     level: req.query.level,
@@ -158,7 +118,7 @@ const getStudentsByDepartment = catchAsync(async (req, res) => {
 
   const students = await studentService.getStudentsByDepartment(
     req.params.departmentId,
-    filters
+    filters,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -168,11 +128,6 @@ const getStudentsByDepartment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Create a new student
- * @route   POST /api/v1/students
- * @access  Private (Coordinator, Admin)
- */
 const createStudent = catchAsync(async (req, res) => {
   const studentData = {
     ...req.body,
@@ -193,11 +148,6 @@ const createStudent = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student placement
- * @route   GET /api/v1/students/:id/placement
- * @access  Private (Student (self), Admin, Coordinator)
- */
 const getStudentPlacement = catchAsync(async (req, res) => {
   const { id } = req.params;
 

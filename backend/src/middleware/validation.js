@@ -1,19 +1,7 @@
-/**
- * Validation Middleware
- * Validates request data using Joi schemas
- * Returns formatted error responses for validation failures
- */
-
 const { HTTP_STATUS } = require("../utils/constants");
 const { formatResponse } = require("../utils/helpers");
 const logger = require("../utils/logger");
 
-/**
- * Generic validation middleware factory
- * @param {Object} schema - Joi validation schema
- * @param {string} property - Request property to validate ('body', 'query', 'params')
- * @returns {Function} Middleware function
- */
 const validate = (schema, property = "body") => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req[property], {
@@ -40,30 +28,12 @@ const validate = (schema, property = "body") => {
   };
 };
 
-/**
- * Validate request body
- * @param {Object} schema - Joi validation schema
- * @returns {Function} Middleware function
- */
 const validateBody = (schema) => validate(schema, "body");
 
-/**
- * Validate query parameters
- * @param {Object} schema - Joi validation schema
- * @returns {Function} Middleware function
- */
 const validateQuery = (schema) => validate(schema, "query");
 
-/**
- * Validate URL parameters
- * @param {Object} schema - Joi validation schema
- * @returns {Function} Middleware function
- */
 const validateParams = (schema) => validate(schema, "params");
 
-/**
- * Validate MongoDB ObjectId in params
- */
 const validateObjectId = (paramName = "id") => {
   return (req, res, next) => {
     const id = req.params[paramName];
@@ -79,10 +49,6 @@ const validateObjectId = (paramName = "id") => {
   };
 };
 
-/**
- * Sanitize string inputs to prevent XSS
- * Applied automatically to all string fields in body
- */
 const sanitize = (req, res, next) => {
   const sanitizeObject = (obj) => {
     for (const key in obj) {
@@ -106,10 +72,6 @@ const sanitize = (req, res, next) => {
   next();
 };
 
-/**
- * Prevent NoSQL injection
- * Checks for MongoDB operators in user input
- */
 const preventNoSQLInjection = (req, res, next) => {
   const checkObject = (obj) => {
     for (const key in obj) {

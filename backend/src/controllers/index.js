@@ -1,8 +1,3 @@
-/**
- * Controllers Export
- * Central export point for all controller modules
- */
-
 const authController = require("./authController");
 const userController = require("./userController");
 const studentController = require("./studentController");

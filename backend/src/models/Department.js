@@ -1,9 +1,3 @@
-/**
- * Department Model
- * Represents academic departments within faculties
- * Manages coordinators, students, and department-level operations
- */
-
 const mongoose = require("mongoose");
 
 const departmentSchema = new mongoose.Schema(
@@ -70,7 +64,7 @@ const departmentSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Composite unique index for department code within faculty
@@ -115,11 +109,6 @@ departmentSchema.pre(/^find/, function (next) {
   next();
 });
 
-/**
- * Static method to find active departments
- * @param {ObjectId} facultyId - Optional faculty filter
- * @returns {Promise<Array>} Array of active departments
- */
 departmentSchema.statics.findActive = function (facultyId = null) {
   const query = { isActive: true };
   if (facultyId) {
@@ -128,11 +117,6 @@ departmentSchema.statics.findActive = function (facultyId = null) {
   return this.find(query).populate("coordinators", "firstName lastName email");
 };
 
-/**
- * Instance method to add coordinator
- * @param {ObjectId} userId - User ID of coordinator
- * @returns {Promise<Department>} Updated department
- */
 departmentSchema.methods.addCoordinator = async function (userId) {
   if (!this.coordinators.includes(userId)) {
     this.coordinators.push(userId);
@@ -141,14 +125,9 @@ departmentSchema.methods.addCoordinator = async function (userId) {
   return this;
 };
 
-/**
- * Instance method to remove coordinator
- * @param {ObjectId} userId - User ID of coordinator
- * @returns {Promise<Department>} Updated department
- */
 departmentSchema.methods.removeCoordinator = async function (userId) {
   this.coordinators = this.coordinators.filter(
-    (id) => id.toString() !== userId.toString()
+    (id) => id.toString() !== userId.toString(),
   );
   await this.save();
   return this;

@@ -1,9 +1,3 @@
-/**
- * Placement Model
- * Represents student placement applications
- * Tracks company information, approval status, and supervisor assignment
- */
-
 const mongoose = require("mongoose");
 const { PLACEMENT_STATUS } = require("../utils/constants");
 
@@ -188,7 +182,7 @@ const placementSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Indexes for performance
@@ -242,11 +236,6 @@ placementSchema.pre(/^find/, function (next) {
   next();
 });
 
-/**
- * Static method to find pending placements
- * @param {ObjectId} departmentId - Optional department filter
- * @returns {Promise<Array>} Array of pending placements
- */
 placementSchema.statics.findPending = function (departmentId = null) {
   const query = { status: PLACEMENT_STATUS.PENDING };
 
@@ -260,10 +249,6 @@ placementSchema.statics.findPending = function (departmentId = null) {
   return this.find(query);
 };
 
-/**
- * Static method to find approved placements without supervisors
- * @returns {Promise<Array>} Array of placements
- */
 placementSchema.statics.findApprovedWithoutSupervisor = function () {
   return this.find({
     status: PLACEMENT_STATUS.APPROVED,
@@ -271,12 +256,6 @@ placementSchema.statics.findApprovedWithoutSupervisor = function () {
   });
 };
 
-/**
- * Instance method to approve placement
- * @param {ObjectId} reviewerId - User ID of reviewer
- * @param {string} comment - Review comment
- * @returns {Promise<Placement>} Updated placement
- */
 placementSchema.methods.approve = async function (reviewerId, comment = "") {
   this.status = PLACEMENT_STATUS.APPROVED;
   this.reviewedBy = reviewerId;
@@ -286,12 +265,6 @@ placementSchema.methods.approve = async function (reviewerId, comment = "") {
   return this;
 };
 
-/**
- * Instance method to reject placement
- * @param {ObjectId} reviewerId - User ID of reviewer
- * @param {string} comment - Rejection reason
- * @returns {Promise<Placement>} Updated placement
- */
 placementSchema.methods.reject = async function (reviewerId, comment) {
   this.status = PLACEMENT_STATUS.REJECTED;
   this.reviewedBy = reviewerId;
@@ -301,13 +274,8 @@ placementSchema.methods.reject = async function (reviewerId, comment) {
   return this;
 };
 
-/**
- * Instance method to assign industrial supervisor
- * @param {ObjectId} supervisorId - Supervisor ID
- * @returns {Promise<Placement>} Updated placement
- */
 placementSchema.methods.assignIndustrialSupervisor = async function (
-  supervisorId
+  supervisorId,
 ) {
   if (this.status !== PLACEMENT_STATUS.APPROVED) {
     throw new Error("Can only assign supervisor to approved placements");

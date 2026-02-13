@@ -1,8 +1,3 @@
-/**
- * Services Export
- * Central export point for all service modules
- */
-
 const authService = require("./authService");
 const userService = require("./userService");
 const notificationService = require("./notificationService");

@@ -1,8 +1,3 @@
-/**
- * Attendance Model
- * Tracks daily student check-ins for industrial training
- */
-
 const mongoose = require("mongoose");
 
 const attendanceSchema = new mongoose.Schema(
@@ -155,7 +150,7 @@ const attendanceSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Compound unique index - one check-in per student per day
@@ -172,11 +167,6 @@ attendanceSchema.statics.WORK_END_MINUTE = 0;
 attendanceSchema.statics.GRACE_PERIOD_MINUTES = 15;
 attendanceSchema.statics.MIN_REQUIRED_HOURS = 6;
 
-/**
- * Calculate punctuality based on check-in time
- * @param {Date} checkInTime - Check-in timestamp
- * @returns {String} "ON_TIME" or "LATE"
- */
 attendanceSchema.statics.calculatePunctuality = function (checkInTime) {
   const checkIn = new Date(checkInTime);
   const cutoffTime = new Date(checkIn);
@@ -184,32 +174,21 @@ attendanceSchema.statics.calculatePunctuality = function (checkInTime) {
     this.WORK_START_HOUR,
     this.WORK_START_MINUTE + this.GRACE_PERIOD_MINUTES,
     0,
-    0
+    0,
   );
 
   return checkIn <= cutoffTime ? "ON_TIME" : "LATE";
 };
 
-/**
- * Calculate hours worked between check-in and check-out
- * @param {Date} checkInTime
- * @param {Date} checkOutTime
- * @returns {Number} Hours worked (rounded to 2 decimals)
- */
 attendanceSchema.statics.calculateHoursWorked = function (
   checkInTime,
-  checkOutTime
+  checkOutTime,
 ) {
   if (!checkInTime || !checkOutTime) return 0;
   const diff = new Date(checkOutTime) - new Date(checkInTime);
   return Math.round((diff / (1000 * 60 * 60)) * 100) / 100;
 };
 
-/**
- * Determine day status based on attendance data
- * @param {Object} attendance - Attendance record
- * @returns {String} Day status
- */
 attendanceSchema.statics.determineDayStatus = function (attendance) {
   if (attendance.absenceReason && attendance.approvalStatus === "APPROVED") {
     return "EXCUSED_ABSENCE";
@@ -225,7 +204,7 @@ attendanceSchema.statics.determineDayStatus = function (attendance) {
 
   const hoursWorked = this.calculateHoursWorked(
     attendance.checkInTime,
-    attendance.checkOutTime
+    attendance.checkOutTime,
   );
 
   if (hoursWorked < this.MIN_REQUIRED_HOURS) {
@@ -252,7 +231,7 @@ attendanceSchema.pre("save", function (next) {
   if (this.checkInTime && this.checkOutTime) {
     this.hoursWorked = this.constructor.calculateHoursWorked(
       this.checkInTime,
-      this.checkOutTime
+      this.checkOutTime,
     );
   }
 
@@ -263,11 +242,6 @@ attendanceSchema.pre("save", function (next) {
   next();
 });
 
-/**
- * Static method to check if student has checked in today
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Boolean>} True if checked in today
- */
 attendanceSchema.statics.hasCheckedInToday = async function (studentId) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -283,17 +257,10 @@ attendanceSchema.statics.hasCheckedInToday = async function (studentId) {
   return !!attendance;
 };
 
-/**
- * Static method to get attendance for a student in a date range
- * @param {ObjectId} studentId - Student ID
- * @param {Date} startDate - Start date
- * @param {Date} endDate - End date
- * @returns {Promise<Array>} Attendance records
- */
 attendanceSchema.statics.getAttendanceRange = async function (
   studentId,
   startDate,
-  endDate
+  endDate,
 ) {
   return this.find({
     student: studentId,
@@ -301,11 +268,6 @@ attendanceSchema.statics.getAttendanceRange = async function (
   }).sort({ date: -1 });
 };
 
-/**
- * Static method to get attendance statistics for a student
- * @param {ObjectId} studentId - Student ID
- * @returns {Promise<Object>} Attendance statistics
- */
 attendanceSchema.statics.getAttendanceStats = async function (studentId) {
   const total = await this.countDocuments({ student: studentId });
   const present = await this.countDocuments({
@@ -332,10 +294,6 @@ attendanceSchema.statics.getAttendanceStats = async function (studentId) {
   };
 };
 
-/**
- * Instance method to determine if check-in is late
- * Based on 9:00 AM cutoff
- */
 attendanceSchema.methods.isLateCheckIn = function () {
   const checkInHour = this.checkInTime.getHours();
   return checkInHour >= 9;

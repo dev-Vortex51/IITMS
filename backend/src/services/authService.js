@@ -1,9 +1,3 @@
-/**
- * Authentication Service
- * Handles authentication business logic
- * Login, password reset, and token management
- */
-
 const { User, Student, Supervisor } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const {
@@ -17,12 +11,6 @@ const logger = require("../utils/logger");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
-/**
- * Login user
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise<Object>} User and tokens
- */
 const login = async (email, password) => {
   // Find user with password field
   const user = await User.findOne({ email }).select("+password");
@@ -30,7 +18,7 @@ const login = async (email, password) => {
   if (!user) {
     throw new ApiError(
       HTTP_STATUS.UNAUTHORIZED,
-      ERROR_MESSAGES.INVALID_CREDENTIALS
+      ERROR_MESSAGES.INVALID_CREDENTIALS,
     );
   }
 
@@ -45,7 +33,7 @@ const login = async (email, password) => {
   if (!isPasswordValid) {
     throw new ApiError(
       HTTP_STATUS.UNAUTHORIZED,
-      ERROR_MESSAGES.INVALID_CREDENTIALS
+      ERROR_MESSAGES.INVALID_CREDENTIALS,
     );
   }
 
@@ -84,13 +72,6 @@ const login = async (email, password) => {
   };
 };
 
-/**
- * Change password
- * @param {ObjectId} userId - User ID
- * @param {string} oldPassword - Current password
- * @param {string} newPassword - New password
- * @returns {Promise<Object>} Success message
- */
 const changePassword = async (userId, oldPassword, newPassword) => {
   const user = await User.findById(userId).select("+password");
 
@@ -104,7 +85,7 @@ const changePassword = async (userId, oldPassword, newPassword) => {
   if (!isPasswordValid) {
     throw new ApiError(
       HTTP_STATUS.UNAUTHORIZED,
-      "Current password is incorrect"
+      "Current password is incorrect",
     );
   }
 
@@ -113,7 +94,7 @@ const changePassword = async (userId, oldPassword, newPassword) => {
   if (isSamePassword) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "New password must be different from current password"
+      "New password must be different from current password",
     );
   }
 
@@ -128,11 +109,6 @@ const changePassword = async (userId, oldPassword, newPassword) => {
   };
 };
 
-/**
- * Logout user (can be used to invalidate tokens in future with token blacklist)
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} Success message
- */
 const logout = async (userId) => {
   // In a more advanced implementation, we would add the token to a blacklist
   // For now, client-side token removal is sufficient
@@ -178,12 +154,6 @@ const getProfile = async (userId) => {
   };
 };
 
-/**
- * Update user profile
- * @param {ObjectId} userId - User ID
- * @param {Object} updateData - Profile update data
- * @returns {Promise<Object>} Updated user
- */
 const updateProfile = async (userId, updateData) => {
   const allowedFields = ["firstName", "lastName", "phone", "address", "bio"];
   const filteredData = {};
@@ -256,7 +226,7 @@ const resetPassword = async (token, newPassword) => {
   if (!user)
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Invalid or expired reset token"
+      "Invalid or expired reset token",
     );
   user.password = newPassword;
   user.passwordResetToken = undefined;
@@ -265,12 +235,6 @@ const resetPassword = async (token, newPassword) => {
   return { email: user.email };
 };
 
-/**
- * Reset Password on first login
- * @param {ObjectId} userId - User ID
- * @param {string} newPassword - New password
- * @returns {Promise<Object>} Success message
- */
 const resetPasswordFirstLogin = async (userId, newPassword) => {
   const user = await User.findById(userId).select("+password");
 

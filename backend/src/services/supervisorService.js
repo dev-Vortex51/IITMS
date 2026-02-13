@@ -1,15 +1,4 @@
-/**
- * Supervisor Service
- * Business logic for supervisor management
- */
-
-const {
-  Supervisor,
-  User,
-  Student,
-  Department,
-  Placement,
-} = require("../models");
+const { Supervisor, Student, Placement } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const {
   HTTP_STATUS,
@@ -59,26 +48,14 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
     ];
   }
 
-  // Debug logging
-  console.log("[supervisorService] Query:", JSON.stringify(query, null, 2));
-
   // Count all supervisors in database
-  const allSupervisorsCount = await Supervisor.countDocuments({});
-  console.log(
-    "[supervisorService] Total supervisors in DB:",
-    allSupervisorsCount
-  );
-  console.log(
-    "[supervisorService] Active supervisors matching query:",
-    await Supervisor.countDocuments(query)
-  );
 
   if (filters.available !== undefined) {
     const supervisors = await Supervisor.find(query)
       .populate("user", "firstName lastName email phone")
       .populate("department", "name code");
     const availableSupervisors = supervisors.filter(
-      (s) => s.isAvailable === filters.available
+      (s) => s.isAvailable === filters.available,
     );
 
     return {
@@ -103,7 +80,7 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
 
     // Debug log to see what's in the user field
     if (!sup.user || !sup.user.firstName) {
-      console.log(
+      throw new Error(
         "[supervisorService] Supervisor with missing/incomplete user data:",
         {
           supervisorId: sup._id,
@@ -111,7 +88,7 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
           userName: sup.user
             ? `${sup.user.firstName} ${sup.user.lastName}`
             : "NULL USER",
-        }
+        },
       );
     }
 
@@ -180,7 +157,7 @@ const updateSupervisor = async (supervisorId, updateData) => {
   const supervisor = await Supervisor.findByIdAndUpdate(
     supervisorId,
     filteredData,
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   if (!supervisor) {
@@ -226,7 +203,7 @@ const assignStudentToSupervisor = async (supervisorId, studentId) => {
   if (!supervisor.isAvailable) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Supervisor has reached maximum student capacity"
+      "Supervisor has reached maximum student capacity",
     );
   }
 
@@ -259,7 +236,7 @@ const unassignStudentFromSupervisor = async (supervisorId, studentId) => {
   await student.save();
 
   logger.info(
-    `Student ${studentId} unassigned from supervisor ${supervisorId}`
+    `Student ${studentId} unassigned from supervisor ${supervisorId}`,
   );
 
   return supervisor;
@@ -291,7 +268,7 @@ const getSupervisorDashboard = async (supervisorId) => {
   const Logbook = require("../models").Logbook;
   const pendingLogbooks = await Logbook.findPendingReview(
     supervisorId,
-    supervisor.type
+    supervisor.type,
   );
 
   // Get pending assessments
@@ -333,16 +310,11 @@ const getSupervisorsByDepartment = async (departmentId, type = null) => {
   return supervisors;
 };
 
-/**
- * Suggest supervisors for a student
- * - Academic: faculty-constrained, capacity-aware, cross-department allowed if no department set
- * - Industrial: company-matched suggestions for the student's current placement
- */
 const suggestSupervisors = async (studentId, type, user) => {
   if (!studentId || !type) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Student ID and type are required"
+      "Student ID and type are required",
     );
   }
 
@@ -367,7 +339,7 @@ const suggestSupervisors = async (studentId, type, user) => {
   ) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You can only fetch suggestions for students in your department"
+      "You can only fetch suggestions for students in your department",
     );
   }
 
@@ -391,7 +363,7 @@ const suggestSupervisors = async (studentId, type, user) => {
 
     const filtered = supervisors
       .filter(
-        (sup) => (sup.assignedStudents || []).length < (sup.maxStudents || 0)
+        (sup) => (sup.assignedStudents || []).length < (sup.maxStudents || 0),
       )
       .filter((sup) => {
         if (!studentFacultyId) return true; // fallback

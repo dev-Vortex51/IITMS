@@ -1,10 +1,3 @@
-/**
- * Database Seeding Script
- * Populates database with comprehensive sample data for development/testing
- * Includes: Users, Faculties, Departments, Students, Supervisors, Placement,
- * Logbooks, Assessments, Notifications.
- */
-
 const mongoose = require("mongoose");
 const { connectDB, disconnectDB } = require("../config/database");
 const {

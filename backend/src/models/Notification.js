@@ -1,9 +1,3 @@
-/**
- * Notification Model
- * Represents in-app notifications for users
- * Supports different notification types and priority levels
- */
-
 const mongoose = require("mongoose");
 const {
   NOTIFICATION_TYPES,
@@ -113,7 +107,7 @@ const notificationSchema = new mongoose.Schema(
     timestamps: { createdAt: true, updatedAt: false },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Compound indexes for performance
@@ -148,23 +142,12 @@ notificationSchema.pre(/^find/, function (next) {
   next();
 });
 
-/**
- * Static method to find unread notifications by user
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Array>} Array of unread notifications
- */
 notificationSchema.statics.findUnread = function (userId) {
   return this.find({ recipient: userId, isRead: false }).sort({
     createdAt: -1,
   });
 };
 
-/**
- * Static method to get notification count by user
- * @param {ObjectId} userId - User ID
- * @param {boolean} unreadOnly - Count only unread notifications
- * @returns {Promise<number>} Count of notifications
- */
 notificationSchema.statics.getCount = function (userId, unreadOnly = true) {
   const query = { recipient: userId };
   if (unreadOnly) {
@@ -173,32 +156,17 @@ notificationSchema.statics.getCount = function (userId, unreadOnly = true) {
   return this.countDocuments(query);
 };
 
-/**
- * Static method to find recent notifications
- * @param {ObjectId} userId - User ID
- * @param {number} limit - Number of notifications to return
- * @returns {Promise<Array>} Array of recent notifications
- */
 notificationSchema.statics.findRecent = function (userId, limit = 10) {
   return this.find({ recipient: userId }).sort({ createdAt: -1 }).limit(limit);
 };
 
-/**
- * Static method to mark all as read for a user
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} Update result
- */
 notificationSchema.statics.markAllAsRead = function (userId) {
   return this.updateMany(
     { recipient: userId, isRead: false },
-    { isRead: true, readAt: Date.now() }
+    { isRead: true, readAt: Date.now() },
   );
 };
 
-/**
- * Instance method to mark as read
- * @returns {Promise<Notification>} Updated notification
- */
 notificationSchema.methods.markAsRead = async function () {
   if (!this.isRead) {
     this.isRead = true;
@@ -208,10 +176,6 @@ notificationSchema.methods.markAsRead = async function () {
   return this;
 };
 
-/**
- * Instance method to mark as unread
- * @returns {Promise<Notification>} Updated notification
- */
 notificationSchema.methods.markAsUnread = async function () {
   this.isRead = false;
   this.readAt = null;
@@ -219,16 +183,9 @@ notificationSchema.methods.markAsUnread = async function () {
   return this;
 };
 
-/**
- * Static method to create bulk notifications
- * Useful for sending same notification to multiple users
- * @param {Array<ObjectId>} recipients - Array of user IDs
- * @param {Object} notificationData - Notification data
- * @returns {Promise<Array>} Array of created notifications
- */
 notificationSchema.statics.createBulk = async function (
   recipients,
-  notificationData
+  notificationData,
 ) {
   const notifications = recipients.map((recipientId) => ({
     ...notificationData,
@@ -238,11 +195,6 @@ notificationSchema.statics.createBulk = async function (
   return await this.insertMany(notifications);
 };
 
-/**
- * Static method to delete old read notifications (cleanup)
- * @param {number} daysOld - Delete notifications older than this many days
- * @returns {Promise<Object>} Delete result
- */
 notificationSchema.statics.cleanup = function (daysOld = 30) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);

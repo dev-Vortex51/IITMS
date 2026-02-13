@@ -4,11 +4,6 @@ const asyncHandler = require("express-async-handler");
 const { ApiError } = require("../middleware/errorHandler");
 const logger = require("../utils/logger");
 
-/**
- * @desc    Get system settings
- * @route   GET /api/v1/settings/system
- * @access  Admin
- */
 const getSystemSettings = asyncHandler(async (req, res) => {
   let settings = await SystemSettings.findOne();
 
@@ -31,11 +26,6 @@ const getSystemSettings = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update system settings
- * @route   PUT /api/v1/settings/system
- * @access  Admin
- */
 const updateSystemSettings = asyncHandler(async (req, res) => {
   const {
     currentSession,
@@ -74,11 +64,6 @@ const updateSystemSettings = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get notification preferences
- * @route   GET /api/v1/settings/notifications
- * @access  Private
- */
 const getNotificationPreferences = asyncHandler(async (req, res) => {
   let preferences = await NotificationPreference.findOne({
     user: req.user._id,
@@ -100,11 +85,6 @@ const getNotificationPreferences = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update notification preferences
- * @route   PUT /api/v1/settings/notifications
- * @access  Private
- */
 const updateNotificationPreferences = asyncHandler(async (req, res) => {
   const { emailNotifications, placementAlerts, systemUpdates } = req.body;
 

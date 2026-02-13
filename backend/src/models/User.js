@@ -1,9 +1,3 @@
-/**
- * User Model
- * Base model for all user types in the system
- * Handles authentication, authorization, and common user attributes
- */
-
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { USER_ROLES } = require("../utils/constants");
@@ -121,7 +115,7 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Indexes for performance optimization
@@ -161,10 +155,6 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-/**
- * Auto-populate faculty field based on department
- * For coordinators and departmental supervisors
- */
 userSchema.pre("save", async function (next) {
   // Only populate faculty if department is modified and user has department-based role
   if (
@@ -176,7 +166,7 @@ userSchema.pre("save", async function (next) {
     try {
       const Department = mongoose.model("Department");
       const department = await Department.findById(this.department).populate(
-        "faculty"
+        "faculty",
       );
       if (department && department.faculty) {
         this.faculty = department.faculty._id;
@@ -188,11 +178,6 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-/**
- * Compare provided password with hashed password
- * @param {string} candidatePassword - Password to compare
- * @returns {Promise<boolean>} True if passwords match
- */
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
@@ -201,20 +186,10 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
-/**
- * Check if user has specific role
- * @param {string} role - Role to check
- * @returns {boolean} True if user has role
- */
 userSchema.methods.hasRole = function (role) {
   return this.role === role;
 };
 
-/**
- * Check if user has any of the specified roles
- * @param {Array<string>} roles - Roles to check
- * @returns {boolean} True if user has any of the roles
- */
 userSchema.methods.hasAnyRole = function (roles) {
   return roles.includes(this.role);
 };
@@ -231,11 +206,6 @@ userSchema.methods.toJSON = function () {
   return obj;
 };
 
-/**
- * Static method to find active users by role
- * @param {string} role - User role
- * @returns {Promise<Array>} Array of users
- */
 userSchema.statics.findActiveByRole = function (role) {
   return this.find({ role, isActive: true });
 };

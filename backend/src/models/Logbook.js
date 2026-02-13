@@ -1,9 +1,3 @@
-/**
- * Logbook Model
- * Represents student weekly logbook entries
- * Tracks tasks, evidence, and supervisor feedback
- */
-
 const mongoose = require("mongoose");
 const { LOGBOOK_STATUS } = require("../utils/constants");
 
@@ -163,7 +157,7 @@ const logbookSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Composite unique index - one logbook per student per week
@@ -186,7 +180,7 @@ logbookSchema.virtual("averageRating").get(function () {
   if (this.reviews.length === 0) return 0;
   const sum = this.reviews.reduce(
     (acc, review) => acc + (review.rating || 0),
-    0
+    0,
   );
   return (sum / this.reviews.length).toFixed(2);
 });
@@ -217,12 +211,6 @@ logbookSchema.pre("save", function (next) {
   next();
 });
 
-/**
- * Static method to find logbooks by student
- * @param {ObjectId} studentId - Student ID
- * @param {string} status - Optional status filter
- * @returns {Promise<Array>} Array of logbooks
- */
 logbookSchema.statics.findByStudent = function (studentId, status = null) {
   const query = { student: studentId };
   if (status) {
@@ -231,15 +219,9 @@ logbookSchema.statics.findByStudent = function (studentId, status = null) {
   return this.find(query).sort({ weekNumber: 1 });
 };
 
-/**
- * Static method to find logbooks pending review by supervisor
- * @param {ObjectId} supervisorId - Supervisor ID
- * @param {string} supervisorType - 'departmental' or 'industrial'
- * @returns {Promise<Array>} Array of logbooks
- */
 logbookSchema.statics.findPendingReview = function (
   supervisorId,
-  supervisorType
+  supervisorType,
 ) {
   const Supervisor = mongoose.model("Supervisor");
 
@@ -272,10 +254,6 @@ logbookSchema.statics.findPendingReview = function (
   });
 };
 
-/**
- * Instance method to submit logbook
- * @returns {Promise<Logbook>} Updated logbook
- */
 logbookSchema.methods.submit = async function () {
   this.status = LOGBOOK_STATUS.SUBMITTED;
   this.submittedAt = Date.now();
@@ -283,17 +261,10 @@ logbookSchema.methods.submit = async function () {
   return this;
 };
 
-/**
- * Instance method to add supervisor review
- * @param {ObjectId} supervisorId - Supervisor ID
- * @param {string} supervisorType - 'departmental' or 'industrial'
- * @param {Object} reviewData - Review data {comment, rating, status}
- * @returns {Promise<Logbook>} Updated logbook
- */
 logbookSchema.methods.addReview = async function (
   supervisorId,
   supervisorType,
-  reviewData
+  reviewData,
 ) {
   // Add review to array
   this.reviews.push({

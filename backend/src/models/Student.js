@@ -1,9 +1,3 @@
-/**
- * Student Model
- * Represents student users with academic and placement information
- * Extends base User model with student-specific attributes
- */
-
 const mongoose = require("mongoose");
 
 const studentSchema = new mongoose.Schema(
@@ -124,7 +118,7 @@ const studentSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Indexes for performance
@@ -163,22 +157,12 @@ studentSchema.pre("save", function (next) {
   next();
 });
 
-/**
- * Static method to find students by department
- * @param {ObjectId} departmentId - Department ID
- * @returns {Promise<Array>} Array of students
- */
 studentSchema.statics.findByDepartment = function (departmentId) {
   return this.find({ department: departmentId, isActive: true });
 };
 
-/**
- * Static method to find students with approved placements
- * @param {ObjectId} departmentId - Optional department filter
- * @returns {Promise<Array>} Array of students
- */
 studentSchema.statics.findWithApprovedPlacements = function (
-  departmentId = null
+  departmentId = null,
 ) {
   const query = { placementApproved: true, isActive: true };
   if (departmentId) {
@@ -187,12 +171,6 @@ studentSchema.statics.findWithApprovedPlacements = function (
   return this.find(query);
 };
 
-/**
- * Instance method to assign supervisor
- * @param {string} type - 'departmental' (academic) or 'industrial'
- * @param {ObjectId} supervisorId - Supervisor ID
- * @returns {Promise<Student>} Updated student
- */
 studentSchema.methods.assignSupervisor = async function (type, supervisorId) {
   if (type === "departmental" || type === "academic") {
     this.departmentalSupervisor = supervisorId;
@@ -203,20 +181,12 @@ studentSchema.methods.assignSupervisor = async function (type, supervisorId) {
   return this;
 };
 
-/**
- * Instance method to check if student can submit logbook
- * @returns {boolean} Can submit logbook
- */
 studentSchema.methods.canSubmitLogbook = function () {
   return (
     this.placementApproved && this.trainingStartDate && !this.trainingCompleted
   );
 };
 
-/**
- * Instance method to calculate training progress percentage
- * @returns {number} Progress percentage
- */
 studentSchema.methods.getTrainingProgress = function () {
   if (!this.trainingStartDate || !this.trainingEndDate) {
     return 0;

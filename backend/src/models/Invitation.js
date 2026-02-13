@@ -28,7 +28,6 @@ const invitationSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      // index removed; TTL index declared via schema.index below
     },
     invitedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -72,7 +71,7 @@ const invitationSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for cleanup of expired invitations
@@ -107,7 +106,7 @@ invitationSchema.statics.cleanupExpired = async function () {
   const now = new Date();
   const result = await this.updateMany(
     { status: "pending", expiresAt: { $lt: now } },
-    { $set: { status: "expired" } }
+    { $set: { status: "expired" } },
   );
   return result;
 };

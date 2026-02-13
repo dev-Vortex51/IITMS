@@ -1,8 +1,3 @@
-/**
- * Attendance Routes
- * API endpoints for attendance tracking
- */
-
 const express = require("express");
 const router = express.Router();
 const attendanceController = require("../controllers/attendanceController");
@@ -15,42 +10,42 @@ router.post(
   "/check-in",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.checkIn
+  attendanceController.checkIn,
 );
 
 router.put(
   "/check-out",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.checkOut
+  attendanceController.checkOut,
 );
 
 router.get(
   "/today",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.getTodayCheckIn
+  attendanceController.getTodayCheckIn,
 );
 
 router.get(
   "/my-attendance",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.getMyAttendance
+  attendanceController.getMyAttendance,
 );
 
 router.get(
   "/my-stats",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.getMyStats
+  attendanceController.getMyStats,
 );
 
 router.post(
   "/absence-request",
   authenticate,
   authorize(USER_ROLES.STUDENT),
-  attendanceController.submitAbsenceRequest
+  attendanceController.submitAbsenceRequest,
 );
 
 // Supervisor/Coordinator/Admin routes
@@ -62,9 +57,9 @@ router.get(
     USER_ROLES.COORDINATOR,
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.getStudentAttendance
+  attendanceController.getStudentAttendance,
 );
 
 router.get(
@@ -75,9 +70,9 @@ router.get(
     USER_ROLES.COORDINATOR,
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.getStudentStats
+  attendanceController.getStudentStats,
 );
 
 router.get(
@@ -88,9 +83,9 @@ router.get(
     USER_ROLES.COORDINATOR,
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.getPlacementAttendance
+  attendanceController.getPlacementAttendance,
 );
 
 router.post(
@@ -99,9 +94,9 @@ router.post(
   authorize(
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.acknowledgeAttendance
+  attendanceController.acknowledgeAttendance,
 );
 
 // Supervisor approval routes
@@ -111,9 +106,9 @@ router.post(
   authorize(
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.approveAttendance
+  attendanceController.approveAttendance,
 );
 
 router.post(
@@ -122,9 +117,9 @@ router.post(
   authorize(
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.rejectAttendance
+  attendanceController.rejectAttendance,
 );
 
 router.patch(
@@ -133,9 +128,9 @@ router.patch(
   authorize(
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
-    USER_ROLES.DEPT_SUPERVISOR
+    USER_ROLES.DEPT_SUPERVISOR,
   ),
-  attendanceController.reclassifyAttendance
+  attendanceController.reclassifyAttendance,
 );
 
 // Attendance summary route
@@ -148,9 +143,9 @@ router.get(
     USER_ROLES.ACADEMIC_SUPERVISOR,
     USER_ROLES.INDUSTRIAL_SUPERVISOR,
     USER_ROLES.DEPT_SUPERVISOR,
-    USER_ROLES.STUDENT
+    USER_ROLES.STUDENT,
   ),
-  attendanceController.getAttendanceSummary
+  attendanceController.getAttendanceSummary,
 );
 
 // Mark absent route - for manual marking or scheduled jobs
@@ -158,7 +153,7 @@ router.post(
   "/mark-absent",
   authenticate,
   authorize(USER_ROLES.ADMIN, USER_ROLES.COORDINATOR),
-  attendanceController.markAbsentForDate
+  attendanceController.markAbsentForDate,
 );
 
 module.exports = router;

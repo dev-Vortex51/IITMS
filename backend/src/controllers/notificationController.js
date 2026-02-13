@@ -1,17 +1,7 @@
-/**
- * Notification Controller
- * HTTP request handlers for notification management
- */
-
 const { notificationService } = require("../services");
 const { HTTP_STATUS } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
-/**
- * @desc    Get user notifications
- * @route   GET /api/v1/notifications
- * @access  Private
- */
 const getNotifications = catchAsync(async (req, res) => {
   const filters = {
     unreadOnly: req.query.unreadOnly === "true",
@@ -27,7 +17,7 @@ const getNotifications = catchAsync(async (req, res) => {
   const result = await notificationService.getUserNotifications(
     req.user._id,
     filters,
-    pagination
+    pagination,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -38,11 +28,6 @@ const getNotifications = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Mark notification as read
- * @route   PUT /api/v1/notifications/:id/read
- * @access  Private
- */
 const markAsRead = catchAsync(async (req, res) => {
   const notification = await notificationService.markAsRead(req.params.id);
 
@@ -53,11 +38,6 @@ const markAsRead = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Mark all notifications as read
- * @route   PUT /api/v1/notifications/read-all
- * @access  Private
- */
 const markAllAsRead = catchAsync(async (req, res) => {
   const result = await notificationService.markAllAsRead(req.user._id);
 
@@ -68,11 +48,6 @@ const markAllAsRead = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Delete notification
- * @route   DELETE /api/v1/notifications/:id
- * @access  Private
- */
 const deleteNotification = catchAsync(async (req, res) => {
   await notificationService.deleteNotification(req.params.id);
 
@@ -82,11 +57,6 @@ const deleteNotification = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get unread count
- * @route   GET /api/v1/notifications/unread-count
- * @access  Private
- */
 const getUnreadCount = catchAsync(async (req, res) => {
   const count = await notificationService.getUnreadCount(req.user._id);
 

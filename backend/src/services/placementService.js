@@ -1,8 +1,3 @@
-/**
- * Placement Service
- * Business logic for placement management
- */
-
 const { Placement, Student, Notification } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const {
@@ -37,7 +32,7 @@ const createPlacement = async (studentId, placementData, files = {}) => {
   if (existingPlacement) {
     throw new ApiError(
       HTTP_STATUS.CONFLICT,
-      "You already have a pending or approved placement application"
+      "You already have a pending or approved placement application",
     );
   }
 
@@ -169,7 +164,7 @@ const updatePlacement = async (placementId, updateData, userId) => {
   if (!allowedStatuses.includes(placement.status)) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot update placement that has been rejected or withdrawn"
+      "Cannot update placement that has been rejected or withdrawn",
     );
   }
 
@@ -178,7 +173,7 @@ const updatePlacement = async (placementId, updateData, userId) => {
   if (student.user.toString() !== userId.toString()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You can only update your own placement"
+      "You can only update your own placement",
     );
   }
 
@@ -263,7 +258,7 @@ const reviewPlacement = async (placementId, reviewData, reviewerId) => {
   if (placement.status !== PLACEMENT_STATUS.PENDING) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Placement has already been reviewed"
+      "Placement has already been reviewed",
     );
   }
 
@@ -324,7 +319,7 @@ const reviewPlacement = async (placementId, reviewData, reviewerId) => {
 const assignIndustrialSupervisor = async (
   placementId,
   supervisorData,
-  assignerId
+  assignerId,
 ) => {
   const placement = await Placement.findById(placementId);
 
@@ -335,7 +330,7 @@ const assignIndustrialSupervisor = async (
   if (placement.status !== PLACEMENT_STATUS.APPROVED) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Can only assign supervisor to approved placements"
+      "Can only assign supervisor to approved placements",
     );
   }
 
@@ -346,7 +341,7 @@ const assignIndustrialSupervisor = async (
       companyName: placement.companyName,
       companyAddress: placement.companyAddress,
     },
-    assignerId
+    assignerId,
   );
 
   // Assign to placement
@@ -398,7 +393,7 @@ const approvePlacement = async (placementId, remarks, reviewerId) => {
   if (placement.status !== PLACEMENT_STATUS.PENDING) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Placement has already been reviewed"
+      "Placement has already been reviewed",
     );
   }
 
@@ -415,16 +410,16 @@ const approvePlacement = async (placementId, remarks, reviewerId) => {
   if (student.industrialSupervisor) {
     const Supervisor = require("../models").Supervisor;
     const oldSupervisor = await Supervisor.findById(
-      student.industrialSupervisor
+      student.industrialSupervisor,
     );
 
     if (oldSupervisor) {
       oldSupervisor.assignedStudents = oldSupervisor.assignedStudents.filter(
-        (id) => id.toString() !== student._id.toString()
+        (id) => id.toString() !== student._id.toString(),
       );
       await oldSupervisor.save();
       logger.info(
-        `Removed student ${student.matricNumber} from old supervisor ${oldSupervisor._id}`
+        `Removed student ${student.matricNumber} from old supervisor ${oldSupervisor._id}`,
       );
     }
   }
@@ -469,7 +464,7 @@ const approvePlacement = async (placementId, remarks, reviewerId) => {
             placement: placement._id,
           },
           { status: "active", assignedAt: new Date(), revokedAt: null },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
       }
     }
@@ -508,14 +503,14 @@ const rejectPlacement = async (placementId, remarks, reviewerId) => {
   if (placement.status !== PLACEMENT_STATUS.PENDING) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Placement has already been reviewed"
+      "Placement has already been reviewed",
     );
   }
 
   if (!remarks) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Remarks are required when rejecting a placement"
+      "Remarks are required when rejecting a placement",
     );
   }
 
@@ -563,7 +558,7 @@ const withdrawPlacement = async (placementId, userId) => {
   if (student.user.toString() !== userId.toString()) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
-      "You can only withdraw your own placement"
+      "You can only withdraw your own placement",
     );
   }
 
@@ -574,7 +569,7 @@ const withdrawPlacement = async (placementId, userId) => {
   ) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot withdraw rejected or already withdrawn placements"
+      "Cannot withdraw rejected or already withdrawn placements",
     );
   }
 
@@ -592,12 +587,12 @@ const withdrawPlacement = async (placementId, userId) => {
     if (supervisor) {
       // Remove student from supervisor's assigned students
       supervisor.assignedStudents = supervisor.assignedStudents.filter(
-        (id) => id.toString() !== student._id.toString()
+        (id) => id.toString() !== student._id.toString(),
       );
       await supervisor.save();
 
       logger.info(
-        `Unassigned industrial supervisor ${supervisor._id} from student ${student.matricNumber}`
+        `Unassigned industrial supervisor ${supervisor._id} from student ${student.matricNumber}`,
       );
     }
   }
@@ -620,7 +615,7 @@ const withdrawPlacement = async (placementId, userId) => {
         });
       } catch (e) {
         logger.warn(
-          `Failed to notify supervisor ${supervisor._id} about revocation: ${e.message}`
+          `Failed to notify supervisor ${supervisor._id} about revocation: ${e.message}`,
         );
       }
     }
@@ -671,7 +666,7 @@ const deletePlacement = async (placementId, userId) => {
   if (placement.status === PLACEMENT_STATUS.APPROVED) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot delete approved placement. Use withdraw endpoint instead."
+      "Cannot delete approved placement. Use withdraw endpoint instead.",
     );
   }
 
@@ -702,7 +697,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
   // Handle departmental supervisor assignment
   if (updateData.departmentalSupervisor) {
     const supervisor = await Supervisor.findById(
-      updateData.departmentalSupervisor
+      updateData.departmentalSupervisor,
     );
 
     if (!supervisor) {
@@ -713,7 +708,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     if (supervisor.type !== "departmental" && supervisor.type !== "academic") {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        "Can only assign departmental supervisors through this endpoint"
+        "Can only assign departmental supervisors through this endpoint",
       );
     }
 
@@ -723,13 +718,13 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
 
     // Don't count if this student is already assigned to this supervisor
     const isAlreadyAssigned = supervisor.assignedStudents.some(
-      (id) => id.toString() === placement.student._id.toString()
+      (id) => id.toString() === placement.student._id.toString(),
     );
 
     if (!isAlreadyAssigned && currentStudentCount >= maxStudents) {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        `Supervisor has reached maximum capacity of ${maxStudents} students`
+        `Supervisor has reached maximum capacity of ${maxStudents} students`,
       );
     }
 
@@ -743,7 +738,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     if (user.role === USER_ROLES.COORDINATOR && studentDeptId !== userDeptId) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
-        "You can only assign supervisors to students in your department"
+        "You can only assign supervisors to students in your department",
       );
     }
 
@@ -755,7 +750,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     ) {
       const Department = require("../models/Department");
       const supervisorDept = await Department.findById(
-        supervisor.department
+        supervisor.department,
       ).populate("faculty", "_id name code");
       const studentFacultyId =
         placement.student.department.faculty._id?.toString();
@@ -768,7 +763,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
       ) {
         throw new ApiError(
           HTTP_STATUS.BAD_REQUEST,
-          "Academic supervisor must belong to the student's faculty"
+          "Academic supervisor must belong to the student's faculty",
         );
       }
     }
@@ -782,17 +777,16 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
       previousSupervisorId &&
       previousSupervisorId.toString() !== supervisor._id.toString()
     ) {
-      const previousSupervisor = await Supervisor.findById(
-        previousSupervisorId
-      );
+      const previousSupervisor =
+        await Supervisor.findById(previousSupervisorId);
       if (previousSupervisor) {
         previousSupervisor.assignedStudents =
           previousSupervisor.assignedStudents.filter(
-            (id) => id.toString() !== student._id.toString()
+            (id) => id.toString() !== student._id.toString(),
           );
         await previousSupervisor.save();
         logger.info(
-          `Removed student ${student._id} from previous supervisor ${previousSupervisorId}`
+          `Removed student ${student._id} from previous supervisor ${previousSupervisorId}`,
         );
       }
     }
@@ -808,14 +802,14 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     }
 
     logger.info(
-      `Departmental supervisor ${supervisor._id} assigned to student ${student._id}`
+      `Departmental supervisor ${supervisor._id} assigned to student ${student._id}`,
     );
   }
 
   // Handle industrial supervisor assignment
   if (updateData.industrialSupervisor) {
     const supervisor = await Supervisor.findById(
-      updateData.industrialSupervisor
+      updateData.industrialSupervisor,
     );
 
     if (!supervisor) {
@@ -825,7 +819,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     if (supervisor.type !== "industrial") {
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
-        "Can only assign industrial supervisors through this endpoint"
+        "Can only assign industrial supervisors through this endpoint",
       );
     }
 
@@ -844,7 +838,7 @@ const updatePlacementByCoordinator = async (placementId, updateData, user) => {
     }
 
     logger.info(
-      `Industrial supervisor ${supervisor._id} assigned to student ${student._id}`
+      `Industrial supervisor ${supervisor._id} assigned to student ${student._id}`,
     );
   }
 

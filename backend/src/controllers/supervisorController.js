@@ -1,17 +1,7 @@
-/**
- * Supervisor Controller
- * HTTP request handlers for supervisor management
- */
-
 const { supervisorService } = require("../services");
 const { HTTP_STATUS } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
-/**
- * @desc    Get all supervisors
- * @route   GET /api/v1/supervisors
- * @access  Private (Admin, Coordinator)
- */
 const getSupervisors = catchAsync(async (req, res) => {
   const filters = {
     type: req.query.type,
@@ -34,15 +24,6 @@ const getSupervisors = catchAsync(async (req, res) => {
 
   const result = await supervisorService.getSupervisors(filters, pagination);
 
-  // Debug logging
-  console.log("[supervisorController] User role:", req.user.role);
-  console.log("[supervisorController] User department:", req.user.department);
-  console.log("[supervisorController] Applied filters:", filters);
-  console.log(
-    "[supervisorController] Result count:",
-    result.supervisors.length
-  );
-
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: "Supervisors retrieved successfully",
@@ -51,11 +32,6 @@ const getSupervisors = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get supervisor by ID
- * @route   GET /api/v1/supervisors/:id
- * @access  Private
- */
 const getSupervisorById = catchAsync(async (req, res) => {
   const supervisor = await supervisorService.getSupervisorById(req.params.id);
 
@@ -66,15 +42,10 @@ const getSupervisorById = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update supervisor profile
- * @route   PUT /api/v1/supervisors/:id
- * @access  Private (Supervisor, Coordinator, Admin)
- */
 const updateSupervisor = catchAsync(async (req, res) => {
   const supervisor = await supervisorService.updateSupervisor(
     req.params.id,
-    req.body
+    req.body,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -84,17 +55,12 @@ const updateSupervisor = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get available supervisors
- * @route   GET /api/v1/supervisors/available
- * @access  Private (Coordinator, Admin)
- */
 const getAvailableSupervisors = catchAsync(async (req, res) => {
   const { type, department } = req.query;
 
   const supervisors = await supervisorService.getAvailableSupervisors(
     type,
-    department
+    department,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -104,18 +70,13 @@ const getAvailableSupervisors = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get supervisor suggestions for a student
- * @route   GET /api/v1/supervisors/suggestions
- * @access  Private (Coordinator, Admin)
- */
 const getSupervisorSuggestions = catchAsync(async (req, res) => {
   const { studentId, type } = req.query;
 
   const supervisors = await supervisorService.suggestSupervisors(
     studentId,
     type,
-    req.user
+    req.user,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -125,17 +86,12 @@ const getSupervisorSuggestions = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Assign student to supervisor
- * @route   POST /api/v1/supervisors/:id/assign-student
- * @access  Private (Coordinator, Admin)
- */
 const assignStudent = catchAsync(async (req, res) => {
   const { studentId } = req.body;
 
   const supervisor = await supervisorService.assignStudentToSupervisor(
     req.params.id,
-    studentId
+    studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -145,17 +101,12 @@ const assignStudent = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Unassign student from supervisor
- * @route   POST /api/v1/supervisors/:id/unassign-student
- * @access  Private (Coordinator, Admin)
- */
 const unassignStudent = catchAsync(async (req, res) => {
   const { studentId } = req.body;
 
   const supervisor = await supervisorService.unassignStudentFromSupervisor(
     req.params.id,
-    studentId
+    studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -165,14 +116,9 @@ const unassignStudent = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get supervisor dashboard
- * @route   GET /api/v1/supervisors/:id/dashboard
- * @access  Private (Supervisor)
- */
 const getSupervisorDashboard = catchAsync(async (req, res) => {
   const dashboard = await supervisorService.getSupervisorDashboard(
-    req.params.id
+    req.params.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -182,17 +128,12 @@ const getSupervisorDashboard = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get supervisors by department
- * @route   GET /api/v1/departments/:departmentId/supervisors
- * @access  Private (Coordinator, Admin)
- */
 const getSupervisorsByDepartment = catchAsync(async (req, res) => {
   const { type } = req.query;
 
   const supervisors = await supervisorService.getSupervisorsByDepartment(
     req.params.departmentId,
-    type
+    type,
   );
 
   res.status(HTTP_STATUS.OK).json({

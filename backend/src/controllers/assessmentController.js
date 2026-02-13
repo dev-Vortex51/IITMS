@@ -1,23 +1,13 @@
-/**
- * Assessment Controller
- * HTTP request handlers for assessment management
- */
-
 const { assessmentService } = require("../services");
 const { HTTP_STATUS } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
-/**
- * @desc    Create assessment
- * @route   POST /api/v1/assessments
- * @access  Private (Supervisor)
- */
 const createAssessment = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
   const assessment = await assessmentService.createAssessment(
     req.body,
-    supervisorId
+    supervisorId,
   );
 
   res.status(HTTP_STATUS.CREATED).json({
@@ -27,11 +17,6 @@ const createAssessment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get all assessments
- * @route   GET /api/v1/assessments
- * @access  Private
- */
 const getAssessments = catchAsync(async (req, res) => {
   const filters = {
     student: req.query.student,
@@ -62,11 +47,6 @@ const getAssessments = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get assessment by ID
- * @route   GET /api/v1/assessments/:id
- * @access  Private
- */
 const getAssessmentById = catchAsync(async (req, res) => {
   const assessment = await assessmentService.getAssessmentById(req.params.id);
 
@@ -77,18 +57,13 @@ const getAssessmentById = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Update assessment
- * @route   PUT /api/v1/assessments/:id
- * @access  Private (Supervisor - owner only)
- */
 const updateAssessment = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
   const assessment = await assessmentService.updateAssessment(
     req.params.id,
     req.body,
-    supervisorId
+    supervisorId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -98,17 +73,12 @@ const updateAssessment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Submit assessment
- * @route   POST /api/v1/assessments/:id/submit
- * @access  Private (Supervisor - owner only)
- */
 const submitAssessment = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
   const assessment = await assessmentService.submitAssessment(
     req.params.id,
-    supervisorId
+    supervisorId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -118,18 +88,13 @@ const submitAssessment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Verify assessment
- * @route   POST /api/v1/assessments/:id/verify
- * @access  Private (Coordinator, Admin)
- */
 const verifyAssessment = catchAsync(async (req, res) => {
   const { comment } = req.body;
 
   const assessment = await assessmentService.verifyAssessment(
     req.params.id,
     req.user._id,
-    comment
+    comment,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -139,14 +104,9 @@ const verifyAssessment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student final grade
- * @route   GET /api/v1/students/:studentId/final-grade
- * @access  Private
- */
 const getStudentFinalGrade = catchAsync(async (req, res) => {
   const result = await assessmentService.getStudentFinalGrade(
-    req.params.studentId
+    req.params.studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -156,14 +116,9 @@ const getStudentFinalGrade = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get student assessments
- * @route   GET /api/v1/students/:studentId/assessments
- * @access  Private
- */
 const getStudentAssessments = catchAsync(async (req, res) => {
   const summary = await assessmentService.getStudentAssessments(
-    req.params.studentId
+    req.params.studentId,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -173,17 +128,11 @@ const getStudentAssessments = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get pending assessments for supervisor
- * @route   GET /api/v1/assessments/pending
- * @access  Private (Supervisor)
- */
 const getSupervisorPendingAssessments = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
 
-  const assessments = await assessmentService.getSupervisorPendingAssessments(
-    supervisorId
-  );
+  const assessments =
+    await assessmentService.getSupervisorPendingAssessments(supervisorId);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

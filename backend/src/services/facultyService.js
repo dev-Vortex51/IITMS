@@ -1,18 +1,7 @@
-/**
- * Faculty Service
- * Business logic for faculty management
- */
-
 const { Faculty, Department, User } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 
-/**
- * Create a new faculty
- * @param {Object} facultyData - Faculty creation data
- * @param {Object} creatorUser - User creating the faculty
- * @returns {Promise<Object>} Created faculty
- */
 const createFaculty = async (facultyData, creatorUser) => {
   const { name, code, description } = facultyData;
 
@@ -25,7 +14,7 @@ const createFaculty = async (facultyData, creatorUser) => {
   if (existingFaculty) {
     throw new ApiError(
       HTTP_STATUS.CONFLICT,
-      "Faculty with this name or code already exists"
+      "Faculty with this name or code already exists",
     );
   }
 
@@ -39,17 +28,10 @@ const createFaculty = async (facultyData, creatorUser) => {
 
   return await Faculty.findById(faculty._id).populate(
     "createdBy",
-    "firstName lastName email"
+    "firstName lastName email",
   );
 };
 
-/**
- * Get all faculties with pagination and filtering
- * @param {Object} filters - Filter criteria
- * @param {Object} pagination - Pagination options
- * @param {Object} user - Current user for access control
- * @returns {Promise<Object>} Paginated faculties
- */
 const getFaculties = async (filters = {}, pagination = {}, user = null) => {
   const { page = 1, limit = 10 } = pagination;
   const skip = (page - 1) * limit;
@@ -61,7 +43,7 @@ const getFaculties = async (filters = {}, pagination = {}, user = null) => {
   if (user && user.role === USER_ROLES.COORDINATOR && user.department) {
     const Department = require("../models/Department");
     const department = await Department.findById(user.department).populate(
-      "faculty"
+      "faculty",
     );
     if (department && department.faculty) {
       query._id = department.faculty._id;
@@ -105,7 +87,7 @@ const getFaculties = async (filters = {}, pagination = {}, user = null) => {
   ]);
 
   const countMap = new Map(
-    departmentCounts.map((dc) => [dc._id.toString(), dc.count])
+    departmentCounts.map((dc) => [dc._id.toString(), dc.count]),
   );
 
   // Add department counts to faculties
@@ -123,18 +105,12 @@ const getFaculties = async (filters = {}, pagination = {}, user = null) => {
   };
 };
 
-/**
- * Get faculty by ID
- * @param {string} facultyId - Faculty ID
- * @param {Object} user - Current user for access control
- * @returns {Promise<Object>} Faculty details
- */
 const getFacultyById = async (facultyId, user = null) => {
   // Coordinator access control - only access their own faculty
   if (user && user.role === USER_ROLES.COORDINATOR && user.department) {
     const Department = require("../models/Department");
     const department = await Department.findById(user.department).populate(
-      "faculty"
+      "faculty",
     );
     if (
       !department ||
@@ -143,7 +119,7 @@ const getFacultyById = async (facultyId, user = null) => {
     ) {
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
-        "Access denied. You can only view your own faculty."
+        "Access denied. You can only view your own faculty.",
       );
     }
   }
@@ -168,13 +144,6 @@ const getFacultyById = async (facultyId, user = null) => {
   };
 };
 
-/**
- * Update faculty
- * @param {string} facultyId - Faculty ID
- * @param {Object} updateData - Update data
- * @param {Object} updaterUser - User updating the faculty
- * @returns {Promise<Object>} Updated faculty
- */
 const updateFaculty = async (facultyId, updateData, updaterUser) => {
   const faculty = await Faculty.findById(facultyId);
 
@@ -204,7 +173,7 @@ const updateFaculty = async (facultyId, updateData, updaterUser) => {
     if (existingFaculty) {
       throw new ApiError(
         HTTP_STATUS.CONFLICT,
-        "Faculty with this name or code already exists"
+        "Faculty with this name or code already exists",
       );
     }
   }
@@ -217,18 +186,12 @@ const updateFaculty = async (facultyId, updateData, updaterUser) => {
       code: updateData.code ? updateData.code.toUpperCase() : faculty.code,
       updatedAt: new Date(),
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   ).populate("createdBy", "firstName lastName email");
 
   return updatedFaculty;
 };
 
-/**
- * Delete (deactivate) faculty
- * @param {string} facultyId - Faculty ID
- * @param {Object} deleterUser - User deleting the faculty
- * @returns {Promise<void>}
- */
 const deleteFaculty = async (facultyId, deleterUser) => {
   const faculty = await Faculty.findById(facultyId);
 
@@ -245,7 +208,7 @@ const deleteFaculty = async (facultyId, deleterUser) => {
   if (activeDepartments > 0) {
     throw new ApiError(
       HTTP_STATUS.BAD_REQUEST,
-      "Cannot delete faculty with active departments. Please delete or deactivate all departments first."
+      "Cannot delete faculty with active departments. Please delete or deactivate all departments first.",
     );
   }
 
@@ -256,11 +219,6 @@ const deleteFaculty = async (facultyId, deleterUser) => {
   });
 };
 
-/**
- * Get all departments in a faculty
- * @param {string} facultyId - Faculty ID
- * @returns {Promise<Array>} Faculty departments
- */
 const getFacultyDepartments = async (facultyId) => {
   const faculty = await Faculty.findById(facultyId);
 

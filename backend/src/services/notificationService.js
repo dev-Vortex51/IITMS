@@ -1,9 +1,3 @@
-/**
- * Notification Service
- * Handles creation and management of notifications
- * Supports email notifications via NodeMailer
- */
-
 const { Notification, User } = require("../models");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../utils/constants");
@@ -29,11 +23,6 @@ if (config.email.user && config.email.password) {
   });
 }
 
-/**
- * Create a notification
- * @param {Object} notificationData - Notification data
- * @returns {Promise<Object>} Created notification
- */
 const createNotification = async (notificationData) => {
   const notification = await Notification.create(notificationData);
 
@@ -47,16 +36,10 @@ const createNotification = async (notificationData) => {
   return notification;
 };
 
-/**
- * Create bulk notifications
- * @param {Array} recipients - Array of user IDs
- * @param {Object} notificationData - Notification data
- * @returns {Promise<Array>} Created notifications
- */
 const createBulkNotifications = async (recipients, notificationData) => {
   const notifications = await Notification.createBulk(
     recipients,
-    notificationData
+    notificationData,
   );
 
   logger.info(`Bulk notifications created for ${recipients.length} users`);
@@ -64,11 +47,6 @@ const createBulkNotifications = async (recipients, notificationData) => {
   return notifications;
 };
 
-/**
- * Send email notification
- * @param {Object} notification - Notification object
- * @returns {Promise<void>}
- */
 const sendEmailNotification = async (notification) => {
   if (!emailTransporter) {
     logger.warn("Email transporter not configured");
@@ -113,13 +91,6 @@ const sendEmailNotification = async (notification) => {
   }
 };
 
-/**
- * Get user notifications
- * @param {ObjectId} userId - User ID
- * @param {Object} filters - Filter options
- * @param {Object} pagination - Pagination options
- * @returns {Promise<Object>} Notifications with pagination
- */
 const getUserNotifications = async (userId, filters = {}, pagination = {}) => {
   const { page, limit, skip } = parsePagination(pagination);
 
@@ -150,11 +121,6 @@ const getUserNotifications = async (userId, filters = {}, pagination = {}) => {
   };
 };
 
-/**
- * Mark notification as read
- * @param {ObjectId} notificationId - Notification ID
- * @returns {Promise<Object>} Updated notification
- */
 const markAsRead = async (notificationId) => {
   const notification = await Notification.findById(notificationId);
 
@@ -167,31 +133,16 @@ const markAsRead = async (notificationId) => {
   return notification;
 };
 
-/**
- * Mark all notifications as read
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} Update result
- */
 const markAllAsRead = async (userId) => {
   const result = await Notification.markAllAsRead(userId);
 
   return { modifiedCount: result.modifiedCount };
 };
 
-/**
- * Get unread notification count
- * @param {ObjectId} userId - User ID
- * @returns {Promise<number>} Count
- */
 const getUnreadCount = async (userId) => {
   return await Notification.getCount(userId, true);
 };
 
-/**
- * Delete notification
- * @param {ObjectId} notificationId - Notification ID
- * @returns {Promise<Object>} Deleted notification
- */
 const deleteNotification = async (notificationId) => {
   const notification = await Notification.findByIdAndDelete(notificationId);
 

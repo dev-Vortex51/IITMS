@@ -1,8 +1,3 @@
-/**
- * Student Service
- * Business logic for student management
- */
-
 const {
   Student,
   User,
@@ -56,7 +51,7 @@ const getAllStudents = async (filters = {}) => {
   }));
 
   logger.info(
-    `studentService.getAllStudents fetched ${formattedStudents.length} students`
+    `studentService.getAllStudents fetched ${formattedStudents.length} students`,
   );
 
   return formattedStudents;
@@ -95,9 +90,6 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
     query.user = { $in: userIds };
   }
 
-  console.log("Student query:", JSON.stringify(query));
-  console.log("Pagination:", { page, limit, skip });
-
   const students = await Student.find(query)
     .populate({
       path: "user",
@@ -116,8 +108,6 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
     .sort({ createdAt: -1 });
 
   const total = await Student.countDocuments(query);
-
-  console.log("Students found:", students.length, "Total:", total);
 
   return {
     students,

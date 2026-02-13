@@ -1,8 +1,3 @@
-/**
- * Express Application Configuration
- * Main application setup with middleware and route mounting
- */
-
 const express = require("express");
 const morgan = require("morgan");
 const compression = require("compression");

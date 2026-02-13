@@ -1,9 +1,3 @@
-/**
- * Models Index
- * Central export point for all database models
- * Simplifies imports throughout the application
- */
-
 const User = require("./User");
 const Faculty = require("./Faculty");
 const Department = require("./Department");
