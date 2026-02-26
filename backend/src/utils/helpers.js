@@ -4,7 +4,28 @@
  */
 
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const { PAGINATION } = require("./constants");
+
+/**
+ * Hash a password using bcrypt
+ * @param {string} password - Plain text password
+ * @returns {Promise<string>} Hashed password
+ */
+const hashPassword = async (password) => {
+  const salt = await bcrypt.genSalt(12);
+  return await bcrypt.hash(password, salt);
+};
+
+/**
+ * Compare a plain text password with a hashed password
+ * @param {string} password - Plain text password
+ * @param {string} hash - Hashed password
+ * @returns {Promise<boolean>} True if passwords match
+ */
+const comparePassword = async (password, hash) => {
+  return await bcrypt.compare(password, hash);
+};
 
 /**
  * Generate a random string (useful for tokens, default passwords)
@@ -69,7 +90,7 @@ const parsePagination = (query) => {
   const page = Math.max(1, parseInt(query.page, 10) || PAGINATION.DEFAULT_PAGE);
   const limit = Math.min(
     PAGINATION.MAX_LIMIT,
-    Math.max(1, parseInt(query.limit, 10) || PAGINATION.DEFAULT_LIMIT)
+    Math.max(1, parseInt(query.limit, 10) || PAGINATION.DEFAULT_LIMIT),
   );
   const skip = (page - 1) * limit;
 
@@ -243,6 +264,8 @@ const getDateRange = (range) => {
 };
 
 module.exports = {
+  hashPassword,
+  comparePassword,
   generateRandomString,
   generateSecurePassword,
   sanitizeInput,

@@ -75,6 +75,22 @@ router.delete(
   departmentController.deleteDepartment,
 );
 
+router.patch(
+  "/:id/toggle-status",
+  authenticate,
+  adminOnly,
+  validateObjectId("id"),
+  departmentController.toggleDepartmentStatus,
+);
+
+router.delete(
+  "/:id/hard-delete",
+  authenticate,
+  adminOnly,
+  validateObjectId("id"),
+  departmentController.hardDeleteDepartment,
+);
+
 router.get(
   "/:id/students",
   authenticate,

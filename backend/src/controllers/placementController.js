@@ -61,7 +61,7 @@ const updatePlacement = catchAsync(async (req, res) => {
   const placement = await placementService.updatePlacement(
     req.params.id,
     req.body,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -75,7 +75,7 @@ const reviewPlacement = catchAsync(async (req, res) => {
   const placement = await placementService.reviewPlacement(
     req.params.id,
     req.body,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -89,7 +89,7 @@ const approvePlacement = catchAsync(async (req, res) => {
   const placement = await placementService.approvePlacement(
     req.params.id,
     req.body.remarks,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -103,7 +103,7 @@ const rejectPlacement = catchAsync(async (req, res) => {
   const placement = await placementService.rejectPlacement(
     req.params.id,
     req.body.remarks,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -117,7 +117,7 @@ const assignIndustrialSupervisor = catchAsync(async (req, res) => {
   const placement = await placementService.assignIndustrialSupervisor(
     req.params.id,
     req.body,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -144,7 +144,7 @@ const updatePlacementByCoordinator = catchAsync(async (req, res) => {
 const withdrawPlacement = catchAsync(async (req, res) => {
   const placement = await placementService.withdrawPlacement(
     req.params.id,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -155,7 +155,7 @@ const withdrawPlacement = catchAsync(async (req, res) => {
 });
 
 const deletePlacement = catchAsync(async (req, res) => {
-  await placementService.deletePlacement(req.params.id, req.user._id);
+  await placementService.deletePlacement(req.params.id, req.user.id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

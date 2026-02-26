@@ -11,6 +11,7 @@ const supervisorService = require("./supervisorService");
 const reportService = require("./reportService");
 const invitationService = require("./invitationService");
 const attendanceService = require("./attendanceService");
+const settingsService = require("./settingsService");
 
 module.exports = {
   authService,
@@ -26,4 +27,5 @@ module.exports = {
   reportService,
   invitationService,
   attendanceService,
+  settingsService,
 };

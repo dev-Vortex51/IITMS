@@ -1,14 +1,14 @@
 export interface Student {
-  _id: string;
-  user: { _id: string; email: string; firstName?: string; lastName?: string };
+  id: string;
+  user: { id: string; email: string; firstName?: string; lastName?: string };
   matricNumber?: string;
   firstName?: string;
   lastName?: string;
   name?: string;
   level?: string;
   session?: string;
-  faculty?: { _id: string; name: string };
-  department?: { _id: string; name: string };
+  faculty?: { id: string; name: string };
+  department?: { id: string; name: string };
   phoneNumber?: string;
   placement?: string;
   currentPlacement?: Placement;
@@ -23,7 +23,7 @@ export interface Student {
 }
 
 export interface Placement {
-  _id: string;
+  id: string;
   student: string | Student;
   companyName: string;
   companyAddress?: string;
@@ -51,7 +51,7 @@ export interface Placement {
 }
 
 export interface LogbookEntry {
-  _id: string;
+  id: string;
   student: string | Student;
   placement: string | Placement;
   weekNumber: number;
@@ -67,7 +67,7 @@ export interface LogbookEntry {
 }
 
 export interface Assessment {
-  _id: string;
+  id: string;
   student: string | Student;
   placement: string | Placement;
   supervisor: string;
@@ -91,16 +91,16 @@ export interface Assessment {
 }
 
 export interface Supervisor {
-  _id: string;
+  id: string;
   user:
     | string
-    | { _id: string; email: string; firstName?: string; lastName?: string };
+    | { id: string; email: string; firstName?: string; lastName?: string };
   name?: string;
   email?: string;
   phone?: string;
   phoneNumber?: string;
   type: "departmental" | "industrial";
-  department?: string | { _id: string; name: string };
+  department?: string | { id: string; name: string };
   company?: string;
   companyName?: string;
   companyAddress?: string;
@@ -117,7 +117,7 @@ export interface Supervisor {
 }
 
 export interface User {
-  _id: string;
+  id: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -130,7 +130,7 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   profileData?: {
-    _id: string;
+    id: string;
     user?: string;
     department?: any;
     currentPlacement?: any;
@@ -142,7 +142,7 @@ export interface User {
 }
 
 export interface Faculty {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   dean?: string;
@@ -151,7 +151,7 @@ export interface Faculty {
 }
 
 export interface Department {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   faculty: string | Faculty;

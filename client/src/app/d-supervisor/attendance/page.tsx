@@ -73,7 +73,7 @@ export default function AcademicSupervisorAttendancePage() {
       {placements && placements.length > 0 ? (
         <div className="space-y-6">
           {placements.map((placement: any) => (
-            <div key={placement._id}>
+            <div key={placement.id}>
               <Card className="mb-4">
                 <CardHeader>
                   <CardTitle className="text-lg">
@@ -85,7 +85,7 @@ export default function AcademicSupervisorAttendancePage() {
                   </CardDescription>
                 </CardHeader>
               </Card>
-              <SupervisorApprovalInterface placementId={placement._id} />
+              <SupervisorApprovalInterface placementId={placement.id} />
             </div>
           ))}
         </div>

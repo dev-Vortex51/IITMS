@@ -93,7 +93,7 @@ const verifyAssessment = catchAsync(async (req, res) => {
 
   const assessment = await assessmentService.verifyAssessment(
     req.params.id,
-    req.user._id,
+    req.user.id,
     comment,
   );
 

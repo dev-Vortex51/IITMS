@@ -64,16 +64,25 @@ export default function StudentPlacementPage() {
   });
 
   // Get student profile ID from authenticated user
-  const studentProfileId = user?.profileData?._id;
+  const studentProfileId = user?.profileData?.id;
+
+  useEffect(() => {
+    console.log("Placement page - Auth user:", { user, studentProfileId });
+  }, [user, studentProfileId]);
 
   // Fetch student data
-  const { data: studentData, isLoading: isLoadingStudent } = useQuery({
+  const {
+    data: studentData,
+    isLoading: isLoadingStudent,
+    error: studentError,
+  } = useQuery({
     queryKey: ["student", studentProfileId],
     queryFn: async () => {
       if (!studentProfileId) {
         throw new Error("Student profile not found");
       }
       const response = await studentService.getStudentById(studentProfileId);
+      console.log("Student data fetched:", response);
       return response;
     },
     enabled: !!studentProfileId,
@@ -81,15 +90,23 @@ export default function StudentPlacementPage() {
 
   const student = studentData;
 
+  useEffect(() => {
+    console.log("Student data updated:", student);
+    if (studentError) {
+      console.error("Student fetch error:", studentError);
+      toast.error("Failed to load student data. Please refresh.");
+    }
+  }, [student, studentError]);
+
   // Fetch existing placement
   const {
     data: placementData,
     isLoading: isLoadingPlacement,
     error: placementError,
   } = useQuery({
-    queryKey: ["placement", student?._id],
-    queryFn: () => studentService.getStudentPlacement(student!._id),
-    enabled: !!student?._id,
+    queryKey: ["placement", student?.id],
+    queryFn: () => studentService.getStudentPlacement(student!.id),
+    enabled: !!student?.id,
     retry: false,
   });
 
@@ -105,7 +122,7 @@ export default function StudentPlacementPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["placement"] });
       // Force refetch placement
-      queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
+      queryClient.refetchQueries({ queryKey: ["placement", student?.id] });
       setIsDialogOpen(false);
       setFormData({
         companyName: "",
@@ -131,8 +148,8 @@ export default function StudentPlacementPage() {
   // Update placement mutation (edit before approval or change after approval)
   const updatePlacementMutation = useMutation({
     mutationFn: (data: any) => {
-      if (!placement?._id) throw new Error("Placement not found");
-      return placementService.updatePlacement(placement._id, data);
+      if (!placement?.id) throw new Error("Placement not found");
+      return placementService.updatePlacement(placement.id, data);
     },
     onSuccess: () => {
       // Invalidate both student and placement queries
@@ -140,7 +157,7 @@ export default function StudentPlacementPage() {
         queryKey: ["student", studentProfileId],
       });
       queryClient.invalidateQueries({ queryKey: ["placement"] });
-      queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
+      queryClient.refetchQueries({ queryKey: ["placement", student?.id] });
       setIsDialogOpen(false);
       toast.success("Placement updated successfully");
     },
@@ -152,8 +169,8 @@ export default function StudentPlacementPage() {
   // Withdraw placement mutation
   const withdrawPlacementMutation = useMutation({
     mutationFn: () => {
-      if (!placement?._id) throw new Error("Placement not found");
-      return placementService.withdrawPlacement(placement._id);
+      if (!placement?.id) throw new Error("Placement not found");
+      return placementService.withdrawPlacement(placement.id);
     },
     onSuccess: () => {
       // Invalidate both student and placement queries
@@ -161,12 +178,12 @@ export default function StudentPlacementPage() {
         queryKey: ["student", studentProfileId],
       });
       queryClient.invalidateQueries({ queryKey: ["placement"] });
-      queryClient.refetchQueries({ queryKey: ["placement", student?._id] });
+      queryClient.refetchQueries({ queryKey: ["placement", student?.id] });
       toast.success("Placement withdrawn successfully");
     },
     onError: (err: any) => {
       toast.error(
-        err.response?.data?.message || "Failed to withdraw placement"
+        err.response?.data?.message || "Failed to withdraw placement",
       );
     },
   });
@@ -174,13 +191,13 @@ export default function StudentPlacementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!student?._id) {
+    if (!student?.id) {
       toast.error("Student information not found. Please refresh the page.");
       return;
     }
 
     const data = {
-      student: student._id,
+      student: student.id,
       companyName: formData.companyName,
       companyAddress: formData.companyAddress,
       companySector: formData.companySector,
@@ -305,8 +322,8 @@ export default function StudentPlacementPage() {
                   ? placement.status === "approved"
                     ? "Update your placement and resubmit for coordinator review"
                     : ["withdrawn", "rejected"].includes(placement.status)
-                    ? "Submit a new placement application"
-                    : "Update your placement details before approval"
+                      ? "Submit a new placement application"
+                      : "Update your placement details before approval"
                   : "Provide information about your industrial training placement"}
               </DialogDescription>
             </DialogHeader>
@@ -555,8 +572,8 @@ export default function StudentPlacementPage() {
                       ? "Updating..."
                       : "Update Placement"
                     : createPlacementMutation.isPending
-                    ? "Submitting..."
-                    : "Submit Placement"}
+                      ? "Submitting..."
+                      : "Submit Placement"}
                 </Button>
               </DialogFooter>
             </form>

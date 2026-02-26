@@ -167,7 +167,7 @@ export default function AcademicSupervisorsPage() {
           ) : (
             <div className="space-y-4">
               {paginatedSupervisors.map((supervisor: any) => (
-                <Card key={supervisor._id}>
+                <Card key={supervisor.id}>
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -237,7 +237,7 @@ export default function AcademicSupervisorsPage() {
                       </div>
 
                       <Link
-                        href={`/admin/academic-supervisors/${supervisor._id}`}
+                        href={`/admin/academic-supervisors/${supervisor.id}`}
                       >
                         <Button variant="outline" size="sm">
                           <Eye className="h-4 w-4 mr-2" />

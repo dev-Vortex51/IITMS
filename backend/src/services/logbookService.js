@@ -1,6 +1,5 @@
-
-
-const { Logbook, Student } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { ApiError } = require("../middleware/errorHandler");
 const {
   HTTP_STATUS,
@@ -11,224 +10,380 @@ const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
 const notificationService = require("./notificationService");
 
+const prisma = getPrismaClient();
+
 /**
  * Create logbook entry
  */
 const createLogbookEntry = async (studentId, logbookData, files = []) => {
-  const student = await Student.findById(studentId);
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        placement: {
+          where: { status: "approved" },
+          take: 1,
+        },
+      },
+    });
 
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
-  }
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
 
-  logger.info(`Logbook validation for student ${studentId}:`, {
-    placementApproved: student.placementApproved,
-    trainingStartDate: student.trainingStartDate,
-    trainingEndDate: student.trainingEndDate,
-    canSubmit: student.canSubmitLogbook(),
-  });
+    // Verify student has approved placement and training has started
+    if (!student.placementApproved || !student.trainingStartDate) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You cannot submit logbook. Ensure your placement is approved and training has started.",
+      );
+    }
 
-  if (!student.canSubmitLogbook()) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You cannot submit logbook. Ensure your placement is approved and training has started."
+    // Check if logbook for this week already exists
+    const existingLogbook = await prisma.logbook.findFirst({
+      where: {
+        studentId,
+        weekNumber: logbookData.weekNumber,
+      },
+    });
+
+    if (existingLogbook) {
+      throw new ApiError(
+        HTTP_STATUS.CONFLICT,
+        `Logbook for week ${logbookData.weekNumber} already exists`,
+      );
+    }
+
+    // Create logbook
+    const logbook = await prisma.logbook.create({
+      data: {
+        studentId,
+        weekNumber: logbookData.weekNumber,
+        startDate: new Date(logbookData.startDate),
+        endDate: new Date(logbookData.endDate),
+        tasksPerformed: logbookData.tasksPerformed,
+        skillsAcquired: logbookData.skillsAcquired || "",
+        challenges: logbookData.challenges || "",
+        lessonsLearned: logbookData.lessonsLearned || "",
+        status: LOGBOOK_STATUS.DRAFT,
+        // Create evidence files
+        evidence: {
+          createMany: {
+            data: files.map((file) => ({
+              name: file.originalname,
+              path: file.path,
+              type: file.mimetype,
+            })),
+          },
+        },
+      },
+      include: {
+        evidence: true,
+        reviews: true,
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(
+      `Logbook entry created for student: ${student.id}, week: ${logbookData.weekNumber}`,
     );
+
+    return logbook;
+  } catch (error) {
+    logger.error(`Error creating logbook entry: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  // Check if logbook for this week already exists
-  const existingLogbook = await Logbook.findOne({
-    student: studentId,
-    weekNumber: logbookData.weekNumber,
-  });
-
-  if (existingLogbook) {
-    throw new ApiError(
-      HTTP_STATUS.CONFLICT,
-      `Logbook for week ${logbookData.weekNumber} already exists`
-    );
-  }
-
-  const logbook = await Logbook.create({
-    student: studentId,
-    ...logbookData,
-    evidence: files.map((file) => ({
-      name: file.originalname,
-      path: file.path,
-      type: file.mimetype,
-    })),
-    status: LOGBOOK_STATUS.DRAFT,
-  });
-
-  logger.info(
-    `Logbook entry created for student: ${student.matricNumber}, week: ${logbookData.weekNumber}`
-  );
-
-  return logbook;
 };
 
 /**
  * Get logbooks with filters
  */
 const getLogbooks = async (filters = {}, pagination = {}) => {
-  const { page, limit, skip } = parsePagination(pagination);
+  try {
+    const { page, limit, skip } = parsePagination(pagination);
 
-  const query = {};
+    const where = {};
 
-  if (filters.student) query.student = filters.student;
-  if (filters.status) query.status = filters.status;
-  if (filters.weekNumber) query.weekNumber = filters.weekNumber;
+    if (filters.student) where.studentId = filters.student;
+    if (filters.status) where.status = filters.status;
+    if (filters.weekNumber) where.weekNumber = filters.weekNumber;
 
-  // Filter by department if specified
-  if (filters.department) {
-    const Student = require("../models/Student");
-    const students = await Student.find({
-      department: filters.department,
-    }).select("_id");
-    query.student = { $in: students.map((s) => s._id) };
-  }
+    // Filter by department if specified
+    if (filters.department) {
+      where.student = {
+        departmentId: filters.department,
+      };
+    }
 
-  const logbooks = await Logbook.find(query)
-    .populate({
-      path: "student",
-      select: "matricNumber user",
-      populate: {
-        path: "user",
-        select: "firstName lastName email",
+    const logbooks = await prisma.logbook.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            department: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        evidence: true,
+        reviews: {
+          include: {
+            supervisor: {
+              select: {
+                id: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
-    })
-    .skip(skip)
-    .limit(limit)
-    .sort({ weekNumber: -1, createdAt: -1 });
+      skip,
+      take: limit,
+      orderBy: [{ weekNumber: "desc" }, { createdAt: "desc" }],
+    });
 
-  const total = await Logbook.countDocuments(query);
+    const total = await prisma.logbook.count({ where });
 
-  return {
-    logbooks,
-    pagination: buildPaginationMeta(total, page, limit),
-  };
+    return {
+      logbooks,
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  } catch (error) {
+    logger.error(`Error getting logbooks: ${error.message}`);
+    throw handlePrismaError(error);
+  }
 };
 
 /**
  * Get logbook by ID
  */
 const getLogbookById = async (logbookId) => {
-  const logbook = await Logbook.findById(logbookId).populate({
-    path: "student",
-    select: "matricNumber user department",
-    populate: [
-      {
-        path: "user",
-        select: "firstName lastName email",
+  try {
+    const logbook = await prisma.logbook.findUnique({
+      where: { id: logbookId },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            department: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        evidence: true,
+        reviews: {
+          include: {
+            supervisor: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
-      {
-        path: "department",
-        select: "name code",
-      },
-    ],
-  });
+    });
 
-  if (!logbook) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    if (!logbook) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    }
+
+    return logbook;
+  } catch (error) {
+    logger.error(`Error getting logbook: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  return logbook;
 };
 
 /**
  * Update logbook entry (before submission)
  */
 const updateLogbookEntry = async (logbookId, updateData, userId) => {
-  const logbook = await Logbook.findById(logbookId);
+  try {
+    const logbook = await prisma.logbook.findUnique({
+      where: { id: logbookId },
+      include: { student: true },
+    });
 
-  if (!logbook) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    if (!logbook) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    }
+
+    if (logbook.status !== LOGBOOK_STATUS.DRAFT) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Cannot update submitted logbook",
+      );
+    }
+
+    // Verify ownership
+    if (logbook.student.userId !== userId) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You can only update your own logbook",
+      );
+    }
+
+    const updated = await prisma.logbook.update({
+      where: { id: logbookId },
+      data: {
+        tasksPerformed: updateData.tasksPerformed || logbook.tasksPerformed,
+        skillsAcquired: updateData.skillsAcquired || logbook.skillsAcquired,
+        challenges: updateData.challenges || logbook.challenges,
+        lessonsLearned: updateData.lessonsLearned || logbook.lessonsLearned,
+      },
+      include: {
+        evidence: true,
+        reviews: true,
+      },
+    });
+
+    logger.info(`Logbook updated: ${logbookId}`);
+
+    return updated;
+  } catch (error) {
+    logger.error(`Error updating logbook: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  if (logbook.status !== LOGBOOK_STATUS.DRAFT) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Cannot update submitted logbook"
-    );
-  }
-
-  // Verify ownership
-  const student = await Student.findById(logbook.student);
-  if (student.user.toString() !== userId.toString()) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You can only update your own logbook"
-    );
-  }
-
-  Object.assign(logbook, updateData);
-  await logbook.save();
-
-  logger.info(`Logbook updated: ${logbookId}`);
-
-  return logbook;
 };
 
 /**
  * Submit logbook entry
  */
 const submitLogbookEntry = async (logbookId, userId) => {
-  const logbook = await Logbook.findById(logbookId).populate("student");
-
-  if (!logbook) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
-  }
-
-  if (logbook.status !== LOGBOOK_STATUS.DRAFT) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Logbook already submitted");
-  }
-
-  // Verify ownership
-  const student = logbook.student;
-  const studentUserId = student.user._id || student.user;
-
-  if (studentUserId.toString() !== userId.toString()) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You can only submit your own logbook"
-    );
-  }
-
-  await logbook.submit();
-
-  // Notify supervisors
-  if (student.departmentalSupervisor) {
-    const Supervisor = require("../models").Supervisor;
-    const deptSup = await Supervisor.findById(student.departmentalSupervisor);
-
-    await notificationService.createNotification({
-      recipient: deptSup.user,
-      type: NOTIFICATION_TYPES.GENERAL,
-      title: "New Logbook Submission",
-      message: `${student.user.fullName} has submitted Week ${logbook.weekNumber} logbook`,
-      priority: "medium",
-      relatedModel: "Logbook",
-      relatedId: logbook._id,
+  try {
+    const logbook = await prisma.logbook.findUnique({
+      where: { id: logbookId },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+            departmentalSupervisor: {
+              select: { id: true, userId: true },
+            },
+            industrialSupervisor: {
+              select: { id: true, userId: true },
+            },
+          },
+        },
+      },
     });
-  }
 
-  if (student.industrialSupervisor) {
-    const Supervisor = require("../models").Supervisor;
-    const indSup = await Supervisor.findById(student.industrialSupervisor);
+    if (!logbook) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    }
 
-    await notificationService.createNotification({
-      recipient: indSup.user,
-      type: NOTIFICATION_TYPES.GENERAL,
-      title: "New Logbook Submission",
-      message: `${student.user.fullName} has submitted Week ${logbook.weekNumber} logbook`,
-      priority: "medium",
-      relatedModel: "Logbook",
-      relatedId: logbook._id,
+    if (logbook.status !== LOGBOOK_STATUS.DRAFT) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Logbook already submitted");
+    }
+
+    // Verify ownership
+    if (logbook.student.userId !== userId) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You can only submit your own logbook",
+      );
+    }
+
+    const updated = await prisma.logbook.update({
+      where: { id: logbookId },
+      data: {
+        status: LOGBOOK_STATUS.SUBMITTED,
+        submittedAt: new Date(),
+      },
+      include: {
+        evidence: true,
+        reviews: true,
+        student: {
+          include: { user: true },
+        },
+      },
     });
+
+    // Notify supervisors
+    if (logbook.student.departmentalSupervisor) {
+      await notificationService.createNotification({
+        recipientId: logbook.student.departmentalSupervisor.userId,
+        type: NOTIFICATION_TYPES.GENERAL,
+        title: "New Logbook Submission",
+        message: `${logbook.student.user.firstName} ${logbook.student.user.lastName} has submitted Week ${logbook.weekNumber} logbook`,
+        priority: "medium",
+        relatedModel: "Logbook",
+        relatedId: logbookId,
+      });
+    }
+
+    if (logbook.student.industrialSupervisor) {
+      await notificationService.createNotification({
+        recipientId: logbook.student.industrialSupervisor.userId,
+        type: NOTIFICATION_TYPES.GENERAL,
+        title: "New Logbook Submission",
+        message: `${logbook.student.user.firstName} ${logbook.student.user.lastName} has submitted Week ${logbook.weekNumber} logbook`,
+        priority: "medium",
+        relatedModel: "Logbook",
+        relatedId: logbookId,
+      });
+    }
+
+    logger.info(`Logbook submitted: ${logbookId}`);
+
+    return updated;
+  } catch (error) {
+    logger.error(`Error submitting logbook: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  logger.info(`Logbook submitted: ${logbookId}`);
-
-  return logbook;
 };
 
 /**
@@ -238,163 +393,252 @@ const reviewLogbook = async (
   logbookId,
   reviewData,
   supervisorId,
-  supervisorType
+  supervisorType,
 ) => {
-  const logbook = await Logbook.findById(logbookId);
+  try {
+    const logbook = await prisma.logbook.findUnique({
+      where: { id: logbookId },
+      include: { student: true },
+    });
 
-  if (!logbook) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
-  }
+    if (!logbook) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    }
 
-  if (
-    logbook.status !== LOGBOOK_STATUS.SUBMITTED &&
-    logbook.status !== LOGBOOK_STATUS.REVIEWED
-  ) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Logbook not ready for review");
-  }
+    if (
+      logbook.status !== LOGBOOK_STATUS.SUBMITTED &&
+      logbook.status !== LOGBOOK_STATUS.REVIEWED
+    ) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Logbook not ready for review",
+      );
+    }
 
-  // Verify supervisor is assigned to this student
-  const student = await Student.findById(logbook.student);
-  const Supervisor = require("../models").Supervisor;
-  const supervisor = await Supervisor.findById(supervisorId);
+    // Verify supervisor exists and is assigned to student
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      include: {
+        assignedStudents: {
+          select: { studentId: true },
+        },
+      },
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
-  }
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
 
-  if (!supervisor.assignedStudents.includes(student._id.toString())) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You are not assigned to this student"
+    const isAssigned = supervisor.assignedStudents.some(
+      (s) => s.studentId === logbook.studentId,
     );
+
+    if (!isAssigned) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You are not assigned to this student",
+      );
+    }
+
+    // Check if review already exists for this supervisor
+    const existingReview = await prisma.logbookReview.findFirst({
+      where: {
+        logbookId,
+        supervisorId,
+      },
+    });
+
+    let review;
+    if (existingReview) {
+      // Update existing review
+      review = await prisma.logbookReview.update({
+        where: { id: existingReview.id },
+        data: {
+          comment: reviewData.comment,
+          rating: reviewData.rating,
+          status: reviewData.status || LOGBOOK_STATUS.REVIEWED,
+          reviewedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new review
+      review = await prisma.logbookReview.create({
+        data: {
+          logbookId,
+          supervisorId,
+          supervisorType:
+            supervisorType === "academic" ? "academic" : "industrial",
+          comment: reviewData.comment,
+          rating: reviewData.rating,
+          status: reviewData.status || LOGBOOK_STATUS.REVIEWED,
+        },
+      });
+    }
+
+    // Update logbook status to REVIEWED if not already
+    if (logbook.status === LOGBOOK_STATUS.SUBMITTED) {
+      await prisma.logbook.update({
+        where: { id: logbookId },
+        data: { status: LOGBOOK_STATUS.REVIEWED },
+      });
+    }
+
+    // Check if both supervisors have reviewed to determine final status
+    const allReviews = await prisma.logbookReview.findMany({
+      where: { logbookId },
+      select: { status: true },
+    });
+
+    if (allReviews.length >= 2) {
+      // Check if ANY of the reviews marked it as REJECTED
+      const hasRejection = allReviews.some(
+        (review) => review.status === LOGBOOK_STATUS.REJECTED,
+      );
+
+      // Determine the final state of the logbook
+      const finalLogbookStatus = hasRejection
+        ? LOGBOOK_STATUS.REJECTED
+        : LOGBOOK_STATUS.APPROVED;
+
+      await prisma.logbook.update({
+        where: { id: logbookId },
+        data: { status: finalLogbookStatus },
+      });
+    }
+
+    // Notify student
+    const student = await prisma.student.findUnique({
+      where: { id: logbook.studentId },
+      include: { user: true },
+    });
+
+    await notificationService.createNotification({
+      recipientId: student.userId,
+      type: NOTIFICATION_TYPES.LOGBOOK_COMMENT,
+      title: "Logbook Reviewed",
+      message: `Your Week ${logbook.weekNumber} logbook has been reviewed by your ${supervisorType} supervisor`,
+      priority: "medium",
+      relatedModel: "Logbook",
+      relatedId: logbookId,
+    });
+
+    logger.info(
+      `Logbook reviewed by ${supervisorType} supervisor: ${logbookId}`,
+    );
+
+    return review;
+  } catch (error) {
+    logger.error(`Error reviewing logbook: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  await logbook.addReview(supervisorId, supervisorType, reviewData);
-
-  // Notify student
-  await notificationService.createNotification({
-    recipient: student.user,
-    type: NOTIFICATION_TYPES.LOGBOOK_COMMENT,
-    title: "Logbook Reviewed",
-    message: `Your Week ${logbook.weekNumber} logbook has been reviewed by your ${supervisorType} supervisor`,
-    priority: "medium",
-    relatedModel: "Logbook",
-    relatedId: logbook._id,
-    createdBy: supervisor.user,
-  });
-
-  logger.info(`Logbook reviewed by ${supervisorType} supervisor: ${logbookId}`);
-
-  return logbook;
 };
 
 /**
  * Get logbooks pending review for supervisor
  */
 const getLogbooksPendingReview = async (supervisorId) => {
-  const Supervisor = require("../models").Supervisor;
-  const supervisor = await Supervisor.findById(supervisorId);
+  try {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      include: {
+        assignedStudents: {
+          select: { studentId: true },
+        },
+      },
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    const studentIds = supervisor.assignedStudents.map((s) => s.studentId);
+
+    // Get logbooks that are submitted/reviewed but not fully reviewed by this supervisor
+    const logbooks = await prisma.logbook.findMany({
+      where: {
+        studentId: { in: studentIds },
+        status: { in: [LOGBOOK_STATUS.SUBMITTED, LOGBOOK_STATUS.REVIEWED] },
+        reviews: {
+          none: {
+            supervisorId,
+          },
+        },
+      },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        evidence: true,
+      },
+    });
+
+    return logbooks;
+  } catch (error) {
+    logger.error(`Error getting pending logbooks: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  const logbooks = await Logbook.findPendingReview(
-    supervisorId,
-    supervisor.type
-  );
-
-  return logbooks;
 };
 
 /**
  * Get student logbook summary
  */
 const getStudentLogbookSummary = async (studentId) => {
-  const totalLogbooks = await Logbook.countDocuments({ student: studentId });
-  const submittedLogbooks = await Logbook.countDocuments({
-    student: studentId,
-    status: {
-      $in: [
-        LOGBOOK_STATUS.SUBMITTED,
-        LOGBOOK_STATUS.REVIEWED,
-        LOGBOOK_STATUS.APPROVED,
-      ],
-    },
-  });
-  const approvedLogbooks = await Logbook.countDocuments({
-    student: studentId,
-    status: LOGBOOK_STATUS.APPROVED,
-  });
-  const rejectedLogbooks = await Logbook.countDocuments({
-    student: studentId,
-    status: LOGBOOK_STATUS.REJECTED,
-  });
+  try {
+    const [
+      totalLogbooks,
+      submittedLogbooks,
+      approvedLogbooks,
+      rejectedLogbooks,
+      logbookList,
+    ] = await Promise.all([
+      prisma.logbook.count({ where: { studentId } }),
+      prisma.logbook.count({
+        where: {
+          studentId,
+          status: {
+            in: [
+              LOGBOOK_STATUS.SUBMITTED,
+              LOGBOOK_STATUS.REVIEWED,
+              LOGBOOK_STATUS.APPROVED,
+            ],
+          },
+        },
+      }),
+      prisma.logbook.count({
+        where: { studentId, status: LOGBOOK_STATUS.APPROVED },
+      }),
+      prisma.logbook.count({
+        where: { studentId, status: LOGBOOK_STATUS.REJECTED },
+      }),
+      prisma.logbook.findMany({
+        where: { studentId },
+        orderBy: { weekNumber: "asc" },
+        include: {
+          evidence: true,
+          reviews: true,
+        },
+      }),
+    ]);
 
-  const logbooks = await Logbook.find({ student: studentId }).sort({
-    weekNumber: 1,
-  });
-
-  return {
-    total: totalLogbooks,
-    submitted: submittedLogbooks,
-    approved: approvedLogbooks,
-    rejected: rejectedLogbooks,
-    logbooks,
-  };
-};
-
-/**
- * Industrial supervisor review logbook
- */
-const industrialReviewLogbook = async (logbookId, supervisorId, reviewData) => {
-  const logbook = await Logbook.findById(logbookId);
-
-  if (!logbook) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Logbook not found");
+    return {
+      total: totalLogbooks,
+      submitted: submittedLogbooks,
+      approved: approvedLogbooks,
+      rejected: rejectedLogbooks,
+      logbooks: logbookList,
+    };
+  } catch (error) {
+    logger.error(`Error getting logbook summary: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  // Verify supervisor is assigned to this student
-  const student = await Student.findById(logbook.student);
-  const Supervisor = require("../models").Supervisor;
-  const supervisor = await Supervisor.findById(supervisorId);
-
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
-  }
-
-  if (!supervisor.assignedStudents.includes(student._id.toString())) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You are not assigned to this student"
-    );
-  }
-
-  // Update industrial review
-  logbook.industrialReview = {
-    status: "approved", // Industrial supervisor only comments, doesn't approve/reject
-    comment: reviewData.comment,
-    rating: reviewData.rating,
-    reviewedAt: new Date(),
-  };
-
-  await logbook.save();
-
-  // Notify student
-  await notificationService.createNotification({
-    recipient: student.user,
-    type: NOTIFICATION_TYPES.LOGBOOK_COMMENT,
-    title: "Logbook Reviewed by Industrial Supervisor",
-    message: `Your Week ${logbook.weekNumber} logbook has been reviewed by your industrial supervisor`,
-    priority: "medium",
-    relatedModel: "Logbook",
-    relatedId: logbook._id,
-    createdBy: supervisor.user,
-  });
-
-  logger.info(`Logbook reviewed by industrial supervisor: ${logbookId}`);
-
-  return logbook;
 };
 
 module.exports = {
@@ -406,5 +650,4 @@ module.exports = {
   reviewLogbook,
   getLogbooksPendingReview,
   getStudentLogbookSummary,
-  industrialReviewLogbook,
 };

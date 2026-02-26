@@ -37,13 +37,13 @@ export default function EvaluationsPage() {
 
   // Fetch evaluations created by this supervisor
   const { data: evaluationsData, isLoading } = useQuery({
-    queryKey: ["evaluations", user?._id, statusFilter],
+    queryKey: ["evaluations", user?.id, statusFilter],
     queryFn: async () => {
       // This would fetch evaluations from the API
       // For now, return mock data
       return { data: [] };
     },
-    enabled: !!user?._id,
+    enabled: !!user?.id,
   });
 
   const evaluations = evaluationsData?.data || [];
@@ -196,7 +196,7 @@ export default function EvaluationsPage() {
 
                 return (
                   <div
-                    key={evaluation._id}
+                    key={evaluation.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
                   >
                     <div className="flex items-center gap-4 flex-1">
@@ -312,3 +312,4 @@ export default function EvaluationsPage() {
     </div>
   );
 }
+

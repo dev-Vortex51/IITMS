@@ -123,7 +123,7 @@ export default function AdminInvitationsPage() {
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || "Failed to resend invitation"
+        error.response?.data?.message || "Failed to resend invitation",
       );
     },
   });
@@ -138,7 +138,7 @@ export default function AdminInvitationsPage() {
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || "Failed to cancel invitation"
+        error.response?.data?.message || "Failed to cancel invitation",
       );
     },
   });
@@ -266,7 +266,7 @@ export default function AdminInvitationsPage() {
                     <SelectTrigger id="role">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       <SelectItem value="coordinator">Coordinator</SelectItem>
                       <SelectItem value="academic_supervisor">
                         Academic Supervisor
@@ -288,9 +288,9 @@ export default function AdminInvitationsPage() {
                       <SelectTrigger id="department">
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper">
                         {departments.map((dept: any) => (
-                          <SelectItem key={dept._id} value={dept._id}>
+                          <SelectItem key={dept.id} value={dept.id}>
                             {dept.name} ({dept.code})
                           </SelectItem>
                         ))}
@@ -470,7 +470,7 @@ export default function AdminInvitationsPage() {
                 </TableRow>
               ) : (
                 filteredInvitations.map((invitation: any) => (
-                  <TableRow key={invitation._id}>
+                  <TableRow key={invitation.id}>
                     <TableCell className="font-medium">
                       {invitation.email}
                     </TableCell>
@@ -509,7 +509,7 @@ export default function AdminInvitationsPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                resendMutation.mutate(invitation._id)
+                                resendMutation.mutate(invitation.id)
                               }
                               disabled={resendMutation.isPending}
                             >
@@ -519,7 +519,7 @@ export default function AdminInvitationsPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                cancelMutation.mutate(invitation._id)
+                                cancelMutation.mutate(invitation.id)
                               }
                               disabled={cancelMutation.isPending}
                             >

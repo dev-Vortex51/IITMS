@@ -65,7 +65,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 const createIndustrialSupervisor = asyncHandler(async (req, res) => {
   const result = await userService.createIndustrialSupervisor(
     req.body,
-    req.user._id,
+    req.user.id,
   );
 
   res

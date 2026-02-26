@@ -14,12 +14,8 @@ const login = asyncHandler(async (req, res) => {
 });
 
 const resetPasswordFirstLogin = asyncHandler(async (req, res) => {
-  console.log("Reset password request body:", req.body);
   const { userId, newPassword } = req.body;
-  console.log("Extracted userId:", userId, "newPassword:", newPassword);
-
   const result = await authService.resetPasswordFirstLogin(userId, newPassword);
-
   res
     .status(HTTP_STATUS.OK)
     .json(
@@ -30,7 +26,7 @@ const resetPasswordFirstLogin = asyncHandler(async (req, res) => {
 const changePassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
-  await authService.changePassword(req.user._id, oldPassword, newPassword);
+  await authService.changePassword(req.user.id, oldPassword, newPassword);
 
   res
     .status(HTTP_STATUS.OK)
@@ -38,7 +34,7 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-  await authService.logout(req.user._id);
+  await authService.logout(req.user.id);
 
   res
     .status(HTTP_STATUS.OK)
@@ -46,7 +42,7 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 const getProfile = asyncHandler(async (req, res) => {
-  const profile = await authService.getProfile(req.user._id);
+  const profile = await authService.getProfile(req.user.id);
 
   res
     .status(HTTP_STATUS.OK)
@@ -54,7 +50,7 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
-  const user = await authService.updateProfile(req.user._id, req.body);
+  const user = await authService.updateProfile(req.user.id, req.body);
 
   res
     .status(HTTP_STATUS.OK)

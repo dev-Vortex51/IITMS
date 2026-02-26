@@ -182,7 +182,7 @@ export function AttendanceHistory() {
               </TableHeader>
               <TableBody>
                 {attendance.map((record) => (
-                  <TableRow key={record._id}>
+                  <TableRow key={record.id}>
                     <TableCell className="font-medium">
                       {format(new Date(record.date), "MMM d, yyyy")}
                     </TableCell>

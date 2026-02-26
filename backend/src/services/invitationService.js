@@ -1,27 +1,47 @@
-const { Invitation, User } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { USER_ROLES } = require("../utils/constants");
 const { ApiError } = require("../middleware/errorHandler");
 const logger = require("../utils/logger");
 const emailService = require("../utils/emailService");
+const crypto = require("crypto");
 
-class InvitationService {
-  async createInvitation(inviterUser, invitationData) {
+const prisma = getPrismaClient();
+
+/**
+ * Generate random token for invitation
+ */
+const generateToken = () => {
+  return crypto.randomBytes(32).toString("hex");
+};
+
+/**
+ * Create an invitation
+ */
+const createInvitation = async (inviterUser, invitationData) => {
+  try {
     const { email, role, metadata = {} } = invitationData;
 
-    // Validate RBAC permissions
-    this.validateInvitationPermissions(inviterUser.role, role);
+    validateInvitationPermissions(inviterUser.role, role);
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
     if (existingUser) {
       throw new ApiError(400, "A user with this email already exists");
     }
 
     // Check for pending invitations
-    const pendingInvitation = await Invitation.findOne({
-      email: email.toLowerCase(),
-      status: "pending",
-      expiresAt: { $gt: new Date() },
+    const pendingInvitation = await prisma.invitation.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        status: "pending",
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
     });
 
     if (pendingInvitation) {
@@ -31,30 +51,62 @@ class InvitationService {
       );
     }
 
-    // Add department for coordinator-created users
-    if (inviterUser.role === USER_ROLES.COORDINATOR && inviterUser.department) {
-      metadata.department = inviterUser.department;
+    // Prepare metadata
+    let departmentId = metadata.department || inviterUser.departmentId;
+
+    // Validate department requirement for specific roles
+    if ([USER_ROLES.STUDENT, USER_ROLES.COORDINATOR].includes(role)) {
+      if (!departmentId) {
+        throw new ApiError(
+          400,
+          `Department is required when inviting a ${role}. Please specify department in metadata.`,
+        );
+      }
     }
 
     // Generate secure token
-    const token = Invitation.generateToken();
+    const token = generateToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    const invitation = await Invitation.create({
-      email: email.toLowerCase(),
-      role,
-      token,
-      expiresAt,
-      invitedBy: inviterUser._id,
-      invitedByRole: inviterUser.role,
-      metadata,
-      status: "pending",
+    const invitation = await prisma.invitation.create({
+      data: {
+        email: email.toLowerCase(),
+        role,
+        token,
+        expiresAt,
+        invitedById: inviterUser.id,
+        invitedByRole:
+          inviterUser.role === USER_ROLES.ADMIN ? "admin" : "coordinator",
+        status: "pending",
+        departmentId,
+        matricNumber: metadata.matricNumber,
+        level: metadata.level,
+        session: metadata.session,
+        // Industrial supervisor metadata
+        companyName: metadata.companyName,
+        companyAddress: metadata.companyAddress,
+        position: metadata.position,
+        yearsOfExperience: metadata.yearsOfExperience,
+        placementId: metadata.placementId,
+      },
+      include: {
+        invitedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     });
-
-    await invitation.populate("invitedBy", "firstName lastName email");
-    if (metadata.department) {
-      await invitation.populate("metadata.department", "name code");
-    }
 
     // Send magic link email
     try {
@@ -63,8 +115,8 @@ class InvitationService {
         role: invitation.role,
         token: invitation.token,
         invitedBy: {
-          firstName: inviterUser.firstName,
-          lastName: inviterUser.lastName,
+          firstName: invitation.invitedBy.firstName,
+          lastName: invitation.invitedBy.lastName,
         },
       });
     } catch (emailError) {
@@ -77,62 +129,120 @@ class InvitationService {
     );
 
     return invitation;
+  } catch (error) {
+    logger.error(`Error creating invitation: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  validateInvitationPermissions(inviterRole, inviteeRole) {
-    const permissions = {
-      [USER_ROLES.ADMIN]: [
-        USER_ROLES.COORDINATOR,
-        USER_ROLES.ACADEMIC_SUPERVISOR,
-        USER_ROLES.FACULTY,
-      ],
-      [USER_ROLES.COORDINATOR]: [
-        USER_ROLES.STUDENT,
-        USER_ROLES.INDUSTRIAL_SUPERVISOR,
-      ],
-    };
+/**
+ * Validate invitation permissions based on roles
+ */
+const validateInvitationPermissions = (inviterRole, inviteeRole) => {
+  const permissions = {
+    [USER_ROLES.ADMIN]: [
+      USER_ROLES.COORDINATOR,
+      USER_ROLES.ACADEMIC_SUPERVISOR,
+      USER_ROLES.FACULTY,
+    ],
+    [USER_ROLES.COORDINATOR]: [
+      USER_ROLES.STUDENT,
+      USER_ROLES.INDUSTRIAL_SUPERVISOR,
+    ],
+  };
 
-    const allowedRoles = permissions[inviterRole];
+  const allowedRoles = permissions[inviterRole];
 
-    if (!allowedRoles || !allowedRoles.includes(inviteeRole)) {
-      throw new ApiError(
-        403,
-        `You do not have permission to invite users with role: ${inviteeRole}`,
-      );
-    }
+  if (!allowedRoles || !allowedRoles.includes(inviteeRole)) {
+    throw new ApiError(
+      403,
+      `You do not have permission to invite users with role: ${inviteeRole}`,
+    );
   }
+};
 
-  async getInvitations(user, filters = {}) {
-    const query = {};
+/**
+ * Get invitations with filters
+ */
+const getInvitations = async (user, filters = {}) => {
+  try {
+    const where = {};
 
     // Department-scoped access for coordinators
     if (user.role === USER_ROLES.COORDINATOR) {
-      query.invitedBy = user._id;
+      where.invitedById = user.id;
     }
 
     // Apply filters
     if (filters.status) {
-      query.status = filters.status;
-    }
-    if (filters.role) {
-      query.role = filters.role;
-    }
-    if (filters.email) {
-      query.email = { $regex: filters.email, $options: "i" };
+      where.status = filters.status;
     }
 
-    const invitations = await Invitation.find(query)
-      .populate("invitedBy", "firstName lastName email")
-      .populate("metadata.department", "name code")
-      .sort({ createdAt: -1 });
+    if (filters.role) {
+      where.role = filters.role;
+    }
+
+    if (filters.email) {
+      where.email = {
+        contains: filters.email,
+        mode: "insensitive",
+      };
+    }
+
+    const invitations = await prisma.invitation.findMany({
+      where,
+      include: {
+        invitedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     return invitations;
+  } catch (error) {
+    logger.error(`Error getting invitations: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async getInvitationById(invitationId, user) {
-    const invitation = await Invitation.findById(invitationId)
-      .populate("invitedBy", "firstName lastName email")
-      .populate("metadata.department", "name code");
+/**
+ * Get invitation by ID
+ */
+const getInvitationById = async (invitationId, user) => {
+  try {
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        invitedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
 
     if (!invitation) {
       throw new ApiError(404, "Invitation not found");
@@ -141,18 +251,60 @@ class InvitationService {
     // Access control
     if (
       user.role === USER_ROLES.COORDINATOR &&
-      invitation.invitedBy.toString() !== user._id.toString()
+      invitation.invitedById !== user.id
     ) {
       throw new ApiError(403, "Access denied to this invitation");
     }
 
     return invitation;
+  } catch (error) {
+    logger.error(`Error getting invitation: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async verifyToken(token) {
-    const invitation = await Invitation.findOne({ token })
-      .populate("metadata.department", "name code")
-      .populate("metadata.faculty", "name code");
+/**
+ * Verify invitation token
+ */
+const verifyToken = async (token) => {
+  try {
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        token: true,
+        expiresAt: true,
+        status: true,
+        departmentId: true,
+        facultyId: true,
+        matricNumber: true,
+        level: true,
+        session: true,
+        // Industrial supervisor metadata
+        companyName: true,
+        companyAddress: true,
+        position: true,
+        yearsOfExperience: true,
+        placementId: true,
+        invitedById: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        invitedBy: {
+          select: {
+            id: true,
+            role: true,
+            email: true,
+          },
+        },
+      },
+    });
 
     if (!invitation) {
       throw new ApiError(404, "Invalid invitation token");
@@ -163,55 +315,87 @@ class InvitationService {
     }
 
     if (invitation.expiresAt < new Date()) {
-      invitation.status = "expired";
-      await invitation.save();
+      await prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: "expired" },
+      });
       throw new ApiError(400, "This invitation has expired");
     }
 
     // Check if user already exists (in case created after invitation)
-    const existingUser = await User.findOne({ email: invitation.email });
+    const existingUser = await prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
+
     if (existingUser) {
-      invitation.status = "cancelled";
-      await invitation.save();
+      await prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: "cancelled" },
+      });
       throw new ApiError(400, "An account already exists for this email");
     }
 
     return invitation;
+  } catch (error) {
+    logger.error(`Error verifying token: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async resendInvitation(invitationId, user) {
-    const invitation = await this.getInvitationById(invitationId, user);
+/**
+ * Resend invitation
+ */
+const resendInvitation = async (invitationId, user) => {
+  try {
+    const invitation = await getInvitationById(invitationId, user);
 
     if (invitation.status !== "pending") {
       throw new ApiError(400, "Can only resend pending invitations");
     }
 
-    if (!invitation.canResend()) {
-      throw new ApiError(
-        400,
-        "Please wait at least 5 minutes before resending",
-      );
+    // Check if enough time has passed (5 minute cooldown)
+    if (invitation.lastResentAt) {
+      const timeSinceLastResend =
+        new Date() - new Date(invitation.lastResentAt);
+      const fiveMinutes = 5 * 60 * 1000;
+
+      if (timeSinceLastResend < fiveMinutes) {
+        throw new ApiError(
+          400,
+          "Please wait at least 5 minutes before resending",
+        );
+      }
     }
 
     // Update resend tracking
-    invitation.resendCount += 1;
-    invitation.lastResentAt = new Date();
-
-    // Extend expiration by 7 more days
-    invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    await invitation.save();
-    await invitation.populate("invitedBy", "firstName lastName email");
+    const updatedInvitation = await prisma.invitation.update({
+      where: { id: invitationId },
+      data: {
+        resendCount: { increment: 1 },
+        lastResentAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Extend expiration
+      },
+      include: {
+        invitedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
 
     // Send magic link email again
     try {
       await emailService.resendInvitation({
-        email: invitation.email,
-        role: invitation.role,
-        token: invitation.token,
+        email: updatedInvitation.email,
+        role: updatedInvitation.role,
+        token: updatedInvitation.token,
         invitedBy: {
-          firstName: invitation.invitedBy.firstName,
-          lastName: invitation.invitedBy.lastName,
+          firstName: updatedInvitation.invitedBy.firstName,
+          lastName: updatedInvitation.invitedBy.lastName,
         },
       });
     } catch (emailError) {
@@ -219,37 +403,57 @@ class InvitationService {
       // Don't fail if email fails
     }
 
-    logger.info(`Invitation resent for ${invitation.email} by ${user.email}`);
+    logger.info(
+      `Invitation resent for ${updatedInvitation.email} by ${user.email}`,
+    );
 
-    return invitation;
+    return updatedInvitation;
+  } catch (error) {
+    logger.error(`Error resending invitation: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async cancelInvitation(invitationId, user) {
-    const invitation = await this.getInvitationById(invitationId, user);
+/**
+ * Cancel invitation
+ */
+const cancelInvitation = async (invitationId, user) => {
+  try {
+    const invitation = await getInvitationById(invitationId, user);
 
     if (invitation.status !== "pending") {
       throw new ApiError(400, "Can only cancel pending invitations");
     }
 
-    invitation.status = "cancelled";
-    invitation.cancelledAt = new Date();
-    await invitation.save();
+    const updated = await prisma.invitation.update({
+      where: { id: invitationId },
+      data: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+      },
+    });
 
     logger.info(
       `Invitation cancelled for ${invitation.email} by ${user.email}`,
     );
 
-    return invitation;
+    return updated;
+  } catch (error) {
+    logger.error(`Error cancelling invitation: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async completeSetup(token, userData) {
-    // Verify token
-    const invitation = await this.verifyToken(token);
-
+/**
+ * Complete setup after invitation verification
+ */
+const completeSetup = async (token, userData) => {
+  try {
+    // 1. Verify token & validate basic data
+    const invitation = await verifyToken(token);
     const { firstName, lastName, password, phone, ...additionalData } =
       userData;
 
-    // Validate required fields
     if (!firstName || !lastName || !password) {
       throw new ApiError(
         400,
@@ -257,7 +461,7 @@ class InvitationService {
       );
     }
 
-    // Create user account
+    const userService = require("./userService");
     const userPayload = {
       email: invitation.email,
       firstName,
@@ -265,91 +469,97 @@ class InvitationService {
       password,
       phone,
       role: invitation.role,
+      department: invitation.departmentId, // userService expects 'department' not 'departmentId'
+      // Pass company data for industrial supervisors so createUser validation passes
+      companyName:
+        additionalData.companyName || invitation.companyName || "Not Specified",
+      companyAddress:
+        additionalData.companyAddress || invitation.companyAddress || "",
+      position: additionalData.position || invitation.position || "",
+      yearsOfExperience:
+        additionalData.yearsOfExperience || invitation.yearsOfExperience || 0,
+      specialization: additionalData.specialization || "",
     };
 
-    // Ensure department is present for coordinator
-    if (invitation.role === USER_ROLES.COORDINATOR) {
-      if (!invitation.metadata?.department) {
-        throw new ApiError(
-          400,
-          "Department is required for coordinator account creation",
-        );
-      }
-      userPayload.department = invitation.metadata.department;
-    } else if (invitation.metadata?.department) {
-      userPayload.department = invitation.metadata.department;
+    // 2. Create the base user
+    let user;
+    try {
+      const result = await userService.createUser(userPayload, {
+        role: invitation.invitedBy?.role || USER_ROLES.ADMIN,
+        id: invitation.invitedById,
+      });
+      user = result.user; // Extract the user object from result
+    } catch (error) {
+      throw new ApiError(400, `Failed to create base user: ${error.message}`);
     }
 
-    // Add additional role-specific data
-    if (invitation.role === USER_ROLES.STUDENT) {
-      userPayload.matricNumber = additionalData.matricNumber;
-      userPayload.level = additionalData.level;
-      userPayload.session = additionalData.session;
-    }
+    // 3. Create profiles & update invitation (only for roles not handled by createUser)
+    try {
+      // We use a Prisma Transaction so these happen simultaneously
+      await prisma.$transaction(async (tx) => {
+        // Create Student Profile (createUser skips this for invitation flow)
+        if (invitation.role === USER_ROLES.STUDENT) {
+          // Generate matricNumber if not provided (temporary, can be updated later)
+          const matricNumber =
+            invitation.matricNumber ||
+            additionalData.matricNumber ||
+            `TEMP-${user.id.substring(0, 8).toUpperCase()}`;
 
-    const user = await User.create(userPayload);
+          logger.info(
+            `Creating student profile for user ${user.id} with dept ${invitation.departmentId}`,
+          );
 
-    // Assign coordinator to department if role is COORDINATOR
-    if (
-      invitation.role === USER_ROLES.COORDINATOR &&
-      invitation.metadata?.department
-    ) {
-      const { Department } = require("../models");
-      await Department.findByIdAndUpdate(
-        invitation.metadata.department,
-        { $addToSet: { coordinators: user._id } },
-        { new: true },
+          try {
+            await tx.student.create({
+              data: {
+                user: { connect: { id: user.id } },
+                matricNumber,
+                level: invitation.level || additionalData.level || 100,
+                session:
+                  invitation.session || additionalData.session || "2026/2027",
+                department: { connect: { id: invitation.departmentId } },
+                cgpa: 0,
+                hasPlacement: false,
+                placementApproved: false,
+              },
+            });
+            logger.info(
+              `Student profile created successfully for user ${user.id}`,
+            );
+          } catch (studentError) {
+            logger.error(
+              `Failed to create student profile for user ${user.id}: ${studentError.message}`,
+            );
+            throw studentError;
+          }
+        }
+
+        // Note: Supervisor profiles are already created by createUser
+        // No need to create them again here
+
+        // Mark invitation as accepted
+        await tx.invitation.update({
+          where: { id: invitation.id },
+          data: { status: "accepted", acceptedAt: new Date() },
+        });
+      });
+    } catch (profileSetupError) {
+      // ROLLBACK: If profile creation fails, delete the base user so they aren't orphaned
+      await prisma.user
+        .delete({ where: { id: user.id } })
+        .catch((cleanupError) => {
+          logger.error(
+            `CRITICAL: Failed to clean up orphaned user ${user.id}: ${cleanupError.message}`,
+          );
+        });
+
+      throw new ApiError(
+        500,
+        `Profile setup failed. Please try again. Error: ${profileSetupError.message}`,
       );
     }
 
-    // Create role-specific profile if needed
-    if (invitation.role === USER_ROLES.STUDENT) {
-      const { Student } = require("../models");
-      await Student.create({
-        user: user._id,
-        matricNumber: additionalData.matricNumber,
-        level: additionalData.level,
-        session: additionalData.session,
-        department: invitation.metadata.department,
-        cgpa: 0,
-      });
-    }
-
-    if (
-      invitation.role === USER_ROLES.ACADEMIC_SUPERVISOR ||
-      invitation.role === USER_ROLES.INDUSTRIAL_SUPERVISOR
-    ) {
-      const { Supervisor } = require("../models");
-      const supervisorData = {
-        user: user._id,
-        type:
-          invitation.role === USER_ROLES.ACADEMIC_SUPERVISOR
-            ? "academic"
-            : "industrial",
-        department: invitation.metadata.department,
-        specialization: additionalData.specialization,
-        maxStudents:
-          invitation.role === USER_ROLES.ACADEMIC_SUPERVISOR ? 10 : 10,
-      };
-
-      // Add required fields for industrial supervisors
-      if (invitation.role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
-        supervisorData.companyName =
-          additionalData.companyName || "Not Specified";
-        supervisorData.companyAddress = additionalData.companyAddress;
-        supervisorData.position = additionalData.position;
-        supervisorData.yearsOfExperience = additionalData.yearsOfExperience;
-      }
-
-      await Supervisor.create(supervisorData);
-    }
-
-    // Mark invitation as accepted
-    invitation.status = "accepted";
-    invitation.acceptedAt = new Date();
-    await invitation.save();
-
-    // Send welcome email
+    // 4. Send welcome email (Non-blocking)
     try {
       await emailService.sendWelcome({
         email: user.email,
@@ -358,39 +568,58 @@ class InvitationService {
       });
     } catch (emailError) {
       logger.error("Failed to send welcome email", emailError);
-      // Don't fail if email fails
     }
 
     logger.info(
       `User account created for ${user.email} via invitation (${invitation.role})`,
     );
-
-    // Return user without password
-    const userObject = user.toObject();
-    delete userObject.password;
-
-    return userObject;
+    return user;
+  } catch (error) {
+    logger.error(`Error completing setup: ${error.message}`);
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
+};
 
-  async cleanupExpired() {
-    const result = await Invitation.cleanupExpired();
-    logger.info(`Cleaned up ${result.modifiedCount} expired invitations`);
-    return result.modifiedCount;
+/**
+ * Clean up expired invitations
+ */
+const cleanupExpired = async () => {
+  try {
+    const result = await prisma.invitation.updateMany({
+      where: {
+        status: "pending",
+        expiresAt: {
+          lt: new Date(),
+        },
+      },
+      data: {
+        status: "expired",
+      },
+    });
+
+    logger.info(`Cleaned up ${result.count} expired invitations`);
+    return result.count;
+  } catch (error) {
+    logger.error(`Error cleaning up expired invitations: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  async getStatistics(user) {
-    const query = {};
-
-    if (user.role === USER_ROLES.COORDINATOR) {
-      query.invitedBy = user._id;
-    }
+/**
+ * Get invitation statistics
+ */
+const getStatistics = async (user) => {
+  try {
+    const where =
+      user.role === USER_ROLES.COORDINATOR ? { invitedById: user.id } : {};
 
     const [total, pending, accepted, expired, cancelled] = await Promise.all([
-      Invitation.countDocuments(query),
-      Invitation.countDocuments({ ...query, status: "pending" }),
-      Invitation.countDocuments({ ...query, status: "accepted" }),
-      Invitation.countDocuments({ ...query, status: "expired" }),
-      Invitation.countDocuments({ ...query, status: "cancelled" }),
+      prisma.invitation.count({ where }),
+      prisma.invitation.count({ where: { ...where, status: "pending" } }),
+      prisma.invitation.count({ where: { ...where, status: "accepted" } }),
+      prisma.invitation.count({ where: { ...where, status: "expired" } }),
+      prisma.invitation.count({ where: { ...where, status: "cancelled" } }),
     ]);
 
     return {
@@ -400,7 +629,22 @@ class InvitationService {
       expired,
       cancelled,
     };
+  } catch (error) {
+    logger.error(`Error getting statistics: ${error.message}`);
+    throw handlePrismaError(error);
   }
-}
+};
 
-module.exports = new InvitationService();
+module.exports = {
+  createInvitation,
+  validateInvitationPermissions,
+  getInvitations,
+  getInvitationById,
+  verifyToken,
+  resendInvitation,
+  cancelInvitation,
+  completeSetup,
+  cleanupExpired,
+  getStatistics,
+  generateToken,
+};

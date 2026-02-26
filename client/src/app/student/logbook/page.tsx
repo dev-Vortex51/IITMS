@@ -66,7 +66,7 @@ export default function StudentLogbookPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const studentId = user?.profileData?._id;
+  const studentId = user?.profileData?.id;
 
   // Fetch placement
   const { data: placement, isLoading: isLoadingPlacement } = useQuery({
@@ -172,7 +172,7 @@ export default function StudentLogbookPage() {
     });
 
     if (editingEntry) {
-      updateMutation.mutate({ id: editingEntry._id, data: formDataToSend });
+      updateMutation.mutate({ id: editingEntry.id, data: formDataToSend });
     } else {
       createMutation.mutate(formDataToSend);
     }
@@ -516,8 +516,8 @@ export default function StudentLogbookPage() {
 
             return (
               <AccordionItem
-                key={entry._id}
-                value={entry._id}
+                key={entry.id}
+                value={entry.id}
                 className="border rounded-lg"
               >
                 <Card>
@@ -619,7 +619,7 @@ export default function StudentLogbookPage() {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleSubmitEntry(entry._id)}
+                            onClick={() => handleSubmitEntry(entry.id)}
                             disabled={submitMutation.isPending}
                           >
                             <Send className="h-3 w-3 mr-1" />

@@ -1,9 +1,11 @@
 const jwt = require("jsonwebtoken");
-const { User } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
 const config = require("../config");
 const { HTTP_STATUS, ERROR_MESSAGES } = require("../utils/constants");
 const { formatResponse } = require("../utils/helpers");
 const logger = require("../utils/logger");
+
+const prisma = getPrismaClient();
 
 const authenticate = async (req, res, next) => {
   try {
@@ -29,8 +31,22 @@ const authenticate = async (req, res, next) => {
         .json(formatResponse(false, ERROR_MESSAGES.INVALID_TOKEN));
     }
 
-    // Find user by ID from token
-    const user = await User.findById(decoded.id).select("+password");
+    // Find user by ID from token (using Prisma)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        password: true,
+        role: true,
+        isActive: true,
+        passwordResetRequired: true,
+        departmentId: true,
+        department: true,
+      },
+    });
 
     if (!user) {
       return res
@@ -45,23 +61,29 @@ const authenticate = async (req, res, next) => {
         .json(formatResponse(false, "Account has been deactivated"));
     }
 
-    // Populate student/supervisor profile if applicable
-    const { Student, Supervisor } = require("../models");
-    const { ROLES } = require("../utils/constants");
+    // Get student/supervisor profile if applicable
+    const { USER_ROLES } = require("../utils/constants");
 
-    if (user.role === ROLES.STUDENT) {
-      const studentProfile = await Student.findOne({ user: user._id });
+    if (user.role === USER_ROLES.STUDENT) {
+      const studentProfile = await prisma.student.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
+      });
       if (studentProfile) {
-        user.studentProfile = studentProfile._id;
+        user.studentProfile = studentProfile.id;
       }
     } else if (
-      [ROLES.ACADEMIC_SUPERVISOR, ROLES.INDUSTRIAL_SUPERVISOR].includes(
-        user.role,
-      )
+      [
+        USER_ROLES.ACADEMIC_SUPERVISOR,
+        USER_ROLES.INDUSTRIAL_SUPERVISOR,
+      ].includes(user.role)
     ) {
-      const supervisorProfile = await Supervisor.findOne({ user: user._id });
+      const supervisorProfile = await prisma.supervisor.findUnique({
+        where: { userId: user.id },
+        select: { id: true, type: true },
+      });
       if (supervisorProfile) {
-        user.supervisorProfile = supervisorProfile._id;
+        user.supervisorProfile = supervisorProfile.id;
         user.supervisorType = supervisorProfile.type;
       }
     }
@@ -89,7 +111,9 @@ const optionalAuth = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
-      const user = await User.findById(decoded.id);
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
 
       if (user && user.isActive) {
         req.user = user;
@@ -113,7 +137,7 @@ const requirePasswordReset = (req, res, next) => {
       .json(formatResponse(false, ERROR_MESSAGES.UNAUTHORIZED));
   }
 
-  if (!req.user.isFirstLogin && !req.user.passwordResetRequired) {
+  if (!req.user.passwordResetRequired) {
     return res
       .status(HTTP_STATUS.FORBIDDEN)
       .json(
@@ -126,7 +150,7 @@ const requirePasswordReset = (req, res, next) => {
 
 const generateToken = (user) => {
   const payload = {
-    id: user._id,
+    id: user.id,
     email: user.email,
     role: user.role,
   };
@@ -138,7 +162,7 @@ const generateToken = (user) => {
 
 const generateRefreshToken = (user) => {
   const payload = {
-    id: user._id,
+    id: user.id,
     type: "refresh",
   };
 
@@ -173,8 +197,10 @@ const refreshAccessToken = async (req, res, next) => {
         .json(formatResponse(false, "Invalid token type"));
     }
 
-    // Find user
-    const user = await User.findById(decoded.id);
+    // Find user (using Prisma)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
 
     if (!user || !user.isActive) {
       return res
@@ -189,10 +215,10 @@ const refreshAccessToken = async (req, res, next) => {
       formatResponse(true, "Token refreshed successfully", {
         accessToken,
         user: {
-          id: user._id,
+          id: user.id,
           email: user.email,
           role: user.role,
-          fullName: user.fullName,
+          fullName: `${user.firstName} ${user.lastName}`,
         },
       }),
     );

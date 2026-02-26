@@ -22,7 +22,7 @@ export default function ISupervisorStudentsPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch supervisor dashboard data
   const { data: dashboardData, isLoading } = useQuery({
@@ -189,7 +189,7 @@ export default function ISupervisorStudentsPage() {
 
                 return (
                   <div
-                    key={student._id}
+                    key={student.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -225,7 +225,7 @@ export default function ISupervisorStudentsPage() {
                         {placementStatus.text}
                       </Badge>
                       <Button asChild variant="outline" size="sm">
-                        <Link href={`/i-supervisor/students/${student._id}`}>
+                        <Link href={`/i-supervisor/students/${student.id}`}>
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </Link>

@@ -135,7 +135,7 @@ export default function DSupervisorAssessmentsPage() {
     "excellent" | "very_good" | "good" | "fair" | "poor"
   >("good");
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch supervisor dashboard to get assigned students
   const { data: dashboardData } = useQuery({
@@ -353,7 +353,7 @@ export default function DSupervisorAssessmentsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {students.map((student: Student) => (
-                        <SelectItem key={student._id} value={student._id}>
+                        <SelectItem key={student.id} value={student.id}>
                           {student.user?.firstName} {student.user?.lastName} (
                           {student.matricNumber})
                         </SelectItem>
@@ -600,7 +600,7 @@ export default function DSupervisorAssessmentsPage() {
                   </TableHeader>
                   <TableBody>
                     {assessments.map((assessment: Assessment) => (
-                      <TableRow key={assessment._id}>
+                      <TableRow key={assessment.id}>
                         <TableCell className="font-medium">
                           {assessment.student.user?.firstName}{" "}
                           {assessment.student.user?.lastName}
@@ -679,7 +679,7 @@ export default function DSupervisorAssessmentsPage() {
                   </TableHeader>
                   <TableBody>
                     {pendingAssessments.map((assessment: Assessment) => (
-                      <TableRow key={assessment._id}>
+                      <TableRow key={assessment.id}>
                         <TableCell className="font-medium">
                           {assessment.student.user?.firstName}{" "}
                           {assessment.student.user?.lastName}
@@ -750,7 +750,7 @@ export default function DSupervisorAssessmentsPage() {
                   </TableHeader>
                   <TableBody>
                     {completedAssessments.map((assessment: Assessment) => (
-                      <TableRow key={assessment._id}>
+                      <TableRow key={assessment.id}>
                         <TableCell className="font-medium">
                           {assessment.student.user?.firstName}{" "}
                           {assessment.student.user?.lastName}

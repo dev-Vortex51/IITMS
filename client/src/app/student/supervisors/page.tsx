@@ -25,7 +25,7 @@ const isSupervisorObject = (
 export default function StudentSupervisorsPage() {
   const { user } = useAuth();
 
-  const studentId = user?.profileData?._id;
+  const studentId = user?.profileData?.id;
 
   // Fetch student data with supervisors
   const { data: studentData, isLoading } = useQuery({

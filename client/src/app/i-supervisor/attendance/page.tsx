@@ -15,7 +15,7 @@ import { FileText, Users } from "lucide-react";
 
 export default function IndustrialSupervisorAttendancePage() {
   const { user } = useAuth();
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Get placements assigned to this supervisor
   const { data: placements, isLoading } = useQuery({
@@ -25,12 +25,12 @@ export default function IndustrialSupervisorAttendancePage() {
       const all = await placementService.getMyPlacements();
       // Filter to only placements assigned to the current industrial supervisor
       const mine = (all || []).filter(
-        (p: any) => p.industrialSupervisor?._id === supervisorId
+        (p: any) => p.industrialSupervisor?.id === supervisorId
       );
       // Deduplicate by student to avoid repeated entries
       const byStudent = new Map<string, any>();
       for (const p of mine) {
-        const sid = p.student?._id || p.student;
+        const sid = p.student?.id || p.student;
         if (sid && !byStudent.has(sid)) byStudent.set(sid, p);
       }
       return Array.from(byStudent.values());
@@ -86,7 +86,7 @@ export default function IndustrialSupervisorAttendancePage() {
       {placements && placements.length > 0 ? (
         <div className="space-y-6">
           {placements.map((placement: any) => (
-            <div key={placement._id}>
+            <div key={placement.id}>
               <Card className="mb-4">
                 <CardHeader>
                   <CardTitle className="text-lg">
@@ -98,7 +98,7 @@ export default function IndustrialSupervisorAttendancePage() {
                   </CardDescription>
                 </CardHeader>
               </Card>
-              <SupervisorApprovalInterface placementId={placement._id} />
+              <SupervisorApprovalInterface placementId={placement.id} />
             </div>
           ))}
         </div>

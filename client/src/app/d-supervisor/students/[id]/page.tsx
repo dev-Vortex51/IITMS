@@ -77,11 +77,11 @@ export default function StudentDetailsPage({
   const pendingLogbooks = logbookEntries.filter(
     (entry: any) =>
       entry.status === "submitted" &&
-      entry.departmentalReview?.status === "submitted"
+      entry.departmentalReview?.status === "submitted",
   ).length;
 
   const approvedLogbooks = logbookEntries.filter(
-    (entry: any) => entry.departmentalReview?.status === "approved"
+    (entry: any) => entry.departmentalReview?.status === "approved",
   ).length;
 
   return (
@@ -310,7 +310,7 @@ export default function StudentDetailsPage({
 
                 return (
                   <div
-                    key={entry._id}
+                    key={entry.id}
                     className="flex items-center justify-between p-3 border rounded-lg"
                   >
                     <div className="flex-1">
@@ -326,9 +326,9 @@ export default function StudentDetailsPage({
                       <p className="text-xs text-muted-foreground mt-1">
                         {entry.startDate && entry.endDate
                           ? `${new Date(
-                              entry.startDate
+                              entry.startDate,
                             ).toLocaleDateString()} - ${new Date(
-                              entry.endDate
+                              entry.endDate,
                             ).toLocaleDateString()}`
                           : "N/A"}
                       </p>

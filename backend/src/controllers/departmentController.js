@@ -86,6 +86,27 @@ const deleteDepartment = asyncHandler(async (req, res) => {
     .json(formatResponse(true, "Department deleted successfully"));
 });
 
+const toggleDepartmentStatus = asyncHandler(async (req, res) => {
+  const department = await departmentService.toggleDepartmentStatus(
+    req.params.id,
+    req.user,
+  );
+
+  const message = department.isActive
+    ? "Department activated successfully"
+    : "Department deactivated successfully";
+
+  res.status(HTTP_STATUS.OK).json(formatResponse(true, message, department));
+});
+
+const hardDeleteDepartment = asyncHandler(async (req, res) => {
+  await departmentService.hardDeleteDepartment(req.params.id, req.user);
+
+  res
+    .status(HTTP_STATUS.OK)
+    .json(formatResponse(true, "Department permanently deleted successfully"));
+});
+
 const getDepartmentStudents = asyncHandler(async (req, res) => {
   const students = await departmentService.getDepartmentStudents(req.params.id);
 
@@ -136,6 +157,8 @@ module.exports = {
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
+  toggleDepartmentStatus,
+  hardDeleteDepartment,
   getDepartmentStudents,
   assignCoordinator,
   getAvailableCoordinators,

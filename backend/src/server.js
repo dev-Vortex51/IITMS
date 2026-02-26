@@ -13,8 +13,8 @@ const logger = require("./utils/logger");
  */
 const startServer = async () => {
   try {
-    // Connect to MongoDB
-    logger.info("Connecting to MongoDB...");
+    // Connect to PostgreSQL via Prisma
+    logger.info("Connecting to PostgreSQL via Prisma...");
     await connectDB();
 
     // Start Express server

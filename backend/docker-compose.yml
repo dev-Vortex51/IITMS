@@ -1,0 +1,52 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: siwes_postgres
+    environment:
+      POSTGRES_USER: siwes_user
+      POSTGRES_PASSWORD: siwes_password_dev
+      POSTGRES_DB: siwes_management
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siwes_user -d siwes_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - siwes_network
+
+  # pgAdmin (Optional - Database Management UI) - COMMENTED OUT DUE TO NETWORK TIMEOUT
+  # Uncomment when network is stable and run: docker compose up -d pgadmin
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: siwes_pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@siwes.local
+  #     PGADMIN_DEFAULT_PASSWORD: admin123
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - postgres
+  #   restart: unless-stopped
+  #   networks:
+  #     - siwes_network
+
+networks:
+  siwes_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local

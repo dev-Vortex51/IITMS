@@ -1,8 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Loading } from "@/components/ui/loading";
-import adminService from "@/services/admin.service";
+import { useSupervisorDetails } from "./hooks/useSupervisorDetails";
+import { SupervisorProfileHeader } from "./components/SupervisorProfileHeader";
+import { SupervisorInfoCard } from "./components/SupervisorInfoCard";
+import { SupervisorMetrics } from "./components/SupervisorMetrics";
+import { AssignedStudentsList } from "./components/AssignedStudentsList";
 import {
   Card,
   CardContent,
@@ -11,273 +13,86 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  Building,
-  Building2,
-  ArrowLeft,
-  Mail,
-  Phone,
-  Users,
-  BookOpen,
-} from "lucide-react";
+import { BookOpen, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { Loading } from "@/components/ui/loading"; // Assuming you have this generic loader
 
 export default function SupervisorDetailsPage({
   params,
 }: {
   params: { id: string };
 }) {
-  // Fetch supervisor details
-  const { data: supervisorData, isLoading } = useQuery({
-    queryKey: ["supervisor", params.id],
-    queryFn: () => adminService.supervisorService.getSupervisorById(params.id),
-    enabled: !!params.id,
-  });
-
-  const supervisor = supervisorData;
+  const {
+    supervisor,
+    assignedStudents,
+    isDepartmental,
+    metrics,
+    isLoading,
+    isError,
+  } = useSupervisorDetails(params.id);
 
   if (isLoading) {
-    return <div>Loading supervisor details...</div>;
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <Loading text="Loading profile..." />
+      </div>
+    );
   }
 
-  if (!supervisor) {
+  if (isError || !supervisor) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold">Supervisor Not Found</h2>
-        <Button asChild className="mt-4">
-          <Link href="/coordinator/supervisors">Back to Supervisors</Link>
+      <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <AlertCircle className="h-10 w-10 text-destructive/50" />
+        <h2 className="text-xl font-semibold">Supervisor Not Found</h2>
+        <p className="text-sm text-muted-foreground">
+          The requested profile does not exist or has been removed.
+        </p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/coordinator/supervisors">Return to Directory</Link>
         </Button>
       </div>
     );
   }
 
-  const assignedStudents = supervisor.students || [];
-  const isDepartmental =
-    supervisor.type === "departmental" || supervisor.department;
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/coordinator/supervisors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-primary">
-            {supervisor.name || "Supervisor"}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {isDepartmental ? "Departmental" : "Industrial"} Supervisor Details
-          </p>
-        </div>
-        <Badge
-          variant={supervisor.isActive !== false ? "success" : "secondary"}
-        >
-          {supervisor.isActive !== false ? "Active" : "Inactive"}
-        </Badge>
-      </div>
+    <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      <SupervisorProfileHeader
+        supervisor={supervisor}
+        isDepartmental={isDepartmental}
+      />
 
-      {/* Supervisor Information */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div
-              className={`p-2 rounded-lg ${
-                isDepartmental ? "bg-primary/10" : "bg-accent/10"
-              }`}
-            >
-              {isDepartmental ? (
-                <Building className="h-6 w-6 text-primary" />
-              ) : (
-                <Building2 className="h-6 w-6 text-accent-foreground" />
-              )}
-            </div>
-            <div>
-              <CardTitle>Supervisor Information</CardTitle>
-              <CardDescription>
-                Contact and {isDepartmental ? "department" : "company"} details
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Full Name</Label>
-              <p className="font-medium">{supervisor.name || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                Email
-              </Label>
-              <p className="font-medium">{supervisor.email || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Phone className="h-4 w-4" />
-                Phone Number
-              </Label>
-              <p className="font-medium">{supervisor.phone || "N/A"}</p>
-            </div>
-            {isDepartmental ? (
-              <>
-                <div>
-                  <Label className="text-muted-foreground">Department</Label>
-                  <p className="font-medium">
-                    {typeof supervisor.department === "object"
-                      ? supervisor.department.name
-                      : supervisor.department || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Staff ID</Label>
-                  <p className="font-medium">{supervisor.staffId || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">
-                    Specialization
-                  </Label>
-                  <p className="font-medium">
-                    {supervisor.specialization || "N/A"}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <Label className="text-muted-foreground">Company Name</Label>
-                  <p className="font-medium">
-                    {supervisor.companyName || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">
-                    Company Address
-                  </Label>
-                  <p className="font-medium">
-                    {supervisor.companyAddress || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Position</Label>
-                  <p className="font-medium">{supervisor.position || "N/A"}</p>
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <SupervisorMetrics metrics={metrics} />
 
-      {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Assigned Students
-            </CardTitle>
+      <SupervisorInfoCard
+        supervisor={supervisor}
+        isDepartmental={isDepartmental}
+      />
+
+      <div className="grid gap-6 md:grid-cols-2 items-start">
+        <AssignedStudentsList students={assignedStudents} />
+
+        {/* Activity Summary - Kept simple inline for now as it's static */}
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader className="pb-4 border-b border-border/50">
+            <CardTitle className="text-lg">Activity Timeline</CardTitle>
+            <CardDescription>
+              Recent actions and system updates.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-primary">
-                {assignedStudents.length}
-              </span>
+            <div className="text-center py-12 flex flex-col items-center text-muted-foreground">
+              <BookOpen className="h-10 w-10 mb-3 opacity-20" />
+              <p className="text-sm font-medium text-foreground">
+                No recent activity
+              </p>
+              <p className="text-xs mt-1">
+                Activities will appear here once the supervisor starts
+                reviewing.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Reviews
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">0</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Completed Assessments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">0</div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Assigned Students */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Assigned Students</CardTitle>
-              <CardDescription>
-                Students under this supervisor&apos;s guidance
-              </CardDescription>
-            </div>
-            <Badge variant="outline">{assignedStudents.length} Students</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {assignedStudents.length > 0 ? (
-            <div className="space-y-3">
-              {assignedStudents.map((student: any) => (
-                <div
-                  key={student._id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{student.name || "N/A"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {student.matricNumber || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/coordinator/students/${student._id}`}>
-                      View Student
-                    </Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <p className="text-muted-foreground">No students assigned yet</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Activity Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Activity Summary</CardTitle>
-          <CardDescription>Recent supervision activities</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No recent activities</p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

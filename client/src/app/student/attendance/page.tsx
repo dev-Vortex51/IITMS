@@ -15,7 +15,7 @@ export default function StudentAttendancePage() {
   }, []);
 
   const { user } = useAuth();
-  const studentId = user?.profileData?._id;
+  const studentId = user?.profileData?.id;
 
   return (
     <div className="space-y-6">

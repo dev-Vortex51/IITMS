@@ -79,7 +79,7 @@ export const NotificationsDropdown: React.FC = () => {
               </div>
             ) : (
               recent.map((n) => (
-                <div key={n._id} className="px-3 py-2 border-b last:border-b-0">
+                <div key={n.id} className="px-3 py-2 border-b last:border-b-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{n.title}</span>
                     {!n.read && <Check className="h-4 w-4 text-green-600" />}

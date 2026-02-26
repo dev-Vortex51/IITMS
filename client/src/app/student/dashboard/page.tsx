@@ -34,7 +34,7 @@ export default function StudentDashboardPage() {
   const { user } = useAuth();
 
   // Get student profile ID from authenticated user
-  const studentProfileId = user?.profileData?._id;
+  const studentProfileId = user?.profileData?.id;
 
   // Fetch student data
   const { data: studentData } = useQuery({

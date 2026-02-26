@@ -15,18 +15,10 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   apiVersion: process.env.API_VERSION || "v1",
 
-  // Database
+  // Database (PostgreSQL via Prisma - configured via DATABASE_URL env var)
   database: {
-    uri:
-      process.env.NODE_ENV === "test"
-        ? process.env.MONGODB_URI_TEST
-        : process.env.MONGODB_URI ||
-          "mongodb://localhost:27017/siwes_management",
-    options: {
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 0, // No timeout
-      connectTimeoutMS: 30000,
-    },
+    // DATABASE_URL is read directly by Prisma from environment
+    url: process.env.DATABASE_URL || "postgresql://localhost/siwes_management",
   },
 
   // JWT
@@ -86,7 +78,7 @@ const config = {
 };
 
 const validateConfig = () => {
-  const required = ["MONGODB_URI", "JWT_SECRET"];
+  const required = ["DATABASE_URL", "JWT_SECRET"];
   const missing = [];
 
   required.forEach((key) => {

@@ -17,7 +17,9 @@ const {
  */
 const customValidators = {
   objectId: Joi.string()
-    .regex(/^[0-9a-fA-F]{24}$/)
+    .regex(
+      /^(?:[0-9a-fA-F]{24}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i,
+    )
     .message("Invalid ID format"),
   matricNumber: Joi.string()
     .regex(REGEX_PATTERNS.MATRIC_NUMBER)
@@ -29,7 +31,7 @@ const customValidators = {
     .min(8)
     .regex(REGEX_PATTERNS.PASSWORD)
     .message(
-      "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
+      "Password must be at least 8 characters with uppercase, lowercase, number, and special character",
     ),
 };
 
@@ -262,7 +264,7 @@ const logbookValidation = {
       .valid(
         LOGBOOK_STATUS.APPROVED,
         LOGBOOK_STATUS.REJECTED,
-        LOGBOOK_STATUS.REVIEWED
+        LOGBOOK_STATUS.REVIEWED,
       )
       .required(),
     comment: Joi.string().max(1000).required(),

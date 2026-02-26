@@ -61,7 +61,7 @@ const updateLogbookEntry = catchAsync(async (req, res) => {
   const logbook = await logbookService.updateLogbookEntry(
     req.params.id,
     req.body,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -74,7 +74,7 @@ const updateLogbookEntry = catchAsync(async (req, res) => {
 const submitLogbookEntry = catchAsync(async (req, res) => {
   const logbook = await logbookService.submitLogbookEntry(
     req.params.id,
-    req.user._id,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -89,7 +89,7 @@ const reviewLogbook = catchAsync(async (req, res) => {
   const supervisorType = req.user.supervisorType; // From auth middleware
 
   console.log("Review logbook - User:", {
-    userId: req.user._id,
+    userId: req.user.id,
     email: req.user.email,
     role: req.user.role,
     supervisorProfile: req.user.supervisorProfile,

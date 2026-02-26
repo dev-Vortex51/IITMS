@@ -230,7 +230,7 @@ export default function CreateAcademicSupervisorPage() {
                         None (Cross-department)
                       </SelectItem>
                       {departments.map((dept: any) => (
-                        <SelectItem key={dept._id} value={dept._id}>
+                        <SelectItem key={dept.id} value={dept.id}>
                           {dept.name}
                         </SelectItem>
                       ))}

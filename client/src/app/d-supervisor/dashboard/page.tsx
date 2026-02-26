@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 export default function DepartmentalSupervisorDashboardPage() {
   const { user } = useAuth();
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch supervisor dashboard data
   const { data: dashboardData } = useQuery({
@@ -147,7 +147,7 @@ export default function DepartmentalSupervisorDashboardPage() {
               {dashboardData?.supervisor?.assignedStudents?.map(
                 (student: any) => (
                   <div
-                    key={student._id}
+                    key={student.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
                     <div>

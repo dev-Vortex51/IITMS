@@ -6,7 +6,7 @@ export type UserRole =
   | "student";
 
 export interface ProfileData {
-  _id: string;
+  id: string;
   user?: string;
   department?: any;
   // Student-specific fields
@@ -19,7 +19,7 @@ export interface ProfileData {
 }
 
 export interface User {
-  _id: string;
+  id: string;
   email: string;
   role: UserRole;
   firstName?: string;
@@ -27,7 +27,8 @@ export interface User {
   name?: string;
   passwordResetRequired: boolean;
   faculty?: string;
-  department?: string;
+  department?: string | { id: string; name: string; code: string };
+  departmentId?: string;
   createdAt?: string;
   updatedAt?: string;
   profileData?: ProfileData;

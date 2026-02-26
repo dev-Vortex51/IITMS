@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 export default function IndustrialSupervisorDashboardPage() {
   const { user } = useAuth();
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch supervisor dashboard data
   const { data: dashboardData, isLoading } = useQuery({
@@ -151,7 +151,7 @@ export default function IndustrialSupervisorDashboardPage() {
             <div className="space-y-3">
               {students.map((student: any) => (
                 <div
-                  key={student._id}
+                  key={student.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
                 >
                   <div>

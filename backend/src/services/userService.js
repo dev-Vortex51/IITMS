@@ -1,386 +1,552 @@
-const { User, Department, Faculty, Student, Supervisor } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
-const { generateSecurePassword } = require("../utils/helpers");
+const { hashPassword } = require("../utils/helpers");
 const config = require("../config");
 const logger = require("../utils/logger");
 const notificationService = require("./notificationService");
 
-const createUser = async (userData, creatorUser) => {
-  const { email, firstName, lastName, role, department, faculty, password } =
-    userData;
+const prisma = getPrismaClient();
 
-  // Check permissions based on creator role
-  if (creatorUser.role === USER_ROLES.ADMIN) {
-    // Admin can create: Faculty, Department, Coordinator, Academic Supervisor
-    const allowedRoles = [
-      USER_ROLES.FACULTY,
-      USER_ROLES.DEPARTMENT,
-      USER_ROLES.COORDINATOR,
-      USER_ROLES.ACADEMIC_SUPERVISOR,
-    ];
-    if (!allowedRoles.includes(role)) {
-      throw new ApiError(
-        HTTP_STATUS.FORBIDDEN,
-        `Admin cannot create users with role: ${role}`,
-      );
-    }
-  } else if (creatorUser.role === USER_ROLES.COORDINATOR) {
-    // Coordinator can create: Student, Industrial Supervisor (Academic supervisors created by Admin)
-    const allowedRoles = [USER_ROLES.STUDENT, USER_ROLES.INDUSTRIAL_SUPERVISOR];
-    if (!allowedRoles.includes(role)) {
-      throw new ApiError(
-        HTTP_STATUS.FORBIDDEN,
-        `Coordinator cannot create users with role: ${role}`,
-      );
-    }
-  } else {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You do not have permission to create users",
-    );
-  }
-
-  // Check if user with email already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(
-      HTTP_STATUS.CONFLICT,
-      "User with this email already exists",
-    );
-  }
-
-  // Validate department/faculty requirements
-  if ([USER_ROLES.STUDENT, USER_ROLES.COORDINATOR].includes(role)) {
-    if (!department) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        "Department is required for this role",
-      );
-    }
-
-    const deptExists = await Department.findById(department);
-    if (!deptExists) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
-    }
-  }
-
-  // Academic supervisors can optionally have a department but not required
-  if (role === USER_ROLES.ACADEMIC_SUPERVISOR && department) {
-    const deptExists = await Department.findById(department);
-    if (!deptExists) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
-    }
-  }
-
-  // Use provided password or generate default password
-  const userPassword = password || config.password.default;
-
-  // Create user
-  const user = await User.create({
-    email,
-    firstName,
-    lastName,
-    role,
-    password: userPassword,
-    isFirstLogin: true,
-    passwordResetRequired: true,
-    phone: userData.phone,
-    address: userData.address,
-    // Only assign department for coordinators and students (academic supervisors are cross-department)
-    department: [USER_ROLES.COORDINATOR, USER_ROLES.STUDENT].includes(role)
-      ? department
-      : undefined,
+/**
+ * HELPER: Auto-link an industrial supervisor to their pending/approved placements
+ * This is kept DRY so both creation methods can use it reliably.
+ */
+const autoLinkSupervisorToPlacements = async (supervisorId, email, tx) => {
+  const placements = await tx.placement.findMany({
+    where: {
+      supervisorEmail: email,
+      status: { in: ["pending", "approved"] },
+    },
+    include: { student: true },
   });
 
-  // Create role-specific profile
+  for (const placement of placements) {
+    const student = placement.student;
 
-  if (role === USER_ROLES.STUDENT) {
-    await createStudentProfile(user._id, userData, creatorUser._id);
-  } else if (role === USER_ROLES.ACADEMIC_SUPERVISOR) {
-    try {
-      const supervisor = await createSupervisorProfile(
-        user._id,
-        "academic",
-        {
-          ...userData,
-          department: userData.department || department,
-          maxStudents: 10,
+    // 1. Update placement with supervisor reference
+    await tx.placement.update({
+      where: { id: placement.id },
+      data: {
+        industrialSupervisorId: supervisorId,
+      },
+    });
+
+    // 2. Add student to supervisor's assigned students
+    await tx.supervisorAssignment.upsert({
+      where: {
+        studentId_supervisorId_placementId: {
+          studentId: student.id,
+          supervisorId: supervisorId,
+          placementId: placement.id,
         },
-        creatorUser._id,
-      );
-    } catch (error) {
-      console.error("[userService] Full error:", error);
-      throw error; // Re-throw to prevent user creation without profile
-    }
-  } else if (role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
-    try {
-      const supervisor = await createSupervisorProfile(
-        user._id,
-        "industrial",
-        userData,
-        creatorUser._id,
-      );
+      },
+      update: {
+        status: "active",
+        assignedAt: new Date(),
+        revokedAt: null,
+      },
+      create: {
+        studentId: student.id,
+        supervisorId: supervisorId,
+        placementId: placement.id,
+        status: "active",
+      },
+    });
 
-      // Auto-assign to students with pending/approved placements with this supervisor email
-      const Placement = require("../models").Placement;
-      const placements = await Placement.find({
-        supervisorEmail: email,
-        status: { $in: ["pending", "approved"] },
-      }).populate("student");
-
-      for (const placement of placements) {
-        const student = placement.student;
-
-        // Update placement with supervisor reference
-        placement.industrialSupervisor = supervisor._id;
-        placement.supervisorAssignedAt = new Date();
-        await placement.save();
-
-        // Add student to supervisor's assigned students
-        if (!supervisor.assignedStudents.includes(student._id)) {
-          supervisor.assignedStudents.push(student._id);
-        }
-
-        // Update student record if placement is approved
-        if (placement.status === "approved" && !student.industrialSupervisor) {
-          student.industrialSupervisor = supervisor._id;
-          await student.save();
-        }
-      }
-
-      if (supervisor.assignedStudents.length > 0) {
-        await supervisor.save();
-      }
-    } catch (error) {
-      console.error(
-        "[userService] ERROR creating industrial supervisor profile:",
-        error.message,
-      );
-      console.error("[userService] Full error:", error);
-      throw error; // Re-throw to prevent user creation without profile
+    // 3. Update student record if placement is approved
+    if (placement.status === "approved" && !student.industrialSupervisorId) {
+      await tx.student.update({
+        where: { id: student.id },
+        data: {
+          industrialSupervisorId: supervisorId,
+        },
+      });
     }
   }
+};
 
-  // Add coordinator to department if applicable
-  if (role === USER_ROLES.COORDINATOR && department) {
-    const dept = await Department.findById(department);
-    await dept.addCoordinator(user._id);
+/**
+ * Create a new user with role-specific profile using a secure Transaction
+ */
+const createUser = async (userData, creatorUser) => {
+  try {
+    const { email, firstName, lastName, role, department, password } = userData;
+
+    // Check permissions based on creator role
+    if (creatorUser.role === USER_ROLES.ADMIN) {
+      const allowedRoles = [
+        USER_ROLES.FACULTY,
+        USER_ROLES.DEPARTMENT,
+        USER_ROLES.COORDINATOR,
+        USER_ROLES.ACADEMIC_SUPERVISOR,
+      ];
+      if (!allowedRoles.includes(role)) {
+        const errorMsg =
+          role === USER_ROLES.STUDENT
+            ? "Only coordinators can create student accounts. Please use a coordinator to invite students."
+            : `Admin cannot create users with role: ${role}`;
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, errorMsg);
+      }
+    } else if (creatorUser.role === USER_ROLES.COORDINATOR) {
+      const allowedRoles = [
+        USER_ROLES.STUDENT,
+        USER_ROLES.INDUSTRIAL_SUPERVISOR,
+      ];
+      if (!allowedRoles.includes(role)) {
+        throw new ApiError(
+          HTTP_STATUS.FORBIDDEN,
+          `Coordinator cannot create users with role: ${role}`,
+        );
+      }
+    } else {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You do not have permission to create users",
+      );
+    }
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ApiError(
+        HTTP_STATUS.CONFLICT,
+        "User with this email already exists",
+      );
+    }
+
+    // Validate department/faculty requirements
+    if ([USER_ROLES.STUDENT, USER_ROLES.COORDINATOR].includes(role)) {
+      if (!department)
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          "Department is required for this role",
+        );
+      const deptExists = await prisma.department.findUnique({
+        where: { id: department },
+      });
+      if (!deptExists)
+        throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
+    }
+
+    if (role === USER_ROLES.ACADEMIC_SUPERVISOR && department) {
+      const deptExists = await prisma.department.findUnique({
+        where: { id: department },
+      });
+      if (!deptExists)
+        throw new ApiError(HTTP_STATUS.NOT_FOUND, "Department not found");
+    }
+
+    const userPassword = password || config.password.default;
+    const hashedPassword = await hashPassword(userPassword);
+
+    // ==========================================
+    // TRANSACTION: Prevents Ghost Users
+    // ==========================================
+    const resultUser = await prisma.$transaction(async (tx) => {
+      // 1. Create Base User
+      const user = await tx.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          role,
+          password: hashedPassword,
+          passwordResetRequired: true,
+          phone: userData.phone,
+          address: userData.address,
+          department: [USER_ROLES.COORDINATOR, USER_ROLES.STUDENT].includes(
+            role,
+          )
+            ? { connect: { id: department } }
+            : undefined,
+        },
+        include: { department: true },
+      });
+
+      // 2. Create Role Profiles (skip for students during invitations - handled by invitationService)
+      // Only create profile if it's not a student role, or if student data is complete
+      const isStudentWithCompleteData =
+        role === USER_ROLES.STUDENT &&
+        userData.matricNumber &&
+        userData.level &&
+        userData.session;
+
+      if (isStudentWithCompleteData) {
+        await createStudentProfile(user.id, userData, creatorUser.id, tx);
+      } else if (role === USER_ROLES.ACADEMIC_SUPERVISOR) {
+        await createSupervisorProfile(
+          user.id,
+          "academic",
+          {
+            ...userData,
+            department: userData.department || department,
+            maxStudents: 10,
+          },
+          creatorUser.id,
+          tx,
+        );
+      } else if (role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
+        const supervisor = await createSupervisorProfile(
+          user.id,
+          "industrial",
+          userData,
+          creatorUser.id,
+          tx,
+        );
+        await autoLinkSupervisorToPlacements(supervisor.id, email, tx);
+      }
+
+      // 3. Add coordinator to department if applicable
+      if (role === USER_ROLES.COORDINATOR && department) {
+        await tx.department.update({
+          where: { id: department },
+          data: { coordinators: { connect: { id: user.id } } },
+        });
+      }
+
+      return user;
+    });
+
+    // Send Notification (Outside the transaction so email failures don't roll back the DB)
+    await notificationService.createNotification({
+      recipient: resultUser.id,
+      type: "account_created",
+      title: "Account Created",
+      message: `Your account has been created. Email: ${email}, Password: ${userPassword}. Please login and change your password.`,
+      priority: "high",
+      createdBy: creatorUser.id,
+    });
+
+    logger.info(`User created: ${resultUser.email} by ${creatorUser.email}`);
+
+    return {
+      user: {
+        id: resultUser.id,
+        email: resultUser.email,
+        firstName: resultUser.firstName,
+        lastName: resultUser.lastName,
+        role: resultUser.role,
+        phone: resultUser.phone,
+        isActive: resultUser.isActive,
+      },
+      defaultPassword: userPassword,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  // Send notification about account creation
-  await notificationService.createNotification({
-    recipient: user._id,
-    type: "account_created",
-    title: "Account Created",
-    message: `Your account has been created. Email: ${email}, Password: ${userPassword}. Please login and change your password.`,
-    priority: "high",
-    createdBy: creatorUser._id,
-  });
-
-  logger.info(`User created: ${user.email} by ${creatorUser.email}`);
-
-  return {
-    user: user.toJSON(),
-    defaultPassword: userPassword, // Return this for display purposes (in real app, send via email)
-  };
 };
 
-const createStudentProfile = async (userId, studentData, creatorId) => {
-  const student = await Student.create({
-    user: userId,
-    matricNumber: studentData.matricNumber,
-    department: studentData.department,
-    level: studentData.level,
-    session: studentData.session,
-    cgpa: studentData.cgpa,
-    createdBy: creatorId,
-  });
+/**
+ * Create an industrial supervisor - standalone function for auto-creation during placement approval
+ * Now creates an invitation instead of directly creating a user with default password
+ */
+const createIndustrialSupervisor = async (
+  supervisorData,
+  creatorId,
+  placementId = null,
+) => {
+  try {
+    const {
+      email,
+      firstName,
+      lastName,
+      companyName,
+      companyAddress,
+      position,
+      phone,
+      yearsOfExperience,
+    } = supervisorData;
 
-  return student;
+    let isNewUser = false;
+    let finalUser;
+    let supervisor;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      include: { supervisor: true },
+    });
+
+    if (existingUser) {
+      // User already exists - create/link the supervisor profile
+      const result = await prisma.$transaction(async (tx) => {
+        const existingProfile = await tx.supervisor.findFirst({
+          where: { userId: existingUser.id, type: "industrial" },
+        });
+
+        let supervisorProfile;
+        if (existingProfile) {
+          supervisorProfile = existingProfile;
+        } else {
+          supervisorProfile = await createSupervisorProfile(
+            existingUser.id,
+            "industrial",
+            { companyName, companyAddress, position, ...supervisorData },
+            creatorId,
+            tx,
+          );
+        }
+
+        // Link supervisor to placements
+        await autoLinkSupervisorToPlacements(supervisorProfile.id, email, tx);
+
+        return { user: existingUser, supervisor: supervisorProfile };
+      });
+
+      logger.info(`Existing user ${email} mapped as industrial supervisor`);
+      return result;
+    } else {
+      // User doesn't exist - create an invitation instead of creating user directly
+      const invitationService = require("./invitationService");
+
+      // Get the creator user details for the invitation
+      const creator = await prisma.user.findUnique({
+        where: { id: creatorId },
+        select: { id: true, role: true, departmentId: true, email: true },
+      });
+
+      if (!creator) {
+        throw new ApiError(404, "Creator user not found");
+      }
+
+      const invitation = await invitationService.createInvitation(creator, {
+        email,
+        role: USER_ROLES.INDUSTRIAL_SUPERVISOR,
+        metadata: {
+          companyName,
+          companyAddress,
+          position,
+          yearsOfExperience,
+          placementId, // Link to the placement this supervisor is for
+        },
+      });
+
+      logger.info(`Invitation created for industrial supervisor: ${email}`);
+
+      // Return null for user and supervisor since they haven't been created yet
+      // The calling code should handle this gracefully
+      return {
+        user: null,
+        supervisor: null,
+        invitation,
+        requiresSetup: true,
+      };
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
 };
 
+/**
+ * Create a student profile (Accepts an optional transaction client `tx`)
+ */
+const createStudentProfile = async (
+  userId,
+  studentData,
+  creatorId,
+  tx = prisma,
+) => {
+  try {
+    return await tx.student.create({
+      data: {
+        user: { connect: { id: userId } },
+        matricNumber: studentData.matricNumber,
+        department: { connect: { id: studentData.department } },
+        level: studentData.level,
+        session: studentData.session,
+        cgpa: studentData.cgpa,
+        createdBy: creatorId,
+      },
+      include: { user: true, department: true },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
+};
+
+/**
+ * Create a supervisor profile (Accepts an optional transaction client `tx`)
+ */
 const createSupervisorProfile = async (
   userId,
   type,
   supervisorData,
   creatorId,
+  tx = prisma,
 ) => {
-  const supervisorPayload = {
-    user: userId,
-    type,
-    createdBy: creatorId,
-    position: supervisorData.position,
-    qualification: supervisorData.qualification,
-    yearsOfExperience: supervisorData.yearsOfExperience,
-    specialization: supervisorData.specialization,
-    maxStudents: supervisorData.maxStudents || 10,
-  };
+  try {
+    const supervisorPayload = {
+      user: { connect: { id: userId } },
+      type,
+      position: supervisorData.position,
+      qualification: supervisorData.qualification,
+      yearsOfExperience: supervisorData.yearsOfExperience,
+      specialization: supervisorData.specialization,
+      maxStudents: supervisorData.maxStudents || 10,
+    };
 
-  // Add type-specific fields
-  if (type === "academic") {
-    // Academic supervisors can optionally have a department (for reference only)
-    if (supervisorData.department) {
-      supervisorPayload.department = supervisorData.department;
+    if (type === "academic" && supervisorData.department) {
+      supervisorPayload.department = {
+        connect: { id: supervisorData.department },
+      };
+    } else if (type === "industrial") {
+      if (!supervisorData.companyName) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          "Company name is required for industrial supervisors.",
+        );
+      }
+      supervisorPayload.companyName = supervisorData.companyName;
+      if (supervisorData.companyAddress)
+        supervisorPayload.companyAddress = supervisorData.companyAddress;
     }
-  } else if (type === "industrial") {
-    if (!supervisorData.companyName) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        "Company name is required for industrial supervisors. Please provide companyName in the request.",
-      );
-    }
-    supervisorPayload.companyName = supervisorData.companyName;
-    if (supervisorData.companyAddress) {
-      supervisorPayload.companyAddress = supervisorData.companyAddress;
-    }
+
+    return await tx.supervisor.create({
+      data: supervisorPayload,
+      include: { user: true, department: true, assignedStudents: true },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  const supervisor = await Supervisor.create(supervisorPayload);
-
-  return supervisor;
 };
 
-const createIndustrialSupervisor = async (supervisorData, creatorId) => {
-  const {
-    email,
-    firstName,
-    lastName,
-    companyName,
-    companyAddress,
-    position,
-    phone,
-  } = supervisorData;
-
-  // Check if user already exists
-  let user = await User.findOne({ email });
-
-  if (!user) {
-    const defaultPassword = config.password.default;
-
-    user = await User.create({
-      email,
-      firstName,
-      lastName,
-      role: USER_ROLES.INDUSTRIAL_SUPERVISOR,
-      password: defaultPassword,
-      phone,
-      isFirstLogin: true,
-      passwordResetRequired: true,
-    });
-
-    // Send notification
-    await notificationService.createNotification({
-      recipient: user._id,
-      type: "account_created",
-      title: "Supervisor Account Created",
-      message: `You have been assigned as an industrial supervisor. Default password: ${defaultPassword}`,
-      priority: "high",
-      createdBy: creatorId,
-    });
-  }
-
-  // Create supervisor profile
-  const supervisor = await createSupervisorProfile(
-    user._id,
-    "industrial",
-    { companyName, companyAddress, position, ...supervisorData },
-    creatorId,
-  );
-
-  logger.info(`Industrial supervisor created: ${user.email}`);
-
-  return { user, supervisor };
-};
-
+/**
+ * Get list of users with filtering and pagination
+ */
 const getUsers = async (filters = {}, pagination = {}) => {
-  const { page = 1, limit = 20 } = pagination;
-  const skip = (page - 1) * limit;
+  try {
+    const { page = 1, limit = 20 } = pagination;
+    const skip = (page - 1) * limit;
+    const where = {};
 
-  const query = {};
-
-  if (filters.role) query.role = filters.role;
-  if (filters.isActive !== undefined) query.isActive = filters.isActive;
-  if (filters.search) {
-    query.$or = [
-      { firstName: new RegExp(filters.search, "i") },
-      { lastName: new RegExp(filters.search, "i") },
-      { email: new RegExp(filters.search, "i") },
-    ];
-  }
-
-  const users = await User.find(query)
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
-
-  const total = await User.countDocuments(query);
-
-  return {
-    users,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
-  };
-};
-
-const getUserById = async (userId) => {
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
-  }
-
-  return user;
-};
-
-const updateUser = async (userId, updateData) => {
-  const allowedFields = [
-    "firstName",
-    "lastName",
-    "phone",
-    "address",
-    "isActive",
-  ];
-  const filteredData = {};
-
-  allowedFields.forEach((field) => {
-    if (updateData[field] !== undefined) {
-      filteredData[field] = updateData[field];
+    if (filters.role) where.role = filters.role;
+    if (filters.isActive !== undefined) where.isActive = filters.isActive;
+    if (filters.search) {
+      where.OR = [
+        { firstName: { contains: filters.search, mode: "insensitive" } },
+        { lastName: { contains: filters.search, mode: "insensitive" } },
+        { email: { contains: filters.search, mode: "insensitive" } },
+      ];
     }
-  });
 
-  const user = await User.findByIdAndUpdate(userId, filteredData, {
-    new: true,
-    runValidators: true,
-  });
+    const users = await prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        phone: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    const total = await prisma.user.count({ where });
+
+    return {
+      users,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  } catch (error) {
+    throw handlePrismaError(error);
   }
-
-  logger.info(`User updated: ${user.email}`);
-
-  return user;
 };
 
-const deleteUser = async (userId) => {
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { isActive: false },
-    { new: true },
-  );
+/**
+ * Get user by ID
+ */
+const getUserById = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        department: true,
+        studentProfile: true,
+        supervisorProfile: true,
+        createdInvitations: true,
+      },
+    });
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    return user;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
+};
 
-  logger.info(`User deactivated: ${user.email}`);
+/**
+ * Update user information
+ */
+const updateUser = async (userId, updateData) => {
+  try {
+    const allowedFields = [
+      "firstName",
+      "lastName",
+      "phone",
+      "address",
+      "isActive",
+    ];
+    const filteredData = {};
 
-  return user;
+    allowedFields.forEach((field) => {
+      if (updateData[field] !== undefined)
+        filteredData[field] = updateData[field];
+    });
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: filteredData,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        phone: true,
+        address: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+
+    logger.info(`User updated: ${user.email}`);
+    return user;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
+};
+
+/**
+ * Delete (deactivate) user
+ */
+const deleteUser = async (userId) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+      select: { id: true, email: true, isActive: true, updatedAt: true },
+    });
+
+    logger.info(`User deactivated: ${user.email}`);
+    return user;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
 };
 
 module.exports = {

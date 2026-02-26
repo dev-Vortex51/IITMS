@@ -37,9 +37,13 @@ const validateParams = (schema) => validate(schema, "params");
 const validateObjectId = (paramName = "id") => {
   return (req, res, next) => {
     const id = req.params[paramName];
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    // MongoDB ObjectId format (for backward compatibility): 24 hex characters
     const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 
-    if (!objectIdPattern.test(id)) {
+    if (!uuidPattern.test(id) && !objectIdPattern.test(id)) {
       return res
         .status(HTTP_STATUS.BAD_REQUEST)
         .json(formatResponse(false, `Invalid ${paramName} format`));

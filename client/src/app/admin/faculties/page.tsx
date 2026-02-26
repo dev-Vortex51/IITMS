@@ -85,7 +85,7 @@ export default function FacultiesPage() {
   const handleDelete = (id: string, name: string) => {
     if (
       window.confirm(
-        `Are you sure you want to delete ${name}? This action cannot be undone.`
+        `Are you sure you want to delete ${name}? This action cannot be undone.`,
       )
     ) {
       deleteMutation.mutate(id);
@@ -190,7 +190,7 @@ export default function FacultiesPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {faculties.map((faculty: any) => (
             <Card
-              key={faculty._id}
+              key={faculty.id}
               className="hover:shadow-md transition-shadow"
             >
               <CardHeader>
@@ -228,7 +228,7 @@ export default function FacultiesPage() {
                     size="sm"
                     className="flex-1"
                   >
-                    <Link href={`/admin/faculties/${faculty._id}`}>
+                    <Link href={`/admin/faculties/${faculty.id}`}>
                       <Edit className="h-4 w-4 mr-2" />
                       View Details
                     </Link>
@@ -236,7 +236,7 @@ export default function FacultiesPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDelete(faculty._id, faculty.name)}
+                    onClick={() => handleDelete(faculty.id, faculty.name)}
                     disabled={deleteMutation.isPending}
                   >
                     <Trash2 className="h-4 w-4" />

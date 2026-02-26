@@ -74,7 +74,7 @@ const roleBasedLimiter = rateLimit({
     return 50; // Default for unauthenticated requests
   },
   keyGenerator: (req) => {
-    return req.user ? req.user._id.toString() : req.ip;
+    return req.user ? req.user.id : req.ip;
   },
   message: formatResponse(false, "Rate limit exceeded"),
   standardHeaders: true,

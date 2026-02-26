@@ -1,0 +1,748 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  admin
+  faculty
+  department
+  coordinator
+  student
+  academic_supervisor
+  industrial_supervisor
+}
+
+enum PlacementStatus {
+  pending
+  approved
+  rejected
+  withdrawn
+}
+
+enum LogbookStatus {
+  draft
+  submitted
+  reviewed
+  approved
+  rejected
+}
+
+enum AssessmentStatus {
+  pending
+  submitted
+  completed
+}
+
+enum AssessmentType {
+  departmental
+  industrial
+  final
+}
+
+enum Grade {
+  A
+  B
+  C
+  D
+  E
+  F
+}
+
+enum Recommendation {
+  excellent
+  very_good
+  good
+  fair
+  poor
+}
+
+enum SupervisorType {
+  academic
+  departmental
+  industrial
+}
+
+enum NotificationType {
+  placement_approved
+  placement_rejected
+  supervisor_assigned
+  supervisor_unassigned
+  logbook_comment
+  logbook_approved
+  logbook_rejected
+  assessment_submitted
+  deadline_reminder
+  password_reset
+  account_created
+  general
+}
+
+enum NotificationPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  cancelled
+}
+
+enum InvitedByRole {
+  admin
+  coordinator
+}
+
+enum DayStatus {
+  PRESENT_ON_TIME
+  PRESENT_LATE
+  HALF_DAY
+  ABSENT
+  EXCUSED_ABSENCE
+  INCOMPLETE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum Punctuality {
+  ON_TIME
+  LATE
+}
+
+enum SupervisorAssignmentStatus {
+  active
+  inactive
+  revoked
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole
+  
+  // Department and Faculty relationships
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  facultyId    String?
+  faculty      Faculty?    @relation(fields: [facultyId], references: [id])
+  
+  // Contact Information
+  phone   String?
+  address String?
+  
+  // Account Status
+  isActive               Boolean  @default(true)
+  passwordResetRequired  Boolean  @default(true)
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
+  lastLogin              DateTime?
+  
+  // Profile
+  bio          String?
+  profilePhoto String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  student                Student?
+  supervisor             Supervisor?
+  createdFaculties       Faculty[]               @relation("CreatedFaculties")
+  createdDepartments     Department[]            @relation("CreatedDepartments")
+  coordinatedDepartments Department[]            @relation("CoordinatorDepartments")
+  sentInvitations        Invitation[]            @relation("InvitedBy")
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  createdNotifications   Notification[]          @relation("CreatedBy")
+  
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([departmentId])
+  @@index([facultyId])
+  @@map("users")
+}
+
+model Faculty {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  createdById String?
+  createdBy   User?        @relation("CreatedFaculties", fields: [createdById], references: [id])
+  departments Department[]
+  users       User[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([name])
+  @@index([code])
+  @@index([isActive])
+  @@index([isActive, createdAt])
+  @@map("faculties")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String
+  code        String
+  description String?
+  isActive    Boolean  @default(true)
+  
+  // Faculty relationship
+  facultyId String
+  faculty   Faculty @relation(fields: [facultyId], references: [id])
+  
+  // Creator
+  createdById String?
+  createdBy   User?   @relation("CreatedDepartments", fields: [createdById], references: [id])
+  
+  // Relations
+  coordinators User[]      @relation("CoordinatorDepartments")
+  students     Student[]
+  supervisors  Supervisor[]
+  users        User[]
+  invitations  Invitation[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([code, facultyId])
+  @@index([name])
+  @@index([code])
+  @@index([facultyId])
+  @@index([isActive])
+  @@index([isActive, facultyId])
+  @@index([facultyId, createdAt])
+  @@map("departments")
+}
+
+model Student {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matricNumber String  @unique
+  
+  // Academic Information
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  level        Int
+  session      String
+  cgpa         Float?
+  
+  // Placement Information
+  hasPlacement      Boolean  @default(false)
+  placementApproved Boolean  @default(false)
+  trainingCompleted Boolean  @default(false)
+  currentPlacementId String? @unique
+  
+  // Supervisor relationships
+  departmentalSupervisorId String?
+  industrialSupervisorId   String?
+  
+  // Training dates
+  trainingStartDate DateTime?
+  trainingEndDate   DateTime?
+  
+  // Status
+  isActive Boolean @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  placements            Placement[]
+  logbooks              Logbook[]
+  assessments           Assessment[]
+  attendances           Attendance[]
+  supervisorAssignments SupervisorAssignment[]
+  
+  @@index([userId])
+  @@index([matricNumber])
+  @@index([departmentId])
+  @@index([level])
+  @@index([session])
+  @@index([hasPlacement])
+  @@index([placementApproved])
+  @@index([isActive])
+  @@map("students")
+}
+
+model Supervisor {
+  id     String         @id @default(uuid())
+  userId String         @unique
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   SupervisorType
+  
+  // Department (optional for academic supervisors)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  
+  // Company information (for industrial supervisors)
+  companyName    String?
+  companyAddress String?
+  position       String?
+  
+  // Professional information
+  qualification      String?
+  yearsOfExperience  Int?
+  specialization     String?
+  
+  // Staff information (for academic supervisors)
+  staffId        String?
+  officeLocation String?
+  
+  // Capacity
+  maxStudents Int @default(10)
+  
+  // Status
+  isActive   Boolean @default(true)
+  isAvailable Boolean @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  assignedStudents      SupervisorAssignment[]
+  placements            Placement[]
+  logbookReviews        LogbookReview[]
+  assessments           Assessment[]
+  attendanceReviews     Attendance[]
+  
+  @@index([userId])
+  @@index([type])
+  @@index([departmentId])
+  @@index([isActive])
+  @@index([isAvailable])
+  @@map("supervisors")
+}
+
+model Placement {
+  id      String          @id @default(uuid())
+  studentId String
+  student Student         @relation(fields: [studentId], references: [id])
+  
+  // Company information
+  companyName    String
+  companyAddress String
+  
+  companyLat      Float?   // Latitude of the office
+  companyLng      Float?   // Longitude of the office
+  allowedRadius   Int      @default(200) // Allowed radius in meters (e.g. 200m)
+  
+  workStartTime   String   @default("08:00") // Format "HH:mm"
+  workEndTime     String   @default("17:00") // Format "HH:mm"
+  
+  companyEmail   String
+  companyPhone   String
+  companyWebsite String?
+  companySector  String?
+  
+  // Position information
+  position   String
+  department String?
+  
+  // Supervisor information (from submission)
+  supervisorName     String?
+  supervisorEmail    String?
+  supervisorPhone    String?
+  supervisorPosition String?
+  
+  // Training period
+  startDate DateTime
+  endDate   DateTime
+  
+  // Acceptance letter
+  acceptanceLetter     String?
+  acceptanceLetterPath String?
+  
+  // Industrial supervisor (assigned after approval)
+  industrialSupervisorId String?
+  industrialSupervisor   Supervisor? @relation(fields: [industrialSupervisorId], references: [id])
+  
+  // Status
+  status       PlacementStatus @default(pending)
+  rejectionReason String?
+  
+  // Review
+  reviewedById String?
+  reviewedAt   DateTime?
+  approvedAt   DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  assessments           Assessment[]
+  attendances           Attendance[]
+  supervisorAssignments SupervisorAssignment[]
+  
+  @@index([studentId])
+  @@index([status])
+  @@index([startDate])
+  @@index([industrialSupervisorId])
+  @@index([studentId, status])
+  @@map("placements")
+}
+
+model Logbook {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  
+  // Week information
+  weekNumber Int
+  startDate  DateTime
+  endDate    DateTime
+  
+  // Content
+  tasksPerformed String
+  skillsAcquired String?
+  challenges     String?
+  lessonsLearned String?
+  
+  // Status
+  status      LogbookStatus @default(draft)
+  submittedAt DateTime?
+  
+  // Overall review status
+  departmentalReviewStatus   LogbookStatus @default(submitted)
+  departmentalReviewedAt     DateTime?
+  industrialReviewStatus     LogbookStatus @default(submitted)
+  industrialReviewedAt       DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  evidence LogbookEvidence[]
+  reviews  LogbookReview[]
+  
+  @@index([studentId])
+  @@index([weekNumber])
+  @@index([status])
+  @@index([studentId, weekNumber])
+  @@index([studentId, status])
+  @@map("logbooks")
+}
+
+model LogbookEvidence {
+  id         String   @id @default(uuid())
+  logbookId  String
+  logbook    Logbook  @relation(fields: [logbookId], references: [id], onDelete: Cascade)
+  name       String
+  path       String
+  type       String
+  uploadedAt DateTime @default(now())
+  
+  @@index([logbookId])
+  @@map("logbook_evidence")
+}
+
+model LogbookReview {
+  id             String         @id @default(uuid())
+  logbookId      String
+  logbook        Logbook        @relation(fields: [logbookId], references: [id], onDelete: Cascade)
+  supervisorId   String
+  supervisor     Supervisor     @relation(fields: [supervisorId], references: [id])
+  supervisorType SupervisorType
+  comment        String
+  rating         Float?
+  status         LogbookStatus
+  reviewedAt     DateTime       @default(now())
+  
+  @@index([logbookId])
+  @@index([supervisorId])
+  @@map("logbook_reviews")
+}
+
+model Assessment {
+  id           String           @id @default(uuid())
+  studentId    String
+  student      Student          @relation(fields: [studentId], references: [id])
+  supervisorId String
+  supervisor   Supervisor       @relation(fields: [supervisorId], references: [id])
+  placementId  String?
+  placement    Placement?       @relation(fields: [placementId], references: [id])
+  type         AssessmentType
+  
+  // Scores (out of 100)
+  technical       Int
+  communication   Int
+  punctuality     Int
+  initiative      Int
+  teamwork        Int
+  professionalism Int?
+  problemSolving  Int?
+  adaptability    Int?
+  
+  // Feedback
+  strengths            String?
+  areasForImprovement  String?
+  comment              String?
+  recommendation       Recommendation
+  
+  // Overall grade
+  grade String?
+  
+  // Status
+  status     AssessmentStatus @default(pending)
+  submittedAt DateTime?
+  completedAt DateTime?
+  
+  // Verification
+  verifiedById     String?
+  verifiedAt       DateTime?
+  verificationNote String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([studentId])
+  @@index([supervisorId])
+  @@index([type])
+  @@index([status])
+  @@index([studentId, type])
+  @@map("assessments")
+}
+
+model Attendance {
+  id         String    @id @default(uuid())
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id])
+  placementId String
+  placement  Placement @relation(fields: [placementId], references: [id])
+  date       DateTime
+  
+  // Time tracking
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  hoursWorked  Float?
+  
+  // Status
+  punctuality    Punctuality?
+  dayStatus      DayStatus       @default(INCOMPLETE)
+  approvalStatus ApprovalStatus  @default(PENDING)
+  
+  // Absence
+  absenceReason String?
+  
+  // Location
+  locationLatitude  Float?
+  locationLongitude Float?
+  locationAddress   String?
+  
+  distanceFromOffice Float? // Store the calculated distance (e.g. 50.5 meters)
+  
+  // Notes
+  notes String?
+  
+  // Supervisor review
+  supervisorId       String?
+  supervisor         Supervisor? @relation(fields: [supervisorId], references: [id])
+  supervisorComment  String?
+  supervisorApprovedAt DateTime?
+  
+  // Legacy
+  status String @default("present")
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([studentId])
+  @@index([placementId])
+  @@index([date])
+  @@index([dayStatus])
+  @@index([approvalStatus])
+  @@index([punctuality])
+  @@map("attendances")
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  recipientId String
+  recipient User               @relation(fields: [recipientId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  priority  NotificationPriority @default(medium)
+  
+  // Related resources
+  relatedModel String?
+  relatedId    String?
+  
+  // Action
+  actionLink String?
+  actionText String?
+  
+  // Status
+  isRead  Boolean   @default(false)
+  readAt  DateTime?
+  
+  // Email notification
+  emailSent   Boolean   @default(false)
+  emailSentAt DateTime?
+  
+  // Creator
+  createdById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@index([recipientId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([recipientId, isRead])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications Boolean @default(false)
+  placementAlerts   Boolean  @default(false)
+  systemUpdates     Boolean  @default(false)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("notification_preferences")
+}
+
+model Invitation {
+  id             String           @id @default(uuid())
+  email          String
+  role           UserRole
+  token          String           @unique
+  expiresAt      DateTime
+  invitedById    String
+  invitedBy      User             @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedByRole  InvitedByRole
+  status         InvitationStatus @default(pending)
+  
+  // Metadata for account creation
+  departmentId   String?
+  department     Department?      @relation(fields: [departmentId], references: [id])
+  facultyId      String?
+  matricNumber   String?
+  level          Int?
+  session        String?
+  
+  // Industrial supervisor metadata (from placement)
+  companyName    String?
+  companyAddress String?
+  position       String?
+  yearsOfExperience Int?
+  placementId    String?  // Link to the placement this supervisor is for
+  
+  // Status dates
+  acceptedAt  DateTime?
+  cancelledAt DateTime?
+  
+  // Resend tracking
+  resendCount  Int       @default(0)
+  lastResentAt DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@index([email, status])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+model SupervisorAssignment {
+  id           String                     @id @default(uuid())
+  studentId    String
+  student      Student                    @relation(fields: [studentId], references: [id])
+  supervisorId String
+  supervisor   Supervisor                 @relation(fields: [supervisorId], references: [id])
+  placementId  String?
+  placement    Placement?                 @relation(fields: [placementId], references: [id])
+  status       SupervisorAssignmentStatus @default(active)
+  assignedAt   DateTime                   @default(now())
+  revokedAt    DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([studentId, supervisorId, placementId])
+  @@index([studentId])
+  @@index([supervisorId])
+  @@index([placementId])
+  @@index([status])
+  @@map("supervisor_assignments")
+}
+
+model SystemSettings {
+  id         String  @id @default(uuid())
+  isSingleton Boolean @default(true) @unique
+  
+  // Academic settings
+  currentSession String @default("2024/2025")
+  semester       String @default("First Semester")
+  
+  // SIWES settings
+  siweDuration Int @default(6)
+  minWeeks     Int @default(24)
+  
+  // Approval settings
+  autoAssignSupervisors   Boolean @default(false)
+  requireLogbookApproval  Boolean @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_settings")
+}

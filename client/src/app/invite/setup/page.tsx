@@ -61,6 +61,27 @@ export default function SetupAccountPage() {
 
   const invitation = invitationData?.data;
 
+  // Prefill form data when invitation is loaded
+  useEffect(() => {
+    if (invitation) {
+      console.log("Invitation data received:", invitation);
+      console.log("Company Name:", invitation.companyName);
+      console.log("Company Address:", invitation.companyAddress);
+      console.log("Position:", invitation.position);
+      console.log("Years of Experience:", invitation.yearsOfExperience);
+      
+      setFormData((prev) => ({
+        ...prev,
+        // Prefill industrial supervisor details from placement if available
+        companyName: invitation.companyName || prev.companyName,
+        companyAddress: invitation.companyAddress || prev.companyAddress,
+        position: invitation.position || prev.position,
+        yearsOfExperience:
+          invitation.yearsOfExperience?.toString() || prev.yearsOfExperience,
+      }));
+    }
+  }, [invitation]);
+
   // Setup mutation
   const setupMutation = useMutation({
     mutationFn: (data: any) => invitationService.completeSetup(data),
@@ -264,158 +285,155 @@ export default function SetupAccountPage() {
 
             {/* Student-specific fields */}
             {invitation.role === "student" && (
-              <>
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-4">Student Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">Academic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="matricNumber">
+                      Matric Number <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="matricNumber"
+                      placeholder="e.g., CSC/2020/001"
+                      value={formData.matricNumber}
+                      onChange={(e) =>
+                        handleChange("matricNumber", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="level">
+                      Level <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={formData.level}
+                      onValueChange={(value) => handleChange("level", value)}
+                    >
+                      <SelectTrigger id="level">
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="100">100 Level</SelectItem>
+                        <SelectItem value="200">200 Level</SelectItem>
+                        <SelectItem value="300">300 Level</SelectItem>
+                        <SelectItem value="400">400 Level</SelectItem>
+                        <SelectItem value="500">500 Level</SelectItem>
+                        <SelectItem value="600">600 Level</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="session">
+                      Session <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="session"
+                      placeholder="e.g., 2023/2024"
+                      value={formData.session}
+                      onChange={(e) => handleChange("session", e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Academic Supervisor-specific fields */}
+            {invitation.role === "academic_supervisor" && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">
+                  Academic Supervisor Information
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="specialization">Specialization</Label>
+                    <Input
+                      id="specialization"
+                      placeholder="e.g., Computer Science"
+                      value={formData.specialization}
+                      onChange={(e) =>
+                        handleChange("specialization", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Industrial Supervisor-specific fields */}
+            {invitation.role === "industrial_supervisor" && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">
+                  Company & Professional Information
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">
+                      Company Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="companyName"
+                      placeholder="e.g., Tech Solutions Ltd"
+                      value={formData.companyName}
+                      onChange={(e) =>
+                        handleChange("companyName", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyAddress">Company Address</Label>
+                    <Input
+                      id="companyAddress"
+                      placeholder="e.g., 123 Main St, City"
+                      value={formData.companyAddress}
+                      onChange={(e) =>
+                        handleChange("companyAddress", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="matricNumber">
-                        Matric Number{" "}
-                        <span className="text-destructive">*</span>
-                      </Label>
+                      <Label htmlFor="position">Position/Title</Label>
                       <Input
-                        id="matricNumber"
-                        placeholder="e.g., CSC/2020/001"
-                        value={formData.matricNumber}
+                        id="position"
+                        placeholder="e.g., Senior Engineer"
+                        value={formData.position}
                         onChange={(e) =>
-                          handleChange("matricNumber", e.target.value)
+                          handleChange("position", e.target.value)
                         }
-                        required
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="level">
-                        Level <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={formData.level}
-                        onValueChange={(value) => handleChange("level", value)}
-                      >
-                        <SelectTrigger id="level">
-                          <SelectValue placeholder="Select level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="100">100 Level</SelectItem>
-                          <SelectItem value="200">200 Level</SelectItem>
-                          <SelectItem value="300">300 Level</SelectItem>
-                          <SelectItem value="400">400 Level</SelectItem>
-                          <SelectItem value="500">500 Level</SelectItem>
-                          <SelectItem value="600">600 Level</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="session">
-                        Session <span className="text-destructive">*</span>
+                      <Label htmlFor="yearsOfExperience">
+                        Years of Experience
                       </Label>
                       <Input
-                        id="session"
-                        placeholder="e.g., 2023/2024"
-                        value={formData.session}
+                        id="yearsOfExperience"
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 5"
+                        value={formData.yearsOfExperience}
                         onChange={(e) =>
-                          handleChange("session", e.target.value)
+                          handleChange("yearsOfExperience", e.target.value)
                         }
-                        required
                       />
                     </div>
                   </div>
-                </div>
-              </>
-            )}
-
-            {/* Supervisor-specific fields */}
-            {(invitation.role === "academic_supervisor" ||
-              invitation.role === "industrial_supervisor") && (
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">
-                  {invitation.role === "industrial_supervisor"
-                    ? "Company & Professional Information"
-                    : "Supervisor Information"}
-                </h3>
-                <div className="space-y-4">
-                  {invitation.role === "industrial_supervisor" ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="companyName">
-                          Company Name{" "}
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="companyName"
-                          placeholder="e.g., Tech Solutions Ltd"
-                          value={formData.companyName}
-                          onChange={(e) =>
-                            handleChange("companyName", e.target.value)
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="companyAddress">Company Address</Label>
-                        <Input
-                          id="companyAddress"
-                          placeholder="e.g., 123 Main St, City"
-                          value={formData.companyAddress}
-                          onChange={(e) =>
-                            handleChange("companyAddress", e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="position">Position/Title</Label>
-                          <Input
-                            id="position"
-                            placeholder="e.g., Senior Engineer"
-                            value={formData.position}
-                            onChange={(e) =>
-                              handleChange("position", e.target.value)
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="yearsOfExperience">
-                            Years of Experience
-                          </Label>
-                          <Input
-                            id="yearsOfExperience"
-                            type="number"
-                            min="0"
-                            placeholder="e.g., 5"
-                            value={formData.yearsOfExperience}
-                            onChange={(e) =>
-                              handleChange("yearsOfExperience", e.target.value)
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="specialization">Specialization</Label>
-                        <Input
-                          id="specialization"
-                          placeholder="e.g., Software Engineering"
-                          value={formData.specialization}
-                          onChange={(e) =>
-                            handleChange("specialization", e.target.value)
-                          }
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="specialization">Specialization</Label>
-                      <Input
-                        id="specialization"
-                        placeholder="e.g., Computer Science"
-                        value={formData.specialization}
-                        onChange={(e) =>
-                          handleChange("specialization", e.target.value)
-                        }
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="specialization">Specialization</Label>
+                    <Input
+                      id="specialization"
+                      placeholder="e.g., Software Engineering"
+                      value={formData.specialization}
+                      onChange={(e) =>
+                        handleChange("specialization", e.target.value)
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             )}

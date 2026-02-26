@@ -47,7 +47,7 @@ export default function CoordinatorsPage() {
 
   // Helper function to get coordinator info by ID
   const getCoordinatorInfo = (coordinatorId: string) => {
-    return coordinators.find((coord: any) => coord._id === coordinatorId);
+    return coordinators.find((coord: any) => coord.id === coordinatorId);
   };
 
   // Filter departments that have coordinators
@@ -172,7 +172,7 @@ export default function CoordinatorsPage() {
             <div className="space-y-2 sm:space-y-3">
               {paginatedDepartments.map((dept: any) => (
                 <div
-                  key={dept._id}
+                  key={dept.id}
                   className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-accent/5 transition-colors gap-3 lg:gap-4"
                 >
                   <div className="flex items-start gap-2 sm:gap-4 flex-1 min-w-0">
@@ -239,7 +239,7 @@ export default function CoordinatorsPage() {
                       size="sm"
                       className="w-full sm:w-auto text-xs sm:text-sm"
                     >
-                      <Link href={`/admin/departments/${dept._id}`}>
+                      <Link href={`/admin/departments/${dept.id}`}>
                         <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         View
                       </Link>
@@ -351,7 +351,7 @@ export default function CoordinatorsPage() {
                 )
                 .map((dept: any) => (
                   <div
-                    key={dept._id}
+                    key={dept.id}
                     className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border border-yellow-200 rounded-lg bg-yellow-50 gap-3 sm:gap-4"
                   >
                     <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
@@ -376,7 +376,7 @@ export default function CoordinatorsPage() {
                       size="sm"
                       className="w-full sm:w-auto text-xs sm:text-sm"
                     >
-                      <Link href={`/admin/departments/${dept._id}`}>
+                      <Link href={`/admin/departments/${dept.id}`}>
                         <span className="hidden sm:inline">
                           Assign Coordinator
                         </span>

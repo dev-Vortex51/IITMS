@@ -88,7 +88,7 @@ export default function AdminReportsPage() {
       : departments.filter(
           (dept: any) =>
             (typeof dept.faculty === "object"
-              ? dept.faculty._id
+              ? dept.faculty.id
               : dept.faculty) === selectedFaculty
         );
 
@@ -260,7 +260,7 @@ export default function AdminReportsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Faculties</SelectItem>
                   {faculties.map((faculty: any) => (
-                    <SelectItem key={faculty._id} value={faculty._id}>
+                    <SelectItem key={faculty.id} value={faculty.id}>
                       {faculty.name}
                     </SelectItem>
                   ))}
@@ -280,7 +280,7 @@ export default function AdminReportsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
                   {filteredDepartments.map((dept: any) => (
-                    <SelectItem key={dept._id} value={dept._id}>
+                    <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
                     </SelectItem>
                   ))}
@@ -389,8 +389,8 @@ export default function AdminReportsPage() {
                 const facultyDepartments = departments.filter(
                   (dept: any) =>
                     (typeof dept.faculty === "object"
-                      ? dept.faculty._id
-                      : dept.faculty) === faculty._id
+                      ? dept.faculty.id
+                      : dept.faculty) === faculty.id
                 );
                 // Use department aggregation field `studentCount` added by backend.
                 // The previous code tried to read an array `dept.students` which isn't
@@ -402,7 +402,7 @@ export default function AdminReportsPage() {
 
                 return (
                   <div
-                    key={faculty._id}
+                    key={faculty.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
                     <div className="flex items-center gap-4">

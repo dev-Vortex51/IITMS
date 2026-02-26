@@ -1,4 +1,7 @@
-const { User, Student, Supervisor } = require("../models");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const { getPrismaClient } = require("../config/prisma");
 const { ApiError } = require("../middleware/errorHandler");
 const {
   HTTP_STATUS,
@@ -6,113 +9,176 @@ const {
   SUCCESS_MESSAGES,
 } = require("../utils/constants");
 const { generateToken, generateRefreshToken } = require("../middleware/auth");
-const config = require("../config");
 const logger = require("../utils/logger");
-const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { handlePrismaError } = require("../utils/prismaErrors");
+const { hashPassword, comparePassword } = require("../utils/helpers");
 
 const login = async (email, password) => {
-  // Find user with password field
-  const user = await User.findOne({ email }).select("+password");
+  try {
+    const prisma = getPrismaClient();
 
-  if (!user) {
-    throw new ApiError(
-      HTTP_STATUS.UNAUTHORIZED,
-      ERROR_MESSAGES.INVALID_CREDENTIALS,
-    );
-  }
+    // Find user with email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
 
-  // Check if user is active
-  if (!user.isActive) {
-    throw new ApiError(HTTP_STATUS.FORBIDDEN, "Account has been deactivated");
-  }
+    if (!user) {
+      throw new ApiError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_MESSAGES.INVALID_CREDENTIALS,
+      );
+    }
 
-  // Verify password
-  const isPasswordValid = await user.comparePassword(password);
+    // Check if user is active
+    if (!user.isActive) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, "Account has been deactivated");
+    }
 
-  if (!isPasswordValid) {
-    throw new ApiError(
-      HTTP_STATUS.UNAUTHORIZED,
-      ERROR_MESSAGES.INVALID_CREDENTIALS,
-    );
-  }
+    // Verify password
+    const isPasswordValid = await comparePassword(password, user.password);
 
-  // Update last login
-  user.lastLogin = Date.now();
-  await user.save();
+    if (!isPasswordValid) {
+      throw new ApiError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_MESSAGES.INVALID_CREDENTIALS,
+      );
+    }
 
-  // Generate tokens
-  const accessToken = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
 
-  // Get additional profile data based on role
-  let profileData = null;
-  if (user.role === "student") {
-    profileData = await Student.findOne({ user: user._id });
-  } else if (
-    ["academic_supervisor", "industrial_supervisor"].includes(user.role)
-  ) {
-    profileData = await Supervisor.findOne({ user: user._id });
-  }
-
-  logger.info(`User logged in: ${user.email}`);
-
-  return {
-    user: {
-      id: user._id,
+    // Generate tokens
+    const accessToken = generateToken({
+      id: user.id,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: user.fullName,
       role: user.role,
-      profileData,
-    },
-    accessToken,
-    refreshToken,
-  };
+    });
+    const refreshToken = generateRefreshToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Get additional profile data based on role
+    let profileData = null;
+    if (user.role === "student") {
+      profileData = await prisma.student.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: true,
+        },
+      });
+    } else if (
+      ["academic_supervisor", "industrial_supervisor"].includes(user.role)
+    ) {
+      profileData = await prisma.supervisor.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: true,
+          assignedStudents: true,
+        },
+      });
+    }
+
+    logger.info(`User logged in: ${user.email}`);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: `${user.firstName} ${user.lastName}`,
+        role: user.role,
+        departmentId: user.departmentId,
+        department: user.department,
+        profileData,
+      },
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
 };
 
 const changePassword = async (userId, oldPassword, newPassword) => {
-  const user = await User.findById(userId).select("+password");
+  try {
+    const prisma = getPrismaClient();
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    // Find user by ID (with password field)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, password: true },
+    });
+
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    }
+
+    // Verify old password
+    const isPasswordValid = await comparePassword(oldPassword, user.password);
+
+    if (!isPasswordValid) {
+      throw new ApiError(
+        HTTP_STATUS.UNAUTHORIZED,
+        "Current password is incorrect",
+      );
+    }
+
+    // Check if new password is same as old
+    const isSamePassword = await comparePassword(newPassword, user.password);
+    if (isSamePassword) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "New password must be different from current password",
+      );
+    }
+
+    // Hash and update password
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        passwordResetRequired: false,
+      },
+    });
+
+    logger.info(`User changed password: ${user.email}`);
+
+    return {
+      message: SUCCESS_MESSAGES.PASSWORD_RESET,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  // Verify old password
-  const isPasswordValid = await user.comparePassword(oldPassword);
-
-  if (!isPasswordValid) {
-    throw new ApiError(
-      HTTP_STATUS.UNAUTHORIZED,
-      "Current password is incorrect",
-    );
-  }
-
-  // Check if new password is same as old
-  const isSamePassword = await user.comparePassword(newPassword);
-  if (isSamePassword) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "New password must be different from current password",
-    );
-  }
-
-  // Update password
-  user.password = newPassword;
-  await user.save();
-
-  logger.info(`User changed password: ${user.email}`);
-
-  return {
-    message: SUCCESS_MESSAGES.PASSWORD_RESET,
-  };
 };
 
 const logout = async (userId) => {
-  // In a more advanced implementation, we would add the token to a blacklist
-  // For now, client-side token removal is sufficient
-
   logger.info(`User logged out: ${userId}`);
 
   return {
@@ -120,136 +186,309 @@ const logout = async (userId) => {
   };
 };
 
-/**
- * Get user profile
- * @param {ObjectId} userId - User ID
- * @returns {Promise<Object>} User profile
- */
 const getProfile = async (userId) => {
-  const user = await User.findById(userId);
+  try {
+    const prisma = getPrismaClient();
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        phone: true,
+        address: true,
+        bio: true,
+        isActive: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    }
+
+    // Get additional profile data based on role
+    let profileData = null;
+    if (user.role === "student") {
+      profileData = await prisma.student.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: true,
+        },
+      });
+
+      // AUTO-CREATE if missing (safety net for accounts created without profile)
+      if (!profileData) {
+        const logger = require("../utils/logger");
+        logger.warn(
+          `Student profile missing for user ${user.id}. Auto-creating with defaults.`,
+        );
+
+        // Get the user's department from the User model if available
+        const userWithDept = await prisma.user.findUnique({
+          where: { id: user.id },
+          include: { department: true },
+        });
+
+        if (userWithDept?.departmentId) {
+          profileData = await prisma.student.create({
+            data: {
+              userId: user.id,
+              matricNumber: `TEMP-${user.id.substring(0, 8).toUpperCase()}`,
+              level: 100,
+              session: "2026/2027",
+              departmentId: userWithDept.departmentId,
+              cgpa: 0,
+              hasPlacement: false,
+              placementApproved: false,
+            },
+            include: {
+              department: true,
+            },
+          });
+        }
+      }
+    } else if (
+      ["academic_supervisor", "industrial_supervisor"].includes(user.role)
+    ) {
+      profileData = await prisma.supervisor.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: true,
+          assignedStudents: true,
+        },
+      });
+
+      // AUTO-CREATE if missing (safety net for accounts created without profile)
+      if (!profileData) {
+        const logger = require("../utils/logger");
+        logger.warn(
+          `Supervisor profile missing for user ${user.id} (${user.role}). Auto-creating with defaults.`,
+        );
+
+        // Get the user's department from the User model if available
+        const userWithDept = await prisma.user.findUnique({
+          where: { id: user.id },
+          include: { department: true },
+        });
+
+        profileData = await prisma.supervisor.create({
+          data: {
+            userId: user.id,
+            type:
+              user.role === "academic_supervisor" ? "academic" : "industrial",
+            maxStudents: 10,
+            departmentId:
+              user.role === "academic_supervisor"
+                ? userWithDept?.departmentId
+                : null,
+          },
+          include: {
+            department: true,
+            assignedStudents: true,
+          },
+        });
+      }
+    }
+
+    return {
+      ...user,
+      department: user.department,
+      departmentId: user.departmentId,
+      profileData,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  // Get additional profile data based on role
-  let profileData = null;
-  if (user.role === "student") {
-    profileData = await Student.findOne({ user: user._id })
-      .populate("department")
-      .populate("currentPlacement")
-      .populate("departmentalSupervisor")
-      .populate("industrialSupervisor");
-  } else if (
-    ["academic_supervisor", "industrial_supervisor"].includes(user.role)
-  ) {
-    profileData = await Supervisor.findOne({ user: user._id })
-      .populate("department")
-      .populate("assignedStudents");
-  }
-
-  return {
-    ...user.toJSON(),
-    profileData,
-  };
 };
 
 const updateProfile = async (userId, updateData) => {
-  const allowedFields = ["firstName", "lastName", "phone", "address", "bio"];
-  const filteredData = {};
+  try {
+    const prisma = getPrismaClient();
 
-  // Filter allowed fields
-  allowedFields.forEach((field) => {
-    if (updateData[field] !== undefined) {
-      filteredData[field] = updateData[field];
-    }
-  });
+    const allowedFields = ["firstName", "lastName", "phone", "address", "bio"];
+    const filteredData = {};
 
-  const user = await User.findByIdAndUpdate(userId, filteredData, {
-    new: true,
-    runValidators: true,
-  });
+    // Filter allowed fields
+    allowedFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        filteredData[field] = updateData[field];
+      }
+    });
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: filteredData,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        phone: true,
+        address: true,
+        bio: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    logger.info(`User updated profile: ${user.email}`);
+
+    return user;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  logger.info(`User updated profile: ${user.email}`);
-
-  return user;
 };
 
-/**
- * Forgot Password - send reset link
- */
 const forgotPassword = async (email) => {
-  const user = await User.findOne({ email });
-  if (!user) return; // Don't reveal if user exists
+  try {
+    const prisma = getPrismaClient();
 
-  // Generate token
-  const token = crypto.randomBytes(32).toString("hex");
-  user.passwordResetToken = token;
-  user.passwordResetExpires = Date.now() + 1000 * 60 * 60; // 1 hour
-  await user.save();
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    });
 
-  // Send email
-  const resetUrl = `${
-    process.env.FRONTEND_URL || "http://localhost:3000"
-  }/reset-password?token=${token}`;
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    secure: false,
-  });
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: user.email,
-    subject: "Password Reset Request",
-    html: `<p>You requested a password reset for your SIWES account.</p>
-      <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
-      <p>If you did not request this, please ignore this email.</p>`,
-  });
+    if (!user) return; // Don't reveal if user exists
+
+    // Generate token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: expiresAt,
+      },
+    });
+
+    // Send email
+    const resetUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:3000"
+    }/reset-password?token=${token}`;
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        secure: false,
+      });
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Password Reset Request",
+        html: `<p>You requested a password reset for your SIWES account.</p>
+          <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
+          <p>If you did not request this, please ignore this email.</p>`,
+      });
+
+      logger.info(`Password reset email sent to: ${user.email}`);
+    } catch (emailError) {
+      logger.error(`Failed to send reset email: ${emailError.message}`);
+      // Don't throw - email failure shouldn't block the reset link generation
+    }
+  } catch (error) {
+    logger.error(`forgotPassword error: ${error.message}`);
+    // Don't throw - security measure to not reveal if email exists
+  }
 };
 
-/**
- * Reset Password with token
- */
 const resetPassword = async (token, newPassword) => {
-  const user = await User.findOne({
-    passwordResetToken: token,
-    passwordResetExpires: { $gt: Date.now() },
-  }).select("+password");
-  if (!user)
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Invalid or expired reset token",
-    );
-  user.password = newPassword;
-  user.passwordResetToken = undefined;
-  user.passwordResetExpires = undefined;
-  await user.save();
-  return { email: user.email };
+  try {
+    const prisma = getPrismaClient();
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpires: {
+          gt: new Date(), // Greater than current time
+        },
+      },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Invalid or expired reset token",
+      );
+    }
+
+    // Hash and update password
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        passwordResetRequired: false,
+      },
+    });
+
+    logger.info(`User reset password via token: ${user.email}`);
+
+    return { email: user.email };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
+  }
 };
 
 const resetPasswordFirstLogin = async (userId, newPassword) => {
-  const user = await User.findById(userId).select("+password");
+  try {
+    const prisma = getPrismaClient();
 
-  if (!user) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+    }
+
+    // Hash and update password, clear first login flag
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        passwordResetRequired: false,
+      },
+    });
+
+    logger.info(`User reset password on first login: ${user.email}`);
+
+    return { email: user.email };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw handlePrismaError(error);
   }
-
-  // Update password and clear first login flag
-  user.password = newPassword;
-  user.isFirstLogin = false;
-  await user.save();
-
-  logger.info(`User reset password on first login: ${user.email}`);
-
-  return { email: user.email };
 };
 
 module.exports = {

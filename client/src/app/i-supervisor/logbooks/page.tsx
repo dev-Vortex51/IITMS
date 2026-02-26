@@ -98,7 +98,7 @@ export default function ISupervisorLogbooksPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch assigned students with their logbook stats
   const { data: studentsData, isLoading } = useQuery({
@@ -115,7 +115,7 @@ export default function ISupervisorLogbooksPage() {
         assignedStudents.map(async (student: any) => {
           try {
             const logbooksResponse = await apiClient.get(
-              `/logbooks?student=${student._id}`
+              `/logbooks?student=${student.id}`
             );
             const logbooks = logbooksResponse.data.data || [];
 
@@ -195,7 +195,7 @@ export default function ISupervisorLogbooksPage() {
     }
 
     reviewMutation.mutate({
-      logbookId: selectedLogbook._id,
+      logbookId: selectedLogbook.id,
       comment: reviewComment,
       rating: parseInt(reviewRating),
     });
@@ -334,7 +334,7 @@ export default function ISupervisorLogbooksPage() {
           ) : (
             filteredStudents.map((student: any) => (
               <Card
-                key={student._id}
+                key={student.id}
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => setSelectedStudent(student)}
               >
@@ -440,7 +440,7 @@ export default function ISupervisorLogbooksPage() {
           </Card>
         ) : (
           filteredLogbooks.map((logbook: Logbook) => (
-            <Card key={logbook._id}>
+            <Card key={logbook.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
@@ -670,3 +670,4 @@ export default function ISupervisorLogbooksPage() {
     </div>
   );
 }
+

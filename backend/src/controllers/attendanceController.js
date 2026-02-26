@@ -3,7 +3,7 @@ const { asyncHandler } = require("../middleware/errorHandler");
 const { formatResponse } = require("../utils/helpers");
 
 const checkIn = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id || req.body.studentId;
+  const studentId = req.user.studentProfile || req.body.studentId;
 
   if (!studentId) {
     return res
@@ -22,7 +22,7 @@ const checkIn = asyncHandler(async (req, res) => {
 });
 
 const getTodayCheckIn = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id;
+  const studentId = req.user.studentProfile;
 
   if (!studentId) {
     return res
@@ -42,7 +42,7 @@ const getTodayCheckIn = asyncHandler(async (req, res) => {
 });
 
 const getMyAttendance = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id;
+  const studentId = req.user.studentProfile;
 
   if (!studentId) {
     return res
@@ -73,7 +73,7 @@ const getMyAttendance = asyncHandler(async (req, res) => {
 });
 
 const getMyStats = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id;
+  const studentId = req.user.studentProfile;
 
   if (!studentId) {
     return res
@@ -154,7 +154,7 @@ const getPlacementAttendance = asyncHandler(async (req, res) => {
 
 const acknowledgeAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
-  const supervisorId = req.user.supervisorProfile?._id;
+  const supervisorId = req.user.supervisorProfile;
 
   if (!supervisorId) {
     return res
@@ -173,7 +173,7 @@ const acknowledgeAttendance = asyncHandler(async (req, res) => {
 });
 
 const checkOut = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id;
+  const studentId = req.user.studentProfile;
 
   if (!studentId) {
     return res
@@ -193,7 +193,7 @@ const checkOut = asyncHandler(async (req, res) => {
 });
 
 const submitAbsenceRequest = asyncHandler(async (req, res) => {
-  const studentId = req.user.studentProfile?._id;
+  const studentId = req.user.studentProfile;
 
   if (!studentId) {
     return res
@@ -228,7 +228,7 @@ const submitAbsenceRequest = asyncHandler(async (req, res) => {
 
 const approveAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
-  const supervisorId = req.user.supervisorProfile?._id;
+  const supervisorId = req.user.supervisorProfile;
 
   if (!supervisorId) {
     return res
@@ -251,7 +251,7 @@ const approveAttendance = asyncHandler(async (req, res) => {
 
 const rejectAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
-  const supervisorId = req.user.supervisorProfile?._id;
+  const supervisorId = req.user.supervisorProfile;
 
   if (!supervisorId) {
     return res
@@ -280,7 +280,7 @@ const rejectAttendance = asyncHandler(async (req, res) => {
 
 const reclassifyAttendance = asyncHandler(async (req, res) => {
   const { attendanceId } = req.params;
-  const supervisorId = req.user.supervisorProfile?._id;
+  const supervisorId = req.user.supervisorProfile;
 
   if (!supervisorId) {
     return res

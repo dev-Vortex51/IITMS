@@ -127,7 +127,7 @@ export function SupervisorApprovalInterface({
 
   const handleApprove = () => {
     if (!selectedRecord) return;
-    approveMutation.mutate({ id: selectedRecord._id, comment });
+    approveMutation.mutate({ id: selectedRecord.id, comment });
   };
 
   const handleReject = () => {
@@ -135,7 +135,7 @@ export function SupervisorApprovalInterface({
       toast.error("Rejection reason is required");
       return;
     }
-    rejectMutation.mutate({ id: selectedRecord._id, comment });
+    rejectMutation.mutate({ id: selectedRecord.id, comment });
   };
 
   const handleReclassify = () => {
@@ -144,7 +144,7 @@ export function SupervisorApprovalInterface({
       return;
     }
     reclassifyMutation.mutate({
-      id: selectedRecord._id,
+      id: selectedRecord.id,
       dayStatus: newDayStatus as DayStatus,
       comment,
     });
@@ -223,7 +223,7 @@ export function SupervisorApprovalInterface({
             <div className="space-y-4">
               {records.map((record) => (
                 <div
-                  key={record._id}
+                  key={record.id}
                   className="rounded-lg border p-4 space-y-3"
                 >
                   {/* Header */}

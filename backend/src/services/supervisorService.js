@@ -1,4 +1,5 @@
-const { Supervisor, Student, Placement } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { ApiError } = require("../middleware/errorHandler");
 const {
   HTTP_STATUS,
@@ -8,105 +9,128 @@ const {
 const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
 
+const prisma = getPrismaClient();
+
 /**
  * Get all supervisors with filters
  */
 const getSupervisors = async (filters = {}, pagination = {}) => {
-  const { page, limit, skip } = parsePagination(pagination);
+  try {
+    const { page, limit, skip } = parsePagination(pagination);
+    let where = { isActive: true };
 
-  let query = { isActive: true };
-
-  // Handle type filter
-  if (filters.type) {
-    // Treat "departmental" as an alias for academic supervisors
-    if (filters.type === "departmental") {
-      query.type = { $in: ["academic", "departmental"] };
-    } else if (filters.type === "academic") {
-      query.type = { $in: ["academic", "departmental"] };
-    } else {
-      query.type = filters.type;
+    // Handle type filter
+    if (filters.type) {
+      if (filters.type === "departmental" || filters.type === "academic") {
+        where.type = { in: ["academic", "departmental"] };
+      } else {
+        where.type = filters.type;
+      }
     }
-  }
 
-  // Handle company filter for industrial supervisors
-  if (filters.companyName && filters.type === "industrial") {
-    query.companyName = new RegExp(`^${filters.companyName}$`, "i");
-  }
+    // Handle company filter for industrial supervisors
+    if (filters.companyName && filters.type === "industrial") {
+      where.companyName = { equals: filters.companyName, mode: "insensitive" };
+    }
 
-  // Handle department filter
-  if (filters.department) {
-    query.department = filters.department;
-  } else if (filters.coordinatorDepartment && !filters.type) {
-    // For coordinators without an explicit type filter, include academic supervisors
-    // (any department), cross-department academics (no dept), and all industrials.
-    query.$or = [
-      { type: "academic" },
-      { type: "departmental" },
-      { type: "academic", department: { $in: [null, undefined] } },
-      { type: "departmental", department: { $in: [null, undefined] } },
-      { type: "industrial" },
-    ];
-  }
+    // Handle department filter
+    if (filters.department) {
+      where.departmentId = filters.department;
+    } else if (filters.coordinatorDepartment && !filters.type) {
+      where.OR = [
+        { type: "academic" },
+        { type: "departmental" },
+        { type: "academic", departmentId: null },
+        { type: "departmental", departmentId: null },
+        { type: "industrial" },
+      ];
+    }
 
-  // Count all supervisors in database
-
-  if (filters.available !== undefined) {
-    const supervisors = await Supervisor.find(query)
-      .populate("user", "firstName lastName email phone")
-      .populate("department", "name code");
-    const availableSupervisors = supervisors.filter(
-      (s) => s.isAvailable === filters.available,
-    );
-
-    return {
-      supervisors: availableSupervisors.slice(skip, skip + limit),
-      pagination: buildPaginationMeta(availableSupervisors.length, page, limit),
-    };
-  }
-
-  const supervisors = await Supervisor.find(query)
-    .populate("user", "firstName lastName email phone")
-    .populate("department", "name code")
-    .populate("assignedStudents")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
-
-  const total = await Supervisor.countDocuments(query);
-
-  // Transform supervisors to include user fields at top level for frontend compatibility
-  const transformedSupervisors = supervisors.map((supervisor) => {
-    const sup = supervisor.toObject();
-
-    // Debug log to see what's in the user field
-    if (!sup.user || !sup.user.firstName) {
-      throw new Error(
-        "[supervisorService] Supervisor with missing/incomplete user data:",
-        {
-          supervisorId: sup._id,
-          userId: sup.user?._id || "NO USER",
-          userName: sup.user
-            ? `${sup.user.firstName} ${sup.user.lastName}`
-            : "NULL USER",
+    // Handle availability filter
+    if (filters.available !== undefined) {
+      const allSupervisors = await prisma.supervisor.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+          department: {
+            select: { name: true, code: true },
+          },
+          assignedStudents: true,
         },
-      );
+      });
+
+      const availableSupervisors = allSupervisors.filter((s) => {
+        const isAvailable = s.assignedStudents.length < s.maxStudents;
+        return isAvailable === filters.available;
+      });
+
+      return {
+        supervisors: availableSupervisors
+          .slice(skip, skip + limit)
+          .map(transformSupervisor),
+        pagination: buildPaginationMeta(
+          availableSupervisors.length,
+          page,
+          limit,
+        ),
+      };
     }
 
+    const supervisors = await prisma.supervisor.findMany({
+      where,
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        department: {
+          select: { name: true, code: true },
+        },
+        assignedStudents: true,
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const total = await prisma.supervisor.count({ where });
+
     return {
-      ...sup,
-      name:
-        sup.user && sup.user.firstName && sup.user.lastName
-          ? `${sup.user.firstName} ${sup.user.lastName}`
-          : "Unknown",
-      email: sup.user?.email || null,
-      phone: sup.user?.phone || null,
-      students: sup.assignedStudents || [],
+      supervisors: supervisors.map(transformSupervisor),
+      pagination: buildPaginationMeta(total, page, limit),
     };
-  });
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
+  }
+};
+
+/**
+ * Transform supervisor to include user fields at top level
+ */
+const transformSupervisor = (supervisor) => {
+  if (!supervisor.user || !supervisor.user.firstName) {
+    logger.error(
+      `[supervisorService] Supervisor with missing/incomplete user data: ${supervisor.id}`,
+    );
+  }
 
   return {
-    supervisors: transformedSupervisors,
-    pagination: buildPaginationMeta(total, page, limit),
+    ...supervisor,
+    name:
+      supervisor.user && supervisor.user.firstName && supervisor.user.lastName
+        ? `${supervisor.user.firstName} ${supervisor.user.lastName}`
+        : "Unknown",
+    email: supervisor.user?.email || null,
+    phone: supervisor.user?.phone || null,
+    students: supervisor.assignedStudents || [],
+    isAvailable: supervisor.assignedStudents.length < supervisor.maxStudents,
   };
 };
 
@@ -114,340 +138,506 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
  * Get supervisor by ID
  */
 const getSupervisorById = async (supervisorId) => {
-  const supervisor = await Supervisor.findById(supervisorId)
-    .populate("user", "firstName lastName email phone")
-    .populate("department", "name code")
-    .populate("assignedStudents");
+  try {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        department: {
+          select: { name: true, code: true },
+        },
+        assignedStudents: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                matricNumber: true,
+                level: true,
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    // Transform assignedStudents to include student data
+    const transformedSupervisor = transformSupervisor(supervisor);
+
+    // Map supervisor assignments to student objects with student details
+    transformedSupervisor.students = supervisor.assignedStudents.map(
+      (assignment) => ({
+        id: assignment.student.id,
+        matricNumber: assignment.student.matricNumber,
+        level: assignment.student.level,
+        name: `${assignment.student.user.firstName} ${assignment.student.user.lastName}`,
+        email: assignment.student.user.email,
+        assignmentId: assignment.id,
+        assignmentStatus: assignment.status,
+      }),
+    );
+
+    return transformedSupervisor;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  // Transform to include user fields at top level
-  const sup = supervisor.toObject();
-  return {
-    ...sup,
-    name: sup.user ? `${sup.user.firstName} ${sup.user.lastName}` : "Unknown",
-    email: sup.user?.email,
-    phone: sup.user?.phone,
-    students: sup.assignedStudents || [],
-  };
 };
 
 /**
  * Update supervisor profile
  */
 const updateSupervisor = async (supervisorId, updateData) => {
-  const allowedFields = [
-    "specialization",
-    "maxStudents",
-    "isActive",
-    "companyName",
-    "companyAddress",
-    "department",
-  ];
-  const filteredData = {};
+  try {
+    const allowedFields = [
+      "specialization",
+      "maxStudents",
+      "isActive",
+      "companyName",
+      "companyAddress",
+      "department",
+    ];
+    const filteredData = {};
 
-  allowedFields.forEach((field) => {
-    if (updateData[field] !== undefined) {
-      filteredData[field] = updateData[field];
+    allowedFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        if (field === "department") {
+          filteredData.departmentId = updateData[field];
+        } else {
+          filteredData[field] = updateData[field];
+        }
+      }
+    });
+
+    const supervisor = await prisma.supervisor.update({
+      where: { id: supervisorId },
+      data: filteredData,
+    });
+
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
     }
-  });
 
-  const supervisor = await Supervisor.findByIdAndUpdate(
-    supervisorId,
-    filteredData,
-    { new: true, runValidators: true },
-  );
+    logger.info(`Supervisor updated: ${supervisorId}`);
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    return supervisor;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  logger.info(`Supervisor updated: ${supervisorId}`);
-
-  return supervisor;
 };
 
 /**
  * Get available supervisors for assignment
  */
 const getAvailableSupervisors = async (type, departmentId = null) => {
-  // Use the model's findAvailable method which handles type logic
-  const supervisors = await Supervisor.findAvailable(type, departmentId);
+  try {
+    const where = { isActive: true };
 
-  // Transform to include user info at top level for frontend compatibility
-  const transformedSupervisors = supervisors.map((supervisor) => {
-    const sup = supervisor.toObject();
-    return {
-      ...sup,
-      name: sup.user ? `${sup.user.firstName} ${sup.user.lastName}` : "Unknown",
-      email: sup.user?.email,
-      phone: sup.user?.phone,
-    };
-  });
+    if (type === "departmental" || type === "academic") {
+      where.type = { in: ["academic", "departmental"] };
+    } else {
+      where.type = type;
+    }
 
-  return transformedSupervisors;
+    if (departmentId) {
+      where.OR = [{ departmentId }, { departmentId: null }];
+    }
+
+    const supervisors = await prisma.supervisor.findMany({
+      where,
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        department: {
+          select: { name: true, code: true },
+        },
+        assignedStudents: true,
+      },
+    });
+
+    // Filter by availability
+    const available = supervisors.filter(
+      (s) => s.assignedStudents.length < s.maxStudents,
+    );
+
+    return available.map(transformSupervisor);
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
+  }
 };
 
 /**
  * Assign student to supervisor
  */
 const assignStudentToSupervisor = async (supervisorId, studentId) => {
-  const supervisor = await Supervisor.findById(supervisorId);
+  try {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      include: { assignedStudents: true },
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    const isAvailable =
+      supervisor.assignedStudents.length < supervisor.maxStudents;
+    if (!isAvailable) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Supervisor has reached maximum student capacity",
+      );
+    }
+
+    // Create supervisor assignment
+    await prisma.supervisorAssignment.upsert({
+      where: {
+        supervisorId_studentId: { supervisorId, studentId },
+      },
+      update: {},
+      create: { supervisorId, studentId },
+    });
+
+    logger.info(`Student ${studentId} assigned to supervisor ${supervisorId}`);
+
+    return supervisor;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  if (!supervisor.isAvailable) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Supervisor has reached maximum student capacity",
-    );
-  }
-
-  await supervisor.assignStudent(studentId);
-
-  logger.info(`Student ${studentId} assigned to supervisor ${supervisorId}`);
-
-  return supervisor;
 };
 
 /**
  * Unassign student from supervisor
  */
 const unassignStudentFromSupervisor = async (supervisorId, studentId) => {
-  const supervisor = await Supervisor.findById(supervisorId);
+  try {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    // Delete supervisor assignment
+    await prisma.supervisorAssignment.deleteMany({
+      where: { supervisorId, studentId },
+    });
+
+    // Update student record
+    if (supervisor.type === "academic" || supervisor.type === "departmental") {
+      await prisma.student.update({
+        where: { id: studentId },
+        data: { academicSupervisorId: null },
+      });
+    } else {
+      await prisma.student.update({
+        where: { id: studentId },
+        data: { industrialSupervisorId: null },
+      });
+    }
+
+    logger.info(
+      `Student ${studentId} unassigned from supervisor ${supervisorId}`,
+    );
+
+    return supervisor;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  await supervisor.unassignStudent(studentId);
-
-  // Update student record
-  const student = await Student.findById(studentId);
-  if (supervisor.type === SUPERVISOR_TYPES.DEPARTMENTAL) {
-    student.departmentalSupervisor = null;
-  } else {
-    student.industrialSupervisor = null;
-  }
-  await student.save();
-
-  logger.info(
-    `Student ${studentId} unassigned from supervisor ${supervisorId}`,
-  );
-
-  return supervisor;
 };
 
 /**
  * Get supervisor dashboard data
  */
 const getSupervisorDashboard = async (supervisorId) => {
-  const supervisor = await Supervisor.findById(supervisorId).populate({
-    path: "assignedStudents",
-    populate: [
-      {
-        path: "user",
-        select: "firstName lastName email",
+  try {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      include: {
+        assignedStudents: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+            placements: {
+              select: { companyName: true, status: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
+        },
       },
-      {
-        path: "currentPlacement",
-        select: "companyName status",
-      },
-    ],
-  });
+    });
 
-  if (!supervisor) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    if (!supervisor) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Supervisor not found");
+    }
+
+    const studentIds = supervisor.assignedStudents.map((s) => s.id);
+
+    // Get pending logbooks based on supervisor type
+    const logbookWhere = { studentId: { in: studentIds }, status: "submitted" };
+    if (supervisor.type === "academic" || supervisor.type === "departmental") {
+      logbookWhere.academicReview = { is: null };
+    } else {
+      logbookWhere.industrialReview = { is: null };
+    }
+
+    const pendingLogbooks = await prisma.logbook.findMany({
+      where: logbookWhere,
+      take: 5,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Get pending assessments
+    const assessmentWhere = {
+      studentId: { in: studentIds },
+      status: "pending",
+      assessorId: supervisorId,
+    };
+
+    const pendingAssessments = await prisma.assessment.findMany({
+      where: assessmentWhere,
+      take: 5,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Get total logbook count
+    const totalLogbooks = await prisma.logbook.count({
+      where: { studentId: { in: studentIds } },
+    });
+
+    return {
+      supervisor,
+      statistics: {
+        assignedStudents: supervisor.assignedStudents.length,
+        maxCapacity: supervisor.maxStudents,
+        pendingLogbooks: pendingLogbooks.length,
+        pendingAssessments: pendingAssessments.length,
+        totalLogbooks,
+      },
+      pendingLogbooks,
+      pendingAssessments,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  // Get pending logbooks
-  const Logbook = require("../models").Logbook;
-  const pendingLogbooks = await Logbook.findPendingReview(
-    supervisorId,
-    supervisor.type,
-  );
-
-  // Get pending assessments
-  const Assessment = require("../models").Assessment;
-  const pendingAssessments = await Assessment.findPending(supervisorId);
-
-  // Get student statistics
-  const studentIds = supervisor.assignedStudents.map((s) => s._id);
-  const totalLogbooks = await Logbook.countDocuments({
-    student: { $in: studentIds },
-  });
-
-  return {
-    supervisor,
-    statistics: {
-      assignedStudents: supervisor.assignedStudents.length,
-      maxCapacity: supervisor.maxStudents,
-      pendingLogbooks: pendingLogbooks.length,
-      pendingAssessments: pendingAssessments.length,
-      totalLogbooks,
-    },
-    pendingLogbooks: pendingLogbooks.slice(0, 5),
-    pendingAssessments: pendingAssessments.slice(0, 5),
-  };
 };
 
 /**
  * Get supervisors by department
  */
 const getSupervisorsByDepartment = async (departmentId, type = null) => {
-  const query = { department: departmentId, isActive: true };
+  try {
+    const where = { departmentId, isActive: true };
 
-  if (type) {
-    query.type = type;
-  }
-
-  const supervisors = await Supervisor.find(query);
-
-  return supervisors;
-};
-
-const suggestSupervisors = async (studentId, type, user) => {
-  if (!studentId || !type) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Student ID and type are required",
-    );
-  }
-
-  const student = await Student.findById(studentId)
-    .populate({
-      path: "department",
-      populate: { path: "faculty", select: "name code" },
-    })
-    .populate("currentPlacement");
-
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
-  }
-
-  // Coordinators can only fetch suggestions for their department's students
-  if (
-    user &&
-    user.role === USER_ROLES.COORDINATOR &&
-    user.department &&
-    student.department &&
-    student.department._id.toString() !== user.department.toString()
-  ) {
-    throw new ApiError(
-      HTTP_STATUS.FORBIDDEN,
-      "You can only fetch suggestions for students in your department",
-    );
-  }
-
-  const studentFacultyId = student.department?.faculty?._id?.toString();
-
-  // Academic / departmental suggestions (faculty constrained)
-  if (
-    type === SUPERVISOR_TYPES.ACADEMIC ||
-    type === SUPERVISOR_TYPES.DEPARTMENTAL
-  ) {
-    const supervisors = await Supervisor.find({
-      isActive: true,
-      type: { $in: [SUPERVISOR_TYPES.ACADEMIC, SUPERVISOR_TYPES.DEPARTMENTAL] },
-    })
-      .populate("user", "firstName lastName email phone")
-      .populate({
-        path: "department",
-        populate: { path: "faculty", select: "name code" },
-      })
-      .populate("assignedStudents");
-
-    const filtered = supervisors
-      .filter(
-        (sup) => (sup.assignedStudents || []).length < (sup.maxStudents || 0),
-      )
-      .filter((sup) => {
-        if (!studentFacultyId) return true; // fallback
-        if (!sup.department) return true; // cross-department supervisor allowed
-        const supFacultyId = sup.department.faculty?._id?.toString();
-        return supFacultyId === studentFacultyId;
-      })
-      .map((sup) => {
-        const assignedCount = (sup.assignedStudents || []).length;
-        const remaining = (sup.maxStudents || 0) - assignedCount;
-        const facultyMatched =
-          sup.department?.faculty?._id?.toString() === studentFacultyId;
-        return {
-          ...sup.toObject(),
-          name:
-            sup.user && sup.user.firstName && sup.user.lastName
-              ? `${sup.user.firstName} ${sup.user.lastName}`
-              : "Unknown",
-          email: sup.user?.email || null,
-          phone: sup.user?.phone || null,
-          suggestionReason: facultyMatched
-            ? "Same faculty"
-            : "Cross-department (no department set)",
-          score: remaining + (facultyMatched ? 2 : 0),
-        };
-      })
-      .sort((a, b) => b.score - a.score);
-
-    return filtered;
-  }
-
-  // Industrial suggestions: match by company for the student's placement
-  if (type === SUPERVISOR_TYPES.INDUSTRIAL) {
-    let placement = student.currentPlacement;
-    if (!placement) {
-      placement = await Placement.findOne({ student: studentId })
-        .sort({ createdAt: -1 })
-        .lean();
+    if (type) {
+      where.type = type;
     }
 
-    const companyName = placement?.companyName;
-    const query = { isActive: true, type: SUPERVISOR_TYPES.INDUSTRIAL };
+    const supervisors = await prisma.supervisor.findMany({ where });
 
-    const supervisors = await Supervisor.find(query)
-      .populate("user", "firstName lastName email phone")
-      .populate("assignedStudents");
-
-    const matches = supervisors
-      .map((sup) => {
-        const assignedCount = (sup.assignedStudents || []).length;
-        const remaining = (sup.maxStudents || 0) - assignedCount;
-        const companyMatched =
-          companyName && sup.companyName
-            ? sup.companyName.toLowerCase() === companyName.toLowerCase()
-            : false;
-        return {
-          ...sup.toObject(),
-          name:
-            sup.user && sup.user.firstName && sup.user.lastName
-              ? `${sup.user.firstName} ${sup.user.lastName}`
-              : "Unknown",
-          email: sup.user?.email || null,
-          phone: sup.user?.phone || null,
-          suggestionReason: companyMatched
-            ? `Existing supervisor for ${companyName}`
-            : "Available industrial supervisor",
-          score: remaining + (companyMatched ? 3 : 0),
-          companyMatched,
-        };
-      })
-      .filter((sup) => {
-        // If we have a company name, prioritize and filter by company match
-        if (companyName) {
-          return sup.companyMatched && sup.score > 0;
-        }
-        // If no company name found, show all available
-        return sup.score > 0;
-      })
-      .sort((a, b) => b.score - a.score);
-
-    return matches;
+    return supervisors;
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
+};
 
-  throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported supervisor type");
+/**
+ * Suggest supervisors for a student
+ */
+const suggestSupervisors = async (studentId, type, user) => {
+  try {
+    if (!studentId || !type) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Student ID and type are required",
+      );
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        department: {
+          include: { faculty: { select: { name: true, code: true } } },
+        },
+        placements: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
+
+    // Coordinators can only fetch suggestions for their department's students
+    if (
+      user &&
+      user.role === USER_ROLES.COORDINATOR &&
+      user.departmentId &&
+      student.departmentId !== user.departmentId
+    ) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "You can only fetch suggestions for students in your department",
+      );
+    }
+
+    const studentFacultyId = student.department?.facultyId;
+
+    // Academic / departmental suggestions
+    if (type === "academic" || type === "departmental") {
+      const supervisors = await prisma.supervisor.findMany({
+        where: {
+          isActive: true,
+          type: { in: ["academic", "departmental"] },
+        },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+          department: {
+            include: { faculty: { select: { name: true, code: true } } },
+          },
+          assignedStudents: true,
+        },
+      });
+
+      const filtered = supervisors
+        .filter((sup) => sup.assignedStudents.length < sup.maxStudents)
+        .filter((sup) => {
+          if (!studentFacultyId) return true;
+          if (!sup.departmentId) return true; // cross-department
+          return sup.department.facultyId === studentFacultyId;
+        })
+        .map((sup) => {
+          const assignedCount = sup.assignedStudents.length;
+          const remaining = sup.maxStudents - assignedCount;
+          const facultyMatched = sup.department?.facultyId === studentFacultyId;
+          return {
+            ...sup,
+            name:
+              sup.user && sup.user.firstName && sup.user.lastName
+                ? `${sup.user.firstName} ${sup.user.lastName}`
+                : "Unknown",
+            email: sup.user?.email || null,
+            phone: sup.user?.phone || null,
+            suggestionReason: facultyMatched
+              ? "Same faculty"
+              : "Cross-department (no department set)",
+            score: remaining + (facultyMatched ? 2 : 0),
+          };
+        })
+        .sort((a, b) => b.score - a.score);
+
+      return filtered;
+    }
+
+    // Industrial suggestions
+    if (type === "industrial") {
+      let placement =
+        student.placements && student.placements.length > 0
+          ? student.placements[0]
+          : null;
+      if (!placement && studentId) {
+        placement = await prisma.placement.findFirst({
+          where: { studentId },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+
+      const companyName = placement?.companyName;
+
+      const supervisors = await prisma.supervisor.findMany({
+        where: {
+          isActive: true,
+          type: "industrial",
+        },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+          assignedStudents: true,
+        },
+      });
+
+      const matches = supervisors
+        .map((sup) => {
+          const assignedCount = sup.assignedStudents.length;
+          const remaining = sup.maxStudents - assignedCount;
+          const companyMatched =
+            companyName && sup.companyName
+              ? sup.companyName.toLowerCase() === companyName.toLowerCase()
+              : false;
+          return {
+            ...sup,
+            name:
+              sup.user && sup.user.firstName && sup.user.lastName
+                ? `${sup.user.firstName} ${sup.user.lastName}`
+                : "Unknown",
+            email: sup.user?.email || null,
+            phone: sup.user?.phone || null,
+            suggestionReason: companyMatched
+              ? `Existing supervisor for ${companyName}`
+              : "Available industrial supervisor",
+            score: remaining + (companyMatched ? 3 : 0),
+            companyMatched,
+          };
+        })
+        .filter((sup) => {
+          if (companyName) {
+            return sup.companyMatched && sup.score > 0;
+          }
+          return sup.score > 0;
+        })
+        .sort((a, b) => b.score - a.score);
+
+      return matches;
+    }
+
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported supervisor type");
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
+  }
 };
 
 module.exports = {

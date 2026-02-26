@@ -69,7 +69,7 @@ export default function DSupervisorLogbooksPage() {
     "approved"
   );
 
-  const supervisorId = user?.profileData?._id;
+  const supervisorId = user?.profileData?.id;
 
   // Fetch assigned students with their logbook stats
   const { data: studentsData, isLoading } = useQuery({
@@ -86,7 +86,7 @@ export default function DSupervisorLogbooksPage() {
         assignedStudents.map(async (student: any) => {
           try {
             const logbooksResponse = await apiClient.get(
-              `/logbooks?student=${student._id}`
+              `/logbooks?student=${student.id}`
             );
             const logbooks = logbooksResponse.data.data || [];
 
@@ -208,7 +208,7 @@ export default function DSupervisorLogbooksPage() {
     }
 
     reviewMutation.mutate({
-      logbookId: selectedLogbook._id,
+      logbookId: selectedLogbook.id,
       comment: reviewComment,
       rating,
       status: reviewStatus,
@@ -398,7 +398,7 @@ export default function DSupervisorLogbooksPage() {
           {filteredStudents.length > 0 ? (
             filteredStudents.map((student) => (
               <Card
-                key={student._id}
+                key={student.id}
                 className="hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => setSelectedStudent(student)}
               >
@@ -482,7 +482,7 @@ export default function DSupervisorLogbooksPage() {
                 logbook.departmentalReview?.status === "submitted";
 
               return (
-                <Card key={logbook._id}>
+                <Card key={logbook.id}>
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

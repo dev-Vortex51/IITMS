@@ -89,8 +89,8 @@ export default function CoordinatorReportsPage() {
   const departmentStats = departments.map((dept: any) => {
     const deptStudents = students.filter((s: any) => {
       const studentDept =
-        typeof s.department === "object" ? s.department._id : s.department;
-      return studentDept === dept._id;
+        typeof s.department === "object" ? s.department.id : s.department;
+      return studentDept === dept.id;
     });
 
     return {
@@ -252,7 +252,7 @@ export default function CoordinatorReportsPage() {
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
                 {departments.map((dept: any) => (
-                  <SelectItem key={dept._id} value={dept._id}>
+                  <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}
                   </SelectItem>
                 ))}
@@ -356,3 +356,4 @@ export default function CoordinatorReportsPage() {
     </div>
   );
 }
+

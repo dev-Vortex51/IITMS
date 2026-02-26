@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import invitationService from "@/services/invitation.service";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useInvitations } from "./hooks/useInvitations";
+import { InvitationMetrics } from "./components/InvitationMetrics";
+import { CreateInvitationDialog } from "./components/CreateInvitationDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -21,449 +22,192 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import {
-  Mail,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Search,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Ban,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Mail, Plus, Search, RefreshCw, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function CoordinatorInvitationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    role: "student",
-  });
 
-  const queryClient = useQueryClient();
+  const {
+    invitations,
+    stats,
+    isLoading,
+    createInvitation,
+    isCreating,
+    resendInvitation,
+    isResending,
+    cancelInvitation,
+    isCancelling,
+  } = useInvitations(statusFilter);
 
-  // Fetch invitations
-  const { data: invitationsData, isLoading } = useQuery({
-    queryKey: ["invitations", statusFilter],
-    queryFn: () => {
-      const filters: any = {};
-      if (statusFilter !== "all") filters.status = statusFilter;
-      return invitationService.getInvitations(filters);
-    },
-  });
+  const filteredInvitations = invitations.filter(
+    (inv: any) =>
+      inv.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.role.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
-  // Fetch statistics
-  const { data: statsData } = useQuery({
-    queryKey: ["invitation-stats"],
-    queryFn: () => invitationService.getStatistics(),
-  });
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto pb-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Invitations</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage onboarding for students and supervisors.
+          </p>
+        </div>
+        <Button
+          onClick={() => setIsCreateDialogOpen(true)}
+          className="w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4 mr-2" /> Send Invitation
+        </Button>
+      </div>
 
-  const invitations = invitationsData?.data || [];
-  const stats = statsData?.data || {
-    total: 0,
-    pending: 0,
-    accepted: 0,
-    expired: 0,
-    cancelled: 0,
-  };
+      <InvitationMetrics stats={stats} />
 
-  // Create invitation mutation
-  const createMutation = useMutation({
-    mutationFn: invitationService.createInvitation,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      queryClient.invalidateQueries({ queryKey: ["invitation-stats"] });
-      setIsCreateDialogOpen(false);
-      setFormData({ email: "", role: "student" });
-      toast.success("Invitation sent successfully");
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to send invitation");
-    },
-  });
+      {/* Main Table Card with Integrated Toolbar */}
+      <Card className="shadow-sm border-border/50">
+        <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/20">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search email or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          <div className="w-full sm:w-48">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-  // Resend invitation mutation
-  const resendMutation = useMutation({
-    mutationFn: (id: string) => invitationService.resendInvitation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      toast.success("Invitation resent successfully");
-    },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to resend invitation"
-      );
-    },
-  });
+        <Table>
+          <TableHeader className="bg-muted/10">
+            <TableRow>
+              <TableHead className="w-[300px]">Recipient</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Sent</TableHead>
+              <TableHead>Expires</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-10 text-muted-foreground"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : filteredInvitations.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-16">
+                  <Mail className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No invitations found
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredInvitations.map((inv: any) => (
+                <TableRow
+                  key={inv.id}
+                  className="group hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell>
+                    <p className="font-medium text-sm">{inv.email}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {inv.role.replace("_", " ")}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={inv.status} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDistanceToNow(new Date(inv.createdAt), {
+                      addSuffix: true,
+                    })}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {inv.status === "pending"
+                      ? formatDistanceToNow(new Date(inv.expiresAt), {
+                          addSuffix: true,
+                        })
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {inv.status === "pending" && (
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => resendInvitation(inv.id)}
+                          disabled={isResending}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          onClick={() => cancelInvitation(inv.id)}
+                          disabled={isCancelling}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
-  // Cancel invitation mutation
-  const cancelMutation = useMutation({
-    mutationFn: (id: string) => invitationService.cancelInvitation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      queryClient.invalidateQueries({ queryKey: ["invitation-stats"] });
-      toast.success("Invitation cancelled successfully");
-    },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to cancel invitation"
-      );
-    },
-  });
+      <CreateInvitationDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSubmit={createInvitation}
+        isPending={isCreating}
+      />
+    </div>
+  );
+}
 
-  const handleCreateInvitation = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.role) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-    createMutation.mutate(formData);
-  };
-
-  const filteredInvitations = invitations.filter((invitation: any) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      invitation.email.toLowerCase().includes(searchLower) ||
-      invitation.role.toLowerCase().includes(searchLower)
-    );
-  });
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Clock className="h-4 w-4" />;
-      case "accepted":
-        return <CheckCircle2 className="h-4 w-4" />;
-      case "expired":
-        return <XCircle className="h-4 w-4" />;
-      case "cancelled":
-        return <Ban className="h-4 w-4" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusVariant = (status: string): any => {
-    switch (status) {
-      case "pending":
-        return "default";
-      case "accepted":
-        return "default";
-      case "expired":
-        return "destructive";
-      case "cancelled":
-        return "secondary";
-      default:
-        return "secondary";
-    }
-  };
-
-  const getRoleName = (role: string) => {
-    const roleNames: Record<string, string> = {
-      student: "Student",
-      industrial_supervisor: "Industrial Supervisor",
-    };
-    return roleNames[role] || role;
+// Helper for soft, modern status badges
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    pending: "bg-amber-100/80 text-amber-800 border-amber-200",
+    accepted: "bg-emerald-100/80 text-emerald-800 border-emerald-200",
+    expired: "bg-rose-100/80 text-rose-800 border-rose-200",
+    cancelled: "bg-gray-100 text-gray-700 border-gray-200",
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Invitations</h1>
-          <p className="text-muted-foreground mt-2">
-            Invite students and industrial supervisors to join your department
-          </p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Send Invitation
-          </Button>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Send Invitation</DialogTitle>
-              <DialogDescription>
-                Invite a student or industrial supervisor. They will receive a
-                magic link to complete their setup.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateInvitation}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="student@example.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, role: value })
-                    }
-                  >
-                    <SelectTrigger id="role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="industrial_supervisor">
-                        Industrial Supervisor
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {formData.role === "student"
-                      ? "Students will be automatically assigned to your department"
-                      : "Industrial supervisors can supervise students during their training"}
-                  </p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Sending..." : "Send Invitation"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.pending}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Accepted
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.accepted}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Expired
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {stats.expired}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Cancelled
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">
-              {stats.cancelled}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter Invitations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Invitations Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Invitations ({filteredInvitations.length})</CardTitle>
-          <CardDescription>
-            View and manage invitations sent to students
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    Loading invitations...
-                  </TableCell>
-                </TableRow>
-              ) : filteredInvitations.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      No invitations found
-                    </p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInvitations.map((invitation: any) => (
-                  <TableRow key={invitation._id}>
-                    <TableCell className="font-medium">
-                      {invitation.email}
-                    </TableCell>
-                    <TableCell>{getRoleName(invitation.role)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={getStatusVariant(invitation.status)}
-                        className="flex items-center gap-1 w-fit"
-                      >
-                        {getStatusIcon(invitation.status)}
-                        {invitation.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {formatDistanceToNow(new Date(invitation.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {invitation.status === "pending"
-                        ? formatDistanceToNow(new Date(invitation.expiresAt), {
-                            addSuffix: true,
-                          })
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {invitation.status === "pending" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                resendMutation.mutate(invitation._id)
-                              }
-                              disabled={resendMutation.isPending}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                cancelMutation.mutate(invitation._id)
-                              }
-                              disabled={cancelMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${styles[status] || styles.cancelled}`}
+    >
+      {status}
+    </span>
   );
 }

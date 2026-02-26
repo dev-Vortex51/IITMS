@@ -1,10 +1,13 @@
-const { Notification, User } = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../utils/constants");
 const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
 const nodemailer = require("nodemailer");
 const config = require("../config");
+
+const prisma = getPrismaClient();
 
 /**
  * Email transporter (initialized if email config is present)
@@ -23,30 +26,84 @@ if (config.email.user && config.email.password) {
   });
 }
 
+/**
+ * Create a single notification
+ */
 const createNotification = async (notificationData) => {
-  const notification = await Notification.create(notificationData);
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        recipientId: notificationData.recipient || notificationData.recipientId,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || "medium",
+        relatedModel: notificationData.relatedModel,
+        relatedId: notificationData.relatedId,
+        actionLink: notificationData.actionLink,
+        actionText: notificationData.actionText,
+        createdById: notificationData.createdById,
+      },
+      include: {
+        recipient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
 
-  // Send email if configured
-  if (emailTransporter && notificationData.sendEmail) {
-    await sendEmailNotification(notification);
+    // Send email if configured
+    if (emailTransporter && notificationData.sendEmail) {
+      await sendEmailNotification(notification);
+    }
+
+    logger.info(`Notification created for user: ${notification.recipientId}`);
+
+    return notification;
+  } catch (error) {
+    logger.error(`Error creating notification: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  logger.info(`Notification created for user: ${notificationData.recipient}`);
-
-  return notification;
 };
 
+/**
+ * Create multiple notifications in bulk
+ */
 const createBulkNotifications = async (recipients, notificationData) => {
-  const notifications = await Notification.createBulk(
-    recipients,
-    notificationData,
-  );
+  try {
+    const notifications = await prisma.notification.createMany({
+      data: recipients.map((recipientId) => ({
+        recipientId,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || "medium",
+        relatedModel: notificationData.relatedModel,
+        relatedId: notificationData.relatedId,
+        actionLink: notificationData.actionLink,
+        actionText: notificationData.actionText,
+        createdById: notificationData.createdById,
+      })),
+    });
 
-  logger.info(`Bulk notifications created for ${recipients.length} users`);
+    logger.info(
+      `Bulk notifications created for ${recipients.length} users: ${notifications.count} records`,
+    );
 
-  return notifications;
+    return notifications;
+  } catch (error) {
+    logger.error(`Error creating bulk notifications: ${error.message}`);
+    throw handlePrismaError(error);
+  }
 };
 
+/**
+ * Send email notification
+ */
 const sendEmailNotification = async (notification) => {
   if (!emailTransporter) {
     logger.warn("Email transporter not configured");
@@ -54,9 +111,12 @@ const sendEmailNotification = async (notification) => {
   }
 
   try {
-    const user = await User.findById(notification.recipient);
+    const user = await prisma.user.findUnique({
+      where: { id: notification.recipientId },
+    });
 
     if (!user || !user.email) {
+      logger.warn(`User ${notification.recipientId} not found or has no email`);
       return;
     }
 
@@ -81,9 +141,14 @@ const sendEmailNotification = async (notification) => {
 
     await emailTransporter.sendMail(mailOptions);
 
-    notification.emailSent = true;
-    notification.emailSentAt = Date.now();
-    await notification.save();
+    // Update notification email status
+    await prisma.notification.update({
+      where: { id: notification.id },
+      data: {
+        emailSent: true,
+        emailSentAt: new Date(),
+      },
+    });
 
     logger.info(`Email sent to ${user.email}`);
   } catch (error) {
@@ -91,66 +156,156 @@ const sendEmailNotification = async (notification) => {
   }
 };
 
+/**
+ * Get user notifications with filters and pagination
+ */
 const getUserNotifications = async (userId, filters = {}, pagination = {}) => {
-  const { page, limit, skip } = parsePagination(pagination);
+  try {
+    const { page, limit, skip } = parsePagination(pagination);
 
-  const query = { recipient: userId };
+    const where = { recipientId: userId };
 
-  if (filters.unreadOnly) {
-    query.isRead = false;
+    if (filters.unreadOnly) {
+      where.isRead = false;
+    }
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    if (filters.priority) {
+      where.priority = filters.priority;
+    }
+
+    const notifications = await prisma.notification.findMany({
+      where,
+      include: {
+        recipient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    });
+
+    const total = await prisma.notification.count({ where });
+
+    return {
+      notifications,
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  } catch (error) {
+    logger.error(`Error fetching user notifications: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  if (filters.type) {
-    query.type = filters.type;
-  }
-
-  if (filters.priority) {
-    query.priority = filters.priority;
-  }
-
-  const notifications = await Notification.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const total = await Notification.countDocuments(query);
-
-  return {
-    notifications,
-    pagination: buildPaginationMeta(total, page, limit),
-  };
 };
 
+/**
+ * Mark a single notification as read
+ */
 const markAsRead = async (notificationId) => {
-  const notification = await Notification.findById(notificationId);
+  try {
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
 
-  if (!notification) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Notification not found");
+    if (!notification) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Notification not found");
+    }
+
+    const updated = await prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+      include: {
+        recipient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  } catch (error) {
+    logger.error(`Error marking notification as read: ${error.message}`);
+    throw handlePrismaError(error);
   }
-
-  await notification.markAsRead();
-
-  return notification;
 };
 
+/**
+ * Mark all notifications as read for a user
+ */
 const markAllAsRead = async (userId) => {
-  const result = await Notification.markAllAsRead(userId);
+  try {
+    const result = await prisma.notification.updateMany({
+      where: {
+        recipientId: userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
 
-  return { modifiedCount: result.modifiedCount };
-};
-
-const getUnreadCount = async (userId) => {
-  return await Notification.getCount(userId, true);
-};
-
-const deleteNotification = async (notificationId) => {
-  const notification = await Notification.findByIdAndDelete(notificationId);
-
-  if (!notification) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Notification not found");
+    return { modifiedCount: result.count };
+  } catch (error) {
+    logger.error(`Error marking all notifications as read: ${error.message}`);
+    throw handlePrismaError(error);
   }
+};
 
-  return notification;
+/**
+ * Get unread notification count for a user
+ */
+const getUnreadCount = async (userId) => {
+  try {
+    return await prisma.notification.count({
+      where: {
+        recipientId: userId,
+        isRead: false,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error getting unread count: ${error.message}`);
+    throw handlePrismaError(error);
+  }
+};
+
+/**
+ * Delete a notification
+ */
+const deleteNotification = async (notificationId) => {
+  try {
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Notification not found");
+    }
+
+    const deleted = await prisma.notification.delete({
+      where: { id: notificationId },
+    });
+
+    return deleted;
+  } catch (error) {
+    logger.error(`Error deleting notification: ${error.message}`);
+    throw handlePrismaError(error);
+  }
 };
 
 module.exports = {

@@ -29,7 +29,7 @@ export const supervisorService = {
 
   getAssignedStudents: async (supervisorId: string) => {
     const response = await apiClient.get(
-      `/supervisors/${supervisorId}/students`
+      `/supervisors/${supervisorId}/students`,
     );
     return response.data;
   },
@@ -44,7 +44,9 @@ export const supervisorService = {
 
 export const facultyService = {
   getAllFaculties: async (params?: any) => {
-    const response = await apiClient.get("/faculties", { params });
+    const response = await apiClient.get("/faculties", {
+      params: { isActive: true, ...params },
+    });
     return response.data;
   },
 
@@ -95,6 +97,16 @@ export const departmentService = {
     return response.data;
   },
 
+  toggleDepartmentStatus: async (id: string) => {
+    const response = await apiClient.patch(`/departments/${id}/toggle-status`);
+    return response.data;
+  },
+
+  hardDeleteDepartment: async (id: string) => {
+    const response = await apiClient.delete(`/departments/${id}/hard-delete`);
+    return response.data;
+  },
+
   assignCoordinator: async (id: string, coordinatorId: string) => {
     const response = await apiClient.patch(`/departments/${id}/coordinator`, {
       coordinatorId,
@@ -111,7 +123,7 @@ export const departmentService = {
 
   getAvailableCoordinatorsForDepartment: async (departmentId: string) => {
     const response = await apiClient.get(
-      `/departments/${departmentId}/available-coordinators`
+      `/departments/${departmentId}/available-coordinators`,
     );
     return response.data;
   },

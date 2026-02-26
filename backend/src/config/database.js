@@ -1,57 +1,36 @@
-const mongoose = require("mongoose");
+const {
+  connectPrisma,
+  disconnectPrisma,
+  setupGracefulShutdown: setupPrismaShutdown,
+} = require("./prisma");
 const config = require("./index");
 const logger = require("../utils/logger");
 
-const connectDB = async (retries = 5) => {
+const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(
-      config.database.uri,
-      config.database.options,
-    );
+    const databaseUrl = process.env.DATABASE_URL;
 
-    logger.info(`MongoDB Connected: ${conn.connection.host}`);
-    logger.info(`Database: ${conn.connection.name}`);
-
-    // Connection event listeners
-    mongoose.connection.on("error", (err) => {
-      logger.error(`MongoDB connection error: ${err}`);
-    });
-
-    mongoose.connection.on("disconnected", () => {
-      logger.warn("MongoDB disconnected");
-    });
-
-    mongoose.connection.on("reconnected", () => {
-      logger.info("MongoDB reconnected successfully");
-    });
-
-    mongoose.connection.on("reconnectFailed", () => {
-      logger.error(
-        "MongoDB reconnection failed. Please check your database connection.",
-      );
-    });
-
-    return conn;
-  } catch (error) {
-    logger.error(`MongoDB connection failed: ${error.message}`);
-
-    if (retries > 0) {
-      logger.info(`Retrying connection... (${retries} attempts remaining)`);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      return connectDB(retries - 1);
-    } else {
-      logger.error("Max retries reached. Could not connect to MongoDB.");
-      throw error;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL environment variable not set");
     }
+
+    logger.info("Connecting to PostgreSQL via Prisma...");
+    await connectPrisma();
+
+    return;
+  } catch (error) {
+    logger.error(`Database connection failed: ${error.message}`);
+    throw error;
   }
 };
 
 const disconnectDB = async () => {
   try {
-    await mongoose.connection.close();
-    logger.info("MongoDB connection closed");
+    logger.info("Disconnecting from database...");
+    await disconnectPrisma();
+    logger.info("✓ Database disconnected");
   } catch (error) {
-    logger.error(`Error closing MongoDB connection: ${error.message}`);
+    logger.error(`Error disconnecting from database: ${error.message}`);
     throw error;
   }
 };
@@ -62,8 +41,39 @@ const dropDB = async () => {
   }
 
   try {
-    await mongoose.connection.dropDatabase();
-    logger.info("Database dropped successfully");
+    const { getPrismaClient } = require("./prisma");
+    const prisma = getPrismaClient();
+
+    // Delete all data in reverse order of foreign keys
+    const tables = [
+      "supervisor_assignments",
+      "assessments",
+      "attendances",
+      "logbook_reviews",
+      "logbook_evidence",
+      "logbooks",
+      "placements",
+      "notification_preferences",
+      "notifications",
+      "invitations",
+      "students",
+      "supervisors",
+      "_CoordinatorDepartments",
+      "departments",
+      "faculties",
+      "users",
+      "system_settings",
+    ];
+
+    for (const table of tables) {
+      try {
+        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`);
+      } catch (err) {
+        logger.warn(`Could not truncate table ${table}: ${err.message}`);
+      }
+    }
+
+    logger.info("✓ Test database cleared");
   } catch (error) {
     logger.error(`Error dropping database: ${error.message}`);
     throw error;
@@ -71,14 +81,7 @@ const dropDB = async () => {
 };
 
 const setupGracefulShutdown = () => {
-  const shutdown = async (signal) => {
-    logger.info(`${signal} received. Closing MongoDB connection...`);
-    await disconnectDB();
-    process.exit(0);
-  };
-
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  setupPrismaShutdown();
 };
 
 module.exports = {

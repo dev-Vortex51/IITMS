@@ -37,13 +37,13 @@ export default function AssessmentsPage() {
 
   // Fetch assessments created by this supervisor
   const { data: assessmentsData, isLoading } = useQuery({
-    queryKey: ["assessments", user?._id, statusFilter],
+    queryKey: ["assessments", user?.id, statusFilter],
     queryFn: async () => {
       // This would fetch assessments from the API
       // For now, return mock data
       return { data: [] };
     },
-    enabled: !!user?._id,
+    enabled: !!user?.id,
   });
 
   const assessments = assessmentsData?.data || [];
@@ -219,7 +219,7 @@ export default function AssessmentsPage() {
 
                 return (
                   <div
-                    key={assessment._id}
+                    key={assessment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
                   >
                     <div className="flex items-center gap-4 flex-1">

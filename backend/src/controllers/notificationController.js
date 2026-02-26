@@ -15,7 +15,7 @@ const getNotifications = catchAsync(async (req, res) => {
   };
 
   const result = await notificationService.getUserNotifications(
-    req.user._id,
+    req.user.id,
     filters,
     pagination,
   );
@@ -39,7 +39,7 @@ const markAsRead = catchAsync(async (req, res) => {
 });
 
 const markAllAsRead = catchAsync(async (req, res) => {
-  const result = await notificationService.markAllAsRead(req.user._id);
+  const result = await notificationService.markAllAsRead(req.user.id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -58,7 +58,7 @@ const deleteNotification = catchAsync(async (req, res) => {
 });
 
 const getUnreadCount = catchAsync(async (req, res) => {
-  const count = await notificationService.getUnreadCount(req.user._id);
+  const count = await notificationService.getUnreadCount(req.user.id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

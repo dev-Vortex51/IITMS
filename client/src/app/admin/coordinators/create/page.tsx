@@ -224,8 +224,8 @@ export default function CreateCoordinatorPage() {
                 <SelectContent>
                   {departments.map((department: any) => (
                     <SelectItem
-                      key={department._id}
-                      value={department._id}
+                      key={department.id}
+                      value={department.id}
                       className="text-sm"
                     >
                       <span className="block truncate">{department.name}</span>

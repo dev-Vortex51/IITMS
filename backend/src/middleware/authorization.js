@@ -80,7 +80,7 @@ const ownerOrAdmin = async (req, res, next) => {
   const resourceUserId = req.params.userId || req.params.id;
 
   // Check if user is accessing their own resource
-  if (req.user._id.toString() !== resourceUserId) {
+  if (req.user.id !== resourceUserId) {
     return res
       .status(HTTP_STATUS.FORBIDDEN)
       .json(formatResponse(false, ERROR_MESSAGES.FORBIDDEN));
@@ -105,10 +105,13 @@ const studentDataAccess = async (req, res, next) => {
 
   // Students can only access their own data
   if (req.user.role === USER_ROLES.STUDENT) {
-    const { Student } = require("../models");
-    const student = await Student.findOne({ user: req.user._id });
+    const { getPrismaClient } = require("../config/prisma");
+    const prisma = getPrismaClient();
+    const student = await prisma.student.findUnique({
+      where: { userId: req.user.id },
+    });
 
-    if (!student || student._id.toString() !== studentId) {
+    if (!student || student.id !== studentId) {
       return res
         .status(HTTP_STATUS.FORBIDDEN)
         .json(formatResponse(false, ERROR_MESSAGES.FORBIDDEN));
@@ -122,10 +125,17 @@ const studentDataAccess = async (req, res, next) => {
       req.user.role,
     )
   ) {
-    const { Supervisor } = require("../models");
-    const supervisor = await Supervisor.findOne({ user: req.user._id });
+    const { getPrismaClient } = require("../config/prisma");
+    const prisma = getPrismaClient();
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { userId: req.user.id },
+      include: { assignedStudents: { select: { studentId: true } } },
+    });
 
-    if (!supervisor || !supervisor.assignedStudents.includes(studentId)) {
+    if (
+      !supervisor ||
+      !supervisor.assignedStudents.some((as) => as.studentId === studentId)
+    ) {
       return res
         .status(HTTP_STATUS.FORBIDDEN)
         .json(formatResponse(false, ERROR_MESSAGES.FORBIDDEN));
@@ -167,8 +177,11 @@ const supervisorAccess = async (req, res, next) => {
       .json(formatResponse(false, ERROR_MESSAGES.FORBIDDEN));
   }
 
-  const { Supervisor } = require("../models");
-  const supervisor = await Supervisor.findOne({ user: req.user._id });
+  const { getPrismaClient } = require("../config/prisma");
+  const prisma = getPrismaClient();
+  const supervisor = await prisma.supervisor.findUnique({
+    where: { userId: req.user.id },
+  });
 
   if (!supervisor) {
     return res

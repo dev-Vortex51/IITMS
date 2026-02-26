@@ -9,6 +9,9 @@ const Assessment = require("./Assessment");
 const Notification = require("./Notification");
 const Invitation = require("./Invitation");
 const Attendance = require("./Attendance");
+const SupervisorAssignment = require("./SupervisorAssignment");
+const NotificationPreference = require("./NotificationPreference");
+const SystemSettings = require("./SystemSettings");
 
 module.exports = {
   User,
@@ -22,4 +25,7 @@ module.exports = {
   Notification,
   Invitation,
   Attendance,
+  SupervisorAssignment,
+  NotificationPreference,
+  SystemSettings,
 };

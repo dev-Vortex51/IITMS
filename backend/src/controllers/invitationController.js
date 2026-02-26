@@ -64,13 +64,24 @@ exports.verifyToken = async (req, res, next) => {
   try {
     const invitation = await invitationService.verifyToken(req.params.token);
 
-    // Return minimal data needed for setup form
+    // Return all data needed for setup form including prefill data
     const data = {
       email: invitation.email,
       role: invitation.role,
       token: invitation.token,
-      department: invitation.metadata?.department,
+      department: invitation.department,
+      departmentId: invitation.departmentId,
       expiresAt: invitation.expiresAt,
+      // Student metadata
+      matricNumber: invitation.matricNumber,
+      level: invitation.level,
+      session: invitation.session,
+      // Industrial supervisor metadata (for prefilling)
+      companyName: invitation.companyName,
+      companyAddress: invitation.companyAddress,
+      position: invitation.position,
+      yearsOfExperience: invitation.yearsOfExperience,
+      placementId: invitation.placementId,
     };
 
     res.json(formatResponse(true, "Invitation verified successfully", data));

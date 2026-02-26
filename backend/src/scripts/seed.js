@@ -1,25 +1,9 @@
-const mongoose = require("mongoose");
-const { connectDB, disconnectDB } = require("../config/database");
-const {
-  User,
-  Faculty,
-  Department,
-  Student,
-  Supervisor,
-  Placement,
-  Logbook,
-  Assessment,
-  Notification,
-} = require("../models");
+const { getPrismaClient } = require("../config/prisma");
 const logger = require("../utils/logger");
-const {
-  USER_ROLES,
-  PLACEMENT_STATUS,
-  LOGBOOK_STATUS,
-  ASSESSMENT_STATUS,
-  ASSESSMENT_TYPES,
-  NOTIFICATION_TYPES,
-} = require("../utils/constants");
+const bcrypt = require("bcryptjs");
+const { USER_ROLES } = require("../utils/constants");
+
+const prisma = getPrismaClient();
 
 /**
  * Sample data
@@ -28,8 +12,8 @@ const sampleData = {
   admin: {
     email: "admin@siwes.edu",
     password: "Admin@123",
-    firstName: "System",
-    lastName: "Administrator",
+    firstName: "Malick",
+    lastName: "Diof",
     role: USER_ROLES.ADMIN,
     isFirstLogin: false,
     passwordResetRequired: false,
@@ -44,25 +28,34 @@ const seedDatabase = async () => {
   try {
     logger.info("Starting database seeding...");
 
-    // Connect to database
-    await connectDB();
+    // Check current data
+    const userCount = await prisma.user.count();
+    const facultyCount = await prisma.faculty.count();
 
-    // Clear existing data (ordered to respect dependencies)
-    logger.info("Clearing existing data...");
-    // await Notification.deleteMany({});
-    // await Assessment.deleteMany({});
-    // await Logbook.deleteMany({});
-    // await Placement.deleteMany({});
-    // await Supervisor.deleteMany({});
-    // await Student.deleteMany({});
-    // await Department.deleteMany({});
-    // await Faculty.deleteMany({});
-    await User.deleteOne({ email: "supervisor@company.com" });
+    if (userCount > 0 || facultyCount > 0) {
+      logger.info("Database already seeded. Skipping...");
+      await prisma.$disconnect();
+      process.exit(0);
+    }
 
     // Create Admin
     logger.info("Creating admin user...");
-    // const admin = await User.create(sampleData.admin);
-    // logger.info(`Admin created: ${admin.email}`);
+    const hashedPassword = await bcrypt.hash(sampleData.admin.password, 12);
+
+    const admin = await prisma.user.create({
+      data: {
+        email: sampleData.admin.email,
+        password: hashedPassword,
+        firstName: sampleData.admin.firstName,
+        lastName: sampleData.admin.lastName,
+        role: sampleData.admin.role,
+        isFirstLogin: sampleData.admin.isFirstLogin,
+        passwordResetRequired: sampleData.admin.passwordResetRequired,
+        phone: sampleData.admin.phone,
+        isActive: true,
+      },
+    });
+    logger.info(`Admin created: ${admin.email}`);
 
     logger.info("╔════════════════════════════════════════════════╗");
     logger.info("║  Database seeding completed successfully!     ║");
@@ -71,12 +64,12 @@ const seedDatabase = async () => {
     logger.info("║  Admin: admin@siwes.edu / Admin@123           ║");
     logger.info("╚════════════════════════════════════════════════╝");
 
-    await disconnectDB();
+    await prisma.$disconnect();
     process.exit(0);
   } catch (error) {
     logger.error(`Seeding failed: ${error.message}`);
     logger.error(error.stack);
-    await disconnectDB();
+    await prisma.$disconnect();
     process.exit(1);
   }
 };

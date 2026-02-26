@@ -1,8 +1,7 @@
-const { studentService } = require("../services");
+const { studentService, placementService } = require("../services");
 const userService = require("../services/userService");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
-const Placement = require("../models/Placement");
 
 const getAllStudents = catchAsync(async (req, res) => {
   const logger = require("../utils/logger");
@@ -151,19 +150,7 @@ const createStudent = catchAsync(async (req, res) => {
 const getStudentPlacement = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  // Find the student's most recent placement (sorted by creation date)
-  const placement = await Placement.findOne({ student: id })
-    .populate("industrialSupervisor", "firstName lastName email phone")
-    .populate("reviewedBy", "firstName lastName email")
-    .sort({ createdAt: -1 }); // Get the most recent placement
-
-  if (!placement) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({
-      success: false,
-      message: "No placement found for this student",
-      data: null,
-    });
-  }
+  const placement = await placementService.getStudentPlacement(id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

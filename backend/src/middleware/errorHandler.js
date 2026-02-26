@@ -20,24 +20,6 @@ class ApiError extends Error {
   }
 }
 
-const handleCastError = (err) => {
-  const message = `Invalid ${err.path}: ${err.value}`;
-  return new ApiError(HTTP_STATUS.BAD_REQUEST, message);
-};
-
-const handleDuplicateKeyError = (err) => {
-  const field = Object.keys(err.keyValue)[0];
-  const value = err.keyValue[field];
-  const message = `${field} '${value}' already exists`;
-  return new ApiError(HTTP_STATUS.CONFLICT, message);
-};
-
-const handleValidationError = (err) => {
-  const errors = Object.values(err.errors).map((el) => el.message);
-  const message = `Invalid input data: ${errors.join(". ")}`;
-  return new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, message);
-};
-
 const handleJWTError = () => {
   return new ApiError(HTTP_STATUS.UNAUTHORIZED, ERROR_MESSAGES.INVALID_TOKEN);
 };
@@ -91,21 +73,7 @@ const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Mongoose bad ObjectId
-  if (err.name === "CastError") {
-    error = handleCastError(err);
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    error = handleDuplicateKeyError(err);
-  }
-
-  // Mongoose validation error
-  if (err.name === "ValidationError") {
-    error = handleValidationError(err);
-  }
-
+  // Prisma errors are already converted to ApiError in services via handlePrismaError()
   // JWT errors
   if (err.name === "JsonWebTokenError") {
     error = handleJWTError();

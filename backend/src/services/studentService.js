@@ -1,300 +1,468 @@
-const {
-  Student,
-  User,
-  Department,
-  Placement,
-  Logbook,
-  Assessment,
-} = require("../models");
+const { getPrismaClient } = require("../config/prisma");
+const { handlePrismaError } = require("../utils/prismaErrors");
 const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
 
+const prisma = getPrismaClient();
+
 /**
- * Get all students (no filters, no pagination)
+ * Get all students (no pagination)
  */
 const getAllStudents = async (filters = {}) => {
-  const logger = require("../utils/logger");
   logger.info("studentService.getAllStudents called");
 
-  const query = { isActive: true };
+  try {
+    const where = { isActive: true };
 
-  // Add department filter if provided
-  if (filters.department) {
-    query.department = filters.department;
+    if (filters.department) {
+      where.departmentId = filters.department;
+    }
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true },
+        },
+        department: {
+          select: { name: true, code: true },
+        },
+        placements: {
+          select: { companyName: true, companyAddress: true, status: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    const formattedStudents = students.map((student) => ({
+      id: student.id,
+      matricNumber: student.matricNumber,
+      level: student.level,
+      session: student.session,
+      placementApproved: student.placementApproved,
+      department: student.department,
+      placement:
+        student.placements && student.placements.length > 0
+          ? student.placements[0]
+          : null,
+      name: student.user
+        ? `${student.user.firstName} ${student.user.lastName}`
+        : "N/A",
+      email: student.user?.email,
+    }));
+
+    logger.info(
+      `studentService.getAllStudents fetched ${formattedStudents.length} students`,
+    );
+
+    return formattedStudents;
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  const students = await Student.find(query)
-    .populate("user", "firstName lastName email")
-    .populate("department", "name code")
-    .populate("currentPlacement")
-    .populate("departmentalSupervisor", "name email")
-    .populate("industrialSupervisor", "name email")
-    .lean();
-
-  // Format students with user data
-  const formattedStudents = students.map((student) => ({
-    _id: student._id,
-    matricNumber: student.matricNumber,
-    level: student.level,
-    session: student.session,
-    placementApproved: student.placementApproved,
-    department: student.department,
-    placement: student.currentPlacement,
-    departmentalSupervisor: student.departmentalSupervisor,
-    industrialSupervisor: student.industrialSupervisor,
-    name: student.user
-      ? `${student.user.firstName} ${student.user.lastName}`
-      : "N/A",
-    email: student.user?.email,
-  }));
-
-  logger.info(
-    `studentService.getAllStudents fetched ${formattedStudents.length} students`,
-  );
-
-  return formattedStudents;
 };
 
 /**
- * Get all students with filters and pagination
+ * Get students with filters and pagination
  */
 const getStudents = async (filters = {}, pagination = {}, user = null) => {
-  const { page, limit, skip } = parsePagination(pagination);
+  try {
+    const { page, limit, skip } = parsePagination(pagination);
+    const where = { isActive: true };
 
-  const query = { isActive: true };
+    // Coordinator access control
+    if (user && user.role === USER_ROLES.COORDINATOR && user.departmentId) {
+      where.departmentId = user.departmentId;
+    } else if (filters.department) {
+      where.departmentId = filters.department;
+    }
 
-  // Coordinator access control - only see students from their department
-  if (user && user.role === USER_ROLES.COORDINATOR && user.department) {
-    query.department = user.department;
-  } else if (filters.department) {
-    query.department = filters.department;
+    if (filters.level) where.level = Number(filters.level);
+    if (filters.session) where.session = filters.session;
+    if (filters.placementApproved !== undefined)
+      where.placementApproved = filters.placementApproved;
+
+    if (filters.search) {
+      where.user = {
+        OR: [
+          { firstName: { contains: filters.search, mode: "insensitive" } },
+          { lastName: { contains: filters.search, mode: "insensitive" } },
+          { email: { contains: filters.search, mode: "insensitive" } },
+        ],
+      };
+    }
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            isActive: true,
+          },
+        },
+        department: {
+          select: { name: true, code: true, facultyId: true },
+        },
+        placements: {
+          select: {
+            companyName: true,
+            companyAddress: true,
+            status: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const total = await prisma.student.count({ where });
+
+    // Format students with computed name field
+    const formattedStudents = students.map((student) => ({
+      id: student.id,
+      matricNumber: student.matricNumber,
+      level: student.level,
+      session: student.session,
+      placementApproved: student.placementApproved,
+      department: student.department,
+      placement:
+        student.placements && student.placements.length > 0
+          ? student.placements[0]
+          : null,
+      name: student.user
+        ? `${student.user.firstName} ${student.user.lastName}`
+        : "N/A",
+      email: student.user?.email,
+      phone: student.user?.phone,
+    }));
+
+    return {
+      students: formattedStudents,
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  if (filters.level) query.level = filters.level;
-  if (filters.session) query.session = filters.session;
-  if (filters.placementApproved !== undefined)
-    query.placementApproved = filters.placementApproved;
-
-  if (filters.search) {
-    const users = await User.find({
-      $or: [
-        { firstName: new RegExp(filters.search, "i") },
-        { lastName: new RegExp(filters.search, "i") },
-        { email: new RegExp(filters.search, "i") },
-      ],
-    }).select("_id");
-
-    const userIds = users.map((u) => u._id);
-    query.user = { $in: userIds };
-  }
-
-  const students = await Student.find(query)
-    .populate({
-      path: "user",
-      select: "firstName lastName email phone isActive",
-    })
-    .populate({
-      path: "department",
-      select: "name code faculty",
-    })
-    .populate({
-      path: "currentPlacement",
-      select: "companyName companyAddress status",
-    })
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
-
-  const total = await Student.countDocuments(query);
-
-  return {
-    students,
-    pagination: buildPaginationMeta(total, page, limit),
-  };
 };
 
 /**
  * Get student by ID
  */
 const getStudentById = async (studentId) => {
-  const student = await Student.findById(studentId)
-    .populate({
-      path: "user",
-      select: "firstName lastName email phone isActive",
-    })
-    .populate({
-      path: "department",
-      select: "name code faculty",
-    })
-    .populate({
-      path: "currentPlacement",
-      select:
-        "companyName companyAddress companySector status startDate endDate",
-    })
-    .populate({
-      path: "departmentalSupervisor",
-      populate: [
-        {
-          path: "user",
-          select: "firstName lastName email phone",
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            isActive: true,
+          },
         },
-        {
-          path: "department",
-          select: "name code",
+        department: {
+          select: { name: true, code: true, facultyId: true },
         },
-      ],
-    })
-    .populate({
-      path: "industrialSupervisor",
-      populate: [
-        {
-          path: "user",
-          select: "firstName lastName email phone",
+        placements: {
+          select: {
+            id: true,
+            companyName: true,
+            companyAddress: true,
+            companySector: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
         },
-        {
-          path: "department",
-          select: "name code",
+        supervisorAssignments: {
+          include: {
+            supervisor: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                  },
+                },
+                department: {
+                  select: { name: true, code: true },
+                },
+              },
+            },
+          },
         },
-      ],
+      },
     });
 
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
-  }
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
 
-  return student;
+    // Extract current placement from placements array and add as currentPlacement
+    if (student.placements && student.placements.length > 0) {
+      student.currentPlacement = student.placements[0];
+    }
+
+    // Map supervisor assignments to academicSupervisor and industrialSupervisor
+    if (
+      student.supervisorAssignments &&
+      student.supervisorAssignments.length > 0
+    ) {
+      const academicAssignment = student.supervisorAssignments.find(
+        (sa) => sa.supervisor?.type === "academic",
+      );
+      const industrialAssignment = student.supervisorAssignments.find(
+        (sa) => sa.supervisor?.type === "industrial",
+      );
+
+      if (academicAssignment?.supervisor) {
+        student.academicSupervisor = academicAssignment.supervisor;
+      }
+      if (industrialAssignment?.supervisor) {
+        student.industrialSupervisor = industrialAssignment.supervisor;
+      }
+    }
+
+    return student;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
+  }
 };
 
 /**
  * Update student profile
  */
 const updateStudent = async (studentId, updateData) => {
-  const allowedFields = ["level", "cgpa", "address", "phone"];
-  const filteredData = {};
+  try {
+    const allowedFields = ["level", "cgpa", "address", "phone"];
+    const filteredData = {};
 
-  allowedFields.forEach((field) => {
-    if (updateData[field] !== undefined) {
-      filteredData[field] = updateData[field];
-    }
-  });
-
-  const student = await Student.findByIdAndUpdate(studentId, filteredData, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
-  }
-
-  // Also update user profile if provided
-  if (updateData.firstName || updateData.lastName || updateData.bio) {
-    await User.findByIdAndUpdate(student.user, {
-      firstName: updateData.firstName,
-      lastName: updateData.lastName,
-      bio: updateData.bio,
+    allowedFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        filteredData[field] = updateData[field];
+      }
     });
+
+    const student = await prisma.student.update({
+      where: { id: studentId },
+      data: filteredData,
+    });
+
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
+
+    // Also update user profile if provided
+    if (updateData.firstName || updateData.lastName || updateData.bio) {
+      await prisma.user.update({
+        where: { id: student.userId },
+        data: {
+          firstName: updateData.firstName,
+          lastName: updateData.lastName,
+          address: updateData.address,
+        },
+      });
+    }
+
+    logger.info(`Student updated: ${student.matricNumber}`);
+
+    return student;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  logger.info(`Student updated: ${student.matricNumber}`);
-
-  return student;
 };
 
 /**
  * Get student dashboard data
  */
 const getStudentDashboard = async (studentId) => {
-  const student = await Student.findById(studentId)
-    .populate("currentPlacement")
-    .populate({
-      path: "departmentalSupervisor",
-      populate: {
-        path: "user",
-        select: "firstName lastName email",
-      },
-    })
-    .populate({
-      path: "industrialSupervisor",
-      populate: {
-        path: "user",
-        select: "firstName lastName email",
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        placements: {
+          select: {
+            id: true,
+            companyName: true,
+            companyAddress: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        academicSupervisor: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+          },
+        },
+        industrialSupervisor: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+          },
+        },
       },
     });
 
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
+
+    // Get statistics
+    const logbookCount = await prisma.logbook.count({
+      where: { studentId },
+    });
+    const approvedLogbooks = await prisma.logbook.count({
+      where: { studentId, status: "approved" },
+    });
+    const assessmentCount = await prisma.assessment.count({
+      where: { studentId },
+    });
+
+    // Get recent logbooks
+    const recentLogbooks = await prisma.logbook.findMany({
+      where: { studentId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    // Get placements
+    const placements = await prisma.placement.findMany({
+      where: { studentId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Calculate training progress
+    let trainingProgress = 0;
+    if (student.startDate && student.endDate) {
+      const now = new Date();
+      const start = new Date(student.startDate);
+      const end = new Date(student.endDate);
+      const totalDuration = end - start;
+      const elapsedDuration = now - start;
+      trainingProgress = Math.min(
+        100,
+        Math.max(0, (elapsedDuration / totalDuration) * 100),
+      );
+    }
+
+    return {
+      student,
+      statistics: {
+        totalLogbooks: logbookCount,
+        approvedLogbooks,
+        totalAssessments: assessmentCount,
+        trainingProgress,
+      },
+      recentLogbooks,
+      placements,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  // Get statistics
-  const logbookCount = await Logbook.countDocuments({ student: studentId });
-  const approvedLogbooks = await Logbook.countDocuments({
-    student: studentId,
-    status: "approved",
-  });
-  const assessmentCount = await Assessment.countDocuments({
-    student: studentId,
-  });
-
-  // Get recent logbooks
-  const recentLogbooks = await Logbook.find({ student: studentId })
-    .sort({ createdAt: -1 })
-    .limit(5);
-
-  // Get placements
-  const placements = await Placement.find({ student: studentId }).sort({
-    createdAt: -1,
-  });
-
-  return {
-    student,
-    statistics: {
-      totalLogbooks: logbookCount,
-      approvedLogbooks,
-      totalAssessments: assessmentCount,
-      trainingProgress: student.getTrainingProgress(),
-    },
-    recentLogbooks,
-    placements,
-  };
 };
 
 /**
  * Assign supervisor to student
  */
 const assignSupervisor = async (studentId, supervisorId, type) => {
-  const student = await Student.findById(studentId);
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+    });
 
-  if (!student) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    if (!student) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
+    }
+
+    // Update student with supervisor
+    const updateData = {};
+    if (type === "academic") {
+      updateData.academicSupervisorId = supervisorId;
+    } else if (type === "industrial") {
+      updateData.industrialSupervisorId = supervisorId;
+    }
+
+    await prisma.student.update({
+      where: { id: studentId },
+      data: updateData,
+    });
+
+    // Create supervisor assignment record
+    await prisma.supervisorAssignment.upsert({
+      where: {
+        supervisorId_studentId: {
+          supervisorId,
+          studentId,
+        },
+      },
+      update: {},
+      create: {
+        supervisorId,
+        studentId,
+      },
+    });
+
+    logger.info(
+      `${type} supervisor assigned to student ${student.matricNumber}`,
+    );
+
+    return student;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
   }
-
-  await student.assignSupervisor(type, supervisorId);
-
-  // Update supervisor's assigned students
-  const Supervisor = require("../models").Supervisor;
-  const supervisor = await Supervisor.findById(supervisorId);
-  await supervisor.assignStudent(studentId);
-
-  logger.info(`${type} supervisor assigned to student ${student.matricNumber}`);
-
-  return student;
 };
 
 /**
  * Get students by department
  */
 const getStudentsByDepartment = async (departmentId, filters = {}) => {
-  const query = { department: departmentId, isActive: true };
+  try {
+    const where = { departmentId, isActive: true };
 
-  if (filters.level) query.level = filters.level;
-  if (filters.session) query.session = filters.session;
+    if (filters.level) where.level = Number(filters.level);
+    if (filters.session) where.session = filters.session;
 
-  const students = await Student.find(query).sort({ matricNumber: 1 });
+    const students = await prisma.student.findMany({
+      where,
+      orderBy: { matricNumber: "asc" },
+    });
 
-  return students;
+    return students;
+  } catch (error) {
+    const prismaError = handlePrismaError(error);
+    throw prismaError;
+  }
 };
 
 module.exports = {
