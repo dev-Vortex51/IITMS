@@ -9,6 +9,22 @@ const notificationService = require("./notificationService");
 
 const prisma = getPrismaClient();
 
+const queueInvitationEmail = (payload, isResend = false) => {
+  setImmediate(async () => {
+    try {
+      if (isResend) {
+        await emailService.resendInvitation(payload);
+      } else {
+        await emailService.sendInvitation(payload);
+      }
+    } catch (emailError) {
+      logger.error(
+        `${isResend ? "Failed to resend" : "Failed to send"} invitation email: ${emailError.message}`,
+      );
+    }
+  });
+};
+
 /**
  * Generate random token for invitation
  */
@@ -109,21 +125,16 @@ const createInvitation = async (inviterUser, invitationData) => {
       },
     });
 
-    // Send magic link email
-    try {
-      await emailService.sendInvitation({
-        email: invitation.email,
-        role: invitation.role,
-        token: invitation.token,
-        invitedBy: {
-          firstName: invitation.invitedBy.firstName,
-          lastName: invitation.invitedBy.lastName,
-        },
-      });
-    } catch (emailError) {
-      logger.error("Failed to send invitation email", emailError);
-      // Don't fail the invitation creation if email fails
-    }
+    // Queue magic link email in background so API response is not blocked by SMTP latency.
+    queueInvitationEmail({
+      email: invitation.email,
+      role: invitation.role,
+      token: invitation.token,
+      invitedBy: {
+        firstName: invitation.invitedBy.firstName,
+        lastName: invitation.invitedBy.lastName,
+      },
+    });
 
     logger.info(
       `Invitation created for ${email} as ${role} by ${inviterUser.email}`,
@@ -403,9 +414,9 @@ const resendInvitation = async (invitationId, user) => {
       },
     });
 
-    // Send magic link email again
-    try {
-      await emailService.resendInvitation({
+    // Queue resend email in background so API response is not blocked by SMTP latency.
+    queueInvitationEmail(
+      {
         email: updatedInvitation.email,
         role: updatedInvitation.role,
         token: updatedInvitation.token,
@@ -413,11 +424,9 @@ const resendInvitation = async (invitationId, user) => {
           firstName: updatedInvitation.invitedBy.firstName,
           lastName: updatedInvitation.invitedBy.lastName,
         },
-      });
-    } catch (emailError) {
-      logger.error("Failed to resend invitation email", emailError);
-      // Don't fail if email fails
-    }
+      },
+      true,
+    );
 
     logger.info(
       `Invitation resent for ${updatedInvitation.email} by ${user.email}`,

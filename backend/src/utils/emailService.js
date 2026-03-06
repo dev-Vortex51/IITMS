@@ -16,6 +16,9 @@ class EmailService {
           host: config.email.host,
           port: config.email.port,
           secure: config.email.secure,
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
           auth: {
             user: config.email.user,
             pass: config.email.password,
@@ -32,6 +35,9 @@ class EmailService {
           host: testAccount.smtp.host,
           port: testAccount.smtp.port,
           secure: testAccount.smtp.secure,
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
           auth: {
             user: testAccount.user,
             pass: testAccount.pass,

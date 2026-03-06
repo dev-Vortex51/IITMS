@@ -14,7 +14,7 @@ exports.createInvitation = async (req, res, next) => {
       .json(
         formatResponse(
           true,
-          "Invitation created successfully. Magic link sent to email.",
+          "Invitation created successfully.",
           invitation,
         ),
       );

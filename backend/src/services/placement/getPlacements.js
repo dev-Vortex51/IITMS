@@ -25,60 +25,80 @@ const getPlacements = async (filters = {}, pagination = {}) => {
       where.studentId = { in: students.map((s) => s.id) };
     }
 
-    const placements = await prisma.placement.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            matricNumber: true,
-            id: true,
-            departmentId: true,
-            user: {
-              select: { firstName: true, lastName: true, email: true },
-            },
+    const baseInclude = {
+      student: {
+        select: {
+          matricNumber: true,
+          id: true,
+          departmentId: true,
+          user: {
+            select: { firstName: true, lastName: true, email: true },
           },
         },
-        industryPartner: {
-          select: {
-            name: true,
-            address: true,
-            email: true,
-            phone: true,
-            website: true,
-            sector: true,
-          },
-        },
-        industrialSupervisor: {
-          select: {
-            id: true,
-            position: true,
-            companyName: true,
-            companyAddress: true,
-            industryPartner: {
-              select: {
-                name: true,
-                address: true,
-                email: true,
-                phone: true,
-                website: true,
-                sector: true,
-              },
+      },
+      industrialSupervisor: {
+        select: {
+          id: true,
+          position: true,
+          companyName: true,
+          companyAddress: true,
+          industryPartner: {
+            select: {
+              name: true,
+              address: true,
+              email: true,
+              phone: true,
+              website: true,
+              sector: true,
             },
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-                phone: true,
-              },
+          },
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
             },
           },
         },
       },
-      skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-    });
+    };
+
+    let placements;
+    try {
+      placements = await prisma.placement.findMany({
+        where,
+        include: {
+          ...baseInclude,
+          industryPartner: {
+            select: {
+              name: true,
+              address: true,
+              email: true,
+              phone: true,
+              website: true,
+              sector: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      // Backward-compatible fallback for deployments missing placements.industryPartnerId
+      if (error?.code === "P2022" && String(error?.meta?.column || "").includes("industryPartnerId")) {
+        placements = await prisma.placement.findMany({
+          where,
+          include: baseInclude,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const total = await prisma.placement.count({ where });
 
