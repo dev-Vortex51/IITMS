@@ -69,7 +69,10 @@ const createInvitation = async (inviterUser, invitationData) => {
     }
 
     // Prepare metadata
-    let departmentId = metadata.department || inviterUser.departmentId;
+    let departmentId =
+      metadata.department ||
+      inviterUser.departmentId ||
+      inviterUser.department?.id;
 
     // Validate department requirement for specific roles
     if ([USER_ROLES.STUDENT, USER_ROLES.COORDINATOR].includes(role)) {
