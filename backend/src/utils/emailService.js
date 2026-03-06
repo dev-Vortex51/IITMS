@@ -10,6 +10,7 @@ const {
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.provider = null;
     this.initialized = false;
   }
 
@@ -17,6 +18,13 @@ class EmailService {
     if (this.initialized) return;
 
     try {
+      if (config.resend?.apiKey) {
+        this.provider = "resend";
+        this.initialized = true;
+        logger.info("Email service initialized with Resend API");
+        return;
+      }
+
       if (config.email.user && config.email.password) {
         this.transporter = nodemailer.createTransport({
           host: config.email.host,
@@ -33,6 +41,7 @@ class EmailService {
 
         await this.transporter.verify();
 
+        this.provider = "smtp";
         logger.info("SMTP email service initialized and verified");
       } else {
         if (process.env.NODE_ENV === "production") {
@@ -51,6 +60,7 @@ class EmailService {
           },
         });
 
+        this.provider = "smtp";
         logger.info("Email service initialized with Ethereal test account");
       }
 
@@ -85,8 +95,7 @@ class EmailService {
     });
 
     try {
-      const info = await this.transporter.sendMail({
-        from: config.email.from,
+      const info = await this.dispatchEmail({
         to: email,
         subject: template.subject,
         html: template.html,
@@ -124,8 +133,7 @@ class EmailService {
     const template = buildPasswordResetTemplate({ resetUrl });
 
     try {
-      const info = await this.transporter.sendMail({
-        from: config.email.from,
+      const info = await this.dispatchEmail({
         to: email,
         subject: template.subject,
         html: template.html,
@@ -162,8 +170,7 @@ class EmailService {
     });
 
     try {
-      const info = await this.transporter.sendMail({
-        from: config.email.from,
+      const info = await this.dispatchEmail({
         to: email,
         subject: template.subject,
         html: template.html,
@@ -184,6 +191,60 @@ class EmailService {
         error: error.message,
       };
     }
+  }
+
+  async resendInvitation(options) {
+    return this.sendInvitation(options);
+  }
+
+  async dispatchEmail({ to, subject, html, text }) {
+    await this.ensureInitialized();
+
+    if (this.provider === "resend") {
+      return this.sendWithResend({ to, subject, html, text });
+    }
+
+    return this.sendWithSmtp({ to, subject, html, text });
+  }
+
+  async sendWithSmtp({ to, subject, html, text }) {
+    if (!this.transporter) {
+      throw new Error("SMTP transporter not initialized");
+    }
+
+    return this.transporter.sendMail({
+      from: config.email.from,
+      to,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  async sendWithResend({ to, subject, html, text }) {
+    const from = config.resend.from || config.email.from;
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.resend.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text,
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`Resend API error (${response.status}): ${details}`);
+    }
+
+    const data = await response.json();
+    return { messageId: data?.id };
   }
 }
 
