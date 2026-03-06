@@ -1,7 +1,5 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
-const config = require("../config");
 const { getPrismaClient } = require("../config/prisma");
 const { ApiError } = require("../middleware/errorHandler");
 const {
@@ -14,6 +12,7 @@ const { generateToken, generateRefreshToken } = require("../middleware/auth");
 const logger = require("../utils/logger");
 const { handlePrismaError } = require("../utils/prismaErrors");
 const { hashPassword, comparePassword } = require("../utils/helpers");
+const emailService = require("../utils/emailService");
 const notificationService = require("./notificationService");
 
 const login = async (email, password) => {
@@ -394,34 +393,11 @@ const forgotPassword = async (email) => {
       },
     });
 
-    // Send email
-    const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
-
-    try {
-      const transporter = nodemailer.createTransport({
-        host: config.email.host,
-        port: config.email.port,
-        secure: config.email.secure,
-        auth: {
-          user: config.email.user,
-          pass: config.email.password,
-        },
-      });
-
-      await transporter.sendMail({
-        from: config.email.from,
-        to: user.email,
-        subject: "Password Reset Request",
-        html: `<p>You requested a password reset for your SIWES account.</p>
-          <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
-          <p>If you did not request this, please ignore this email.</p>`,
-      });
-
-      logger.info(`Password reset email sent to: ${user.email}`);
-    } catch (emailError) {
-      logger.error(`Failed to send reset email: ${emailError.message}`);
-      // Don't throw - email failure shouldn't block the reset link generation
-    }
+    // Send password reset email (non-blocking)
+    await emailService.sendPasswordReset({
+      email: user.email,
+      token,
+    });
 
     try {
       await notificationService.createNotification({

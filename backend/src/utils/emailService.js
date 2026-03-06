@@ -277,6 +277,42 @@ Security Notice:
   }
 
   /**
+   * Send password reset email
+   * @param {Object} options - Email options
+   */
+  async sendPasswordReset(options) {
+    if (!this.initialized || !this.transporter) {
+      logger.warn("Email service not yet initialized, skipping email send");
+      return {
+        success: false,
+        message: "Email service not initialized",
+      };
+    }
+
+    const { email, token } = options;
+    const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
+
+    const mailOptions = {
+      from: config.email.from,
+      to: email,
+      subject: "Password Reset Request",
+      html: `<p>You requested a password reset for your SIWES account.</p>
+        <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
+        <p>If you did not request this, please ignore this email.</p>`,
+      text: `You requested a password reset for your SIWES account.\n\nReset link: ${resetUrl}\n\nThis link is valid for 1 hour.`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Password reset email sent to ${email}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error("Failed to send password reset email", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send welcome email after account creation
    * @param {Object} options - Email options
    */
