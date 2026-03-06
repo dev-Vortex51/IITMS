@@ -100,7 +100,7 @@ export interface Supervisor {
   phone?: string;
   phoneNumber?: string;
   type: "academic" | "departmental" | "industrial";
-  department?: string | { id: string; name: string };
+  department?: string | { id: string; name: string; code?: string };
   company?: string;
   companyName?: string;
   companyAddress?: string;
