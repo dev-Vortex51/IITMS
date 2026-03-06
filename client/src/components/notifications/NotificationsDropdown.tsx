@@ -4,10 +4,14 @@ import { usePathname } from "next/navigation";
 import { useNotifications } from "./NotificationProvider";
 import { Bell, Check } from "lucide-react";
 import { notificationService } from "@/services/notification.service";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ActionIcon, Indicator } from "@mantine/core";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  applyMarkAllAsReadToCache,
+  applyMarkAsReadToCache,
+} from "./cache-updates";
 
 const typeLabelMap: Record<string, string> = {
   invite_sent: "Invite",
@@ -80,18 +84,32 @@ export const NotificationsDropdown: React.FC = () => {
     };
   }, [open]);
 
+  const markAllMutation = useMutation({
+    mutationFn: () => notificationService.markAllAsRead(),
+    onSuccess: async () => {
+      applyMarkAllAsReadToCache(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      refetch();
+    },
+  });
+
+  const markOneMutation = useMutation({
+    mutationFn: (id: string) => notificationService.markAsRead(id),
+    onSuccess: async (_, id) => {
+      applyMarkAsReadToCache(queryClient, id);
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      refetch();
+    },
+  });
+
   const handleMarkAll = async () => {
-    if (unreadCount <= 0) return;
-    await notificationService.markAllAsRead();
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    refetch();
+    if (unreadCount <= 0 || markAllMutation.isPending) return;
+    markAllMutation.mutate();
   };
 
   const handleOpenNotification = async (id: string, isRead: boolean) => {
-    if (!isRead) {
-      await notificationService.markAsRead(id);
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      refetch();
+    if (!isRead && !markOneMutation.isPending) {
+      markOneMutation.mutate(id);
     }
     setOpen(false);
   };
@@ -131,9 +149,9 @@ export const NotificationsDropdown: React.FC = () => {
               variant="outline"
               size="sm"
               className={`${actionButtonClass} text-xs`}
-              disabled={unreadCount <= 0}
+              disabled={unreadCount <= 0 || markAllMutation.isPending}
             >
-              Mark all as read
+              {markAllMutation.isPending ? "Updating..." : "Mark all as read"}
             </Button>
           </div>
           <div className="max-h-64 overflow-auto">

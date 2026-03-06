@@ -1,13 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErrorLocalState, LoadingPage, PageHeader } from "@/components/design-system";
 import { notificationService, type Notification } from "@/services/notification.service";
+import {
+  applyMarkAllAsReadToCache,
+  applyMarkAsReadToCache,
+} from "./cache-updates";
 
 const typeLabelMap: Record<string, string> = {
   invite_sent: "Invite",
@@ -59,18 +63,32 @@ export function NotificationsPageContent() {
     [notifications],
   );
 
+  const markOneMutation = useMutation({
+    mutationFn: (id: string) => notificationService.markAsRead(id),
+    onSuccess: async (_, id) => {
+      applyMarkAsReadToCache(queryClient, id);
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      refetch();
+    },
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: () => notificationService.markAllAsRead(),
+    onSuccess: async () => {
+      applyMarkAllAsReadToCache(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      refetch();
+    },
+  });
+
   const handleMarkRead = async (notification: Notification) => {
-    if (notification.isRead) return;
-    await notificationService.markAsRead(notification.id);
-    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    refetch();
+    if (notification.isRead || markOneMutation.isPending) return;
+    markOneMutation.mutate(notification.id);
   };
 
   const handleMarkAllRead = async () => {
-    if (unreadCount <= 0) return;
-    await notificationService.markAllAsRead();
-    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    refetch();
+    if (unreadCount <= 0 || markAllMutation.isPending) return;
+    markAllMutation.mutate();
   };
 
   if (isLoading) {
@@ -104,10 +122,10 @@ export function NotificationsPageContent() {
             variant="outline"
             size="sm"
             className={`${actionButtonClass} gap-2`}
-            disabled={unreadCount <= 0}
+            disabled={unreadCount <= 0 || markAllMutation.isPending}
           >
             <CheckCheck className="h-4 w-4" />
-            Mark all as read
+            {markAllMutation.isPending ? "Updating..." : "Mark all as read"}
           </Button>
         }
       />
@@ -160,7 +178,7 @@ export function NotificationsPageContent() {
                     variant="outline"
                     size="sm"
                     className={`${actionButtonClass} shrink-0 gap-1`}
-                    disabled={item.isRead}
+                    disabled={item.isRead || markOneMutation.isPending}
                     onClick={() => handleMarkRead(item)}
                   >
                     <CheckCircle2 className="h-4 w-4" />
