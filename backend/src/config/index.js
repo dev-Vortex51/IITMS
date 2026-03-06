@@ -14,6 +14,7 @@ const config = {
   // Server
   port: parseInt(process.env.PORT, 10) || 5000,
   apiVersion: process.env.API_VERSION || "v1",
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 
   // Database (PostgreSQL via Prisma - configured via DATABASE_URL env var)
   database: {
@@ -37,17 +38,27 @@ const config = {
 
   // Email
   email: {
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.EMAIL_PORT, 10) || 587,
-    user: process.env.EMAIL_USER,
-    password: process.env.EMAIL_PASSWORD,
-    from: process.env.EMAIL_FROM || "SIWES Management <noreply@siwes.edu>",
+    host: process.env.SMTP_HOST || process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || "587", 10),
+    secure:
+      process.env.SMTP_SECURE !== undefined
+        ? process.env.SMTP_SECURE === "true"
+        : parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || "587", 10) ===
+          465,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    password: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
+    from:
+      process.env.EMAIL_FROM ||
+      process.env.SMTP_FROM ||
+      "SIWES Management <noreply@siwes.edu>",
   },
 
   // CORS
   cors: {
     origins: process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(",")
+          .map((origin) => origin.trim())
+          .filter(Boolean)
       : ["http://localhost:3000", "http://localhost:5173"],
   },
 

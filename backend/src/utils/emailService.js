@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const logger = require("./logger");
+const config = require("../config");
 
 class EmailService {
   constructor() {
@@ -10,21 +11,22 @@ class EmailService {
 
   async initialize() {
     try {
-      // Configure email transporter
-      // In production, use actual SMTP credentials
-      if (process.env.NODE_ENV === "production") {
+      if (config.email.user && config.email.password) {
         this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: process.env.SMTP_PORT || 587,
-          secure: process.env.SMTP_SECURE === "true",
+          host: config.email.host,
+          port: config.email.port,
+          secure: config.email.secure,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: config.email.user,
+            pass: config.email.password,
           },
         });
-        logger.info("Email service initialized with production SMTP");
+        logger.info("Email service initialized with configured SMTP");
       } else {
-        // For development, use ethereal email (test account)
+        // In development, fallback to a disposable Ethereal account if SMTP is missing.
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("SMTP credentials are not configured");
+        }
         const testAccount = await nodemailer.createTestAccount();
         this.transporter = nodemailer.createTransport({
           host: testAccount.smtp.host,
@@ -60,9 +62,7 @@ class EmailService {
 
     const { email, role, token, invitedBy } = options;
 
-    const magicLink = `${
-      process.env.FRONTEND_URL || "http://localhost:3000"
-    }/invite/verify?token=${token}`;
+    const magicLink = `${config.frontendUrl}/invite/verify?token=${token}`;
     const expiresIn = "7 days";
 
     const roleNames = {
@@ -75,7 +75,7 @@ class EmailService {
     const roleName = roleNames[role] || role;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || '"SIWES Management" <noreply@siwes.edu>',
+      from: config.email.from,
       to: email,
       subject: `Invitation to join SIWES Management System as ${roleName}`,
       html: `
@@ -292,9 +292,7 @@ Security Notice:
 
     const { email, firstName, role } = options;
 
-    const loginUrl = `${
-      process.env.FRONTEND_URL || "http://localhost:3000"
-    }/login`;
+    const loginUrl = `${config.frontendUrl}/login`;
 
     const roleNames = {
       coordinator: "Coordinator",
@@ -306,7 +304,7 @@ Security Notice:
     const roleName = roleNames[role] || role;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || '"SIWES Management" <noreply@siwes.edu>',
+      from: config.email.from,
       to: email,
       subject: "Welcome to SIWES Management System!",
       html: `

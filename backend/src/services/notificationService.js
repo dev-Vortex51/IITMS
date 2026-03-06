@@ -19,7 +19,7 @@ if (config.email.user && config.email.password) {
   emailTransporter = nodemailer.createTransport({
     host: config.email.host,
     port: config.email.port,
-    secure: false,
+    secure: config.email.secure,
     auth: {
       user: config.email.user,
       pass: config.email.password,
