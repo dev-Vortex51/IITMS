@@ -2,18 +2,28 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { KeyRound } from "lucide-react";
+import {
+  Anchor,
+  Box,
+  Button,
+  Container,
+  Group,
+  Paper,
+  PasswordInput,
+  Text,
+  Title,
+} from "@mantine/core";
+import { useDocumentTitle } from "@mantine/hooks";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
-import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { AuthStatusMessage } from "@/components/auth/AuthStatusMessage";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import classes from "@/app/login/AuthenticationTitle.module.css";
 
 export default function ResetPasswordPage() {
+  useDocumentTitle("Reset Password | ITMS");
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
@@ -75,68 +85,77 @@ export default function ResetPasswordPage() {
     resetMutation.mutate(password);
   };
 
+  const tokenInvalid = mode === "token-reset" && !token;
+
   return (
-    <AuthPageShell>
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-accent p-4 text-primary">
-              <KeyRound className="h-12 w-12" />
-            </div>
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
-            <CardDescription className="mt-2">
+    <div className="flex min-h-[100dvh] items-center justify-center px-4">
+      <Container size={420} m={0}>
+        <Title ta="center" className={classes.title} mt="md">
+          Reset Password
+        </Title>
+        <Text className={classes.subtitle} size="sm">
+          Industrial Training Management System
+        </Text>
+        <Paper withBorder p={30} mt={30} radius="md">
+          <Text size="sm" c="dimmed" mb="md">
               {mode === "token-reset"
                 ? "Enter a new password for your account."
                 : "Create a new secure password for your account (first login)."}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
-              <Input
-                id="password"
-                type="password"
+          </Text>
+          <form onSubmit={handleSubmit}>
+            <PasswordInput
+              label="New password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => setPassword(event.currentTarget.value)}
                 required
-                disabled={resetMutation.isPending}
-              />
-              <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
+              disabled={resetMutation.isPending || tokenInvalid}
+            />
+            <Text size="xs" c="dimmed" mt="xs">
+              Must be at least 8 characters long.
+            </Text>
+            <PasswordInput
+              label="Confirm password"
                 placeholder="••••••••"
+              mt="md"
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => setConfirmPassword(event.currentTarget.value)}
                 required
-                disabled={resetMutation.isPending}
-              />
-            </div>
+              disabled={resetMutation.isPending || tokenInvalid}
+            />
 
-            <AuthStatusMessage type="error" message={error} />
-
-            <Button type="submit" className="w-full" disabled={resetMutation.isPending}>
+            <Box mt="md">
+              <AuthStatusMessage type="error" message={error} />
+            </Box>
+            {tokenInvalid ? (
+              <Box mt="md">
+                <AuthStatusMessage type="error" message="Missing or invalid reset token." />
+              </Box>
+            ) : null}
+            <Box mt="lg">
+              <Button
+                fullWidth
+                size="md"
+                type="submit"
+                loading={resetMutation.isPending}
+                color="itmsBlue"
+                disabled={tokenInvalid}
+              >
               {resetMutation.isPending
                 ? "Resetting..."
                 : mode === "token-reset"
                   ? "Reset Password"
                   : "Set New Password"}
-            </Button>
-
-            {mode === "token-reset" && !token ? (
-              <AuthStatusMessage type="error" message="Missing or invalid reset token." />
-            ) : null}
+              </Button>
+            </Box>
+            <Group justify="center" mt="md">
+              <Anchor component={Link} href="/login" size="sm" c="itmsBlue.8">
+                Back to login
+              </Anchor>
+            </Group>
           </form>
-        </CardContent>
-      </Card>
-    </AuthPageShell>
+        </Paper>
+      </Container>
+    </div>
   );
 }
