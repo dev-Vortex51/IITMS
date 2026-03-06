@@ -99,7 +99,7 @@ export interface Supervisor {
   email?: string;
   phone?: string;
   phoneNumber?: string;
-  type: "departmental" | "industrial";
+  type: "academic" | "departmental" | "industrial";
   department?: string | { id: string; name: string };
   company?: string;
   companyName?: string;
@@ -109,9 +109,10 @@ export interface Supervisor {
   designation?: string;
   staffId?: string;
   specialization?: string;
+  maxStudents?: number;
   isActive?: boolean;
-  students?: string[];
-  assignedStudents?: string[];
+  students?: any[];
+  assignedStudents?: any[];
   createdAt?: string;
   updatedAt?: string;
 }

@@ -57,9 +57,9 @@ export default function AcademicSupervisorDetailsPage({
     );
   }
 
-  const students = supervisor.students || [];
+  const students = supervisor.assignedStudents || supervisor.students || [];
   const currentLoad = students.length;
-  const maxLoad = supervisor.maxStudents || 10;
+  const maxLoad = Number(supervisor.maxStudents || 10);
   const availability = currentLoad < maxLoad ? "Available" : "Full";
 
   return (
