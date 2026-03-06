@@ -5,12 +5,21 @@ const config = require("../config");
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.provider = null;
     this.initialized = false;
-    this.initialize();
   }
 
-  async initialize() {
+  async init() {
+    if (this.initialized) return;
+
     try {
+      if (config.resend.apiKey) {
+        this.provider = "resend";
+        this.initialized = true;
+        logger.info("Email service initialized with Resend API");
+        return;
+      }
+
       if (config.email.user && config.email.password) {
         this.transporter = nodemailer.createTransport({
           host: config.email.host,
@@ -24,47 +33,48 @@ class EmailService {
             pass: config.email.password,
           },
         });
-        logger.info("Email service initialized with configured SMTP");
+
+        await this.transporter.verify();
+
+        this.provider = "smtp";
+        logger.info("SMTP email service initialized and verified");
       } else {
-        // In development, fallback to a disposable Ethereal account if SMTP is missing.
         if (process.env.NODE_ENV === "production") {
           throw new Error("SMTP credentials are not configured");
         }
+
         const testAccount = await nodemailer.createTestAccount();
+
         this.transporter = nodemailer.createTransport({
           host: testAccount.smtp.host,
           port: testAccount.smtp.port,
           secure: testAccount.smtp.secure,
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 15000,
           auth: {
             user: testAccount.user,
             pass: testAccount.pass,
           },
         });
-        logger.info("Email service initialized with test account");
+
+        this.provider = "smtp";
+        logger.info("Email service initialized with Ethereal test account");
       }
+
       this.initialized = true;
     } catch (error) {
       logger.error("Failed to initialize email service", error);
       this.initialized = false;
+      throw error;
     }
   }
 
-  /**
-   * Send magic link invitation email
-   * @param {Object} options - Email options
-   */
-  async sendInvitation(options) {
-    // Ensure email service is initialized
-    if (!this.initialized || !this.transporter) {
-      logger.warn("Email service not yet initialized, skipping email send");
-      return {
-        success: false,
-        message: "Email service not initialized",
-      };
+  async ensureInitialized() {
+    if (!this.initialized) {
+      await this.init();
     }
+  }
+
+  async sendInvitation(options) {
+    await this.ensureInitialized();
 
     const { email, role, token, invitedBy } = options;
 
@@ -80,178 +90,57 @@ class EmailService {
 
     const roleName = roleNames[role] || role;
 
-    const mailOptions = {
-      from: config.email.from,
-      to: email,
-      subject: `Invitation to join SIWES Management System as ${roleName}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                background-color: #f4f4f4;
-                margin: 0;
-                padding: 0;
-              }
-              .container {
-                max-width: 600px;
-                margin: 40px auto;
-                background: #ffffff;
-                border-radius: 8px;
-                overflow: hidden;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-              }
-              .header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                padding: 40px 20px;
-                text-align: center;
-                color: #ffffff;
-              }
-              .header h1 {
-                margin: 0;
-                font-size: 28px;
-                font-weight: 600;
-              }
-              .content {
-                padding: 40px 30px;
-              }
-              .content h2 {
-                color: #333;
-                font-size: 22px;
-                margin-bottom: 20px;
-              }
-              .content p {
-                margin-bottom: 15px;
-                color: #555;
-              }
-              .button {
-                display: inline-block;
-                padding: 14px 32px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: #ffffff !important;
-                text-decoration: none;
-                border-radius: 6px;
-                font-weight: 600;
-                margin: 20px 0;
-                text-align: center;
-              }
-              .button:hover {
-                background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-              }
-              .info-box {
-                background: #f8f9fa;
-                border-left: 4px solid #667eea;
-                padding: 15px;
-                margin: 20px 0;
-                border-radius: 4px;
-              }
-              .footer {
-                background: #f8f9fa;
-                padding: 20px 30px;
-                text-align: center;
-                color: #777;
-                font-size: 14px;
-              }
-              .footer a {
-                color: #667eea;
-                text-decoration: none;
-              }
-              .security-note {
-                background: #fff3cd;
-                border-left: 4px solid #ffc107;
-                padding: 15px;
-                margin: 20px 0;
-                border-radius: 4px;
-                font-size: 14px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🎓 SIWES Management</h1>
-              </div>
-              
-              <div class="content">
-                <h2>You've been invited!</h2>
-                
-                <p>Hello,</p>
-                
-                <p>${invitedBy.firstName} ${
-        invitedBy.lastName
-      } has invited you to join the SIWES Management System as a <strong>${roleName}</strong>.</p>
-                
-                <div class="info-box">
-                  <p style="margin: 0;"><strong>Your Email:</strong> ${email}</p>
-                  <p style="margin: 10px 0 0 0;"><strong>Role:</strong> ${roleName}</p>
-                </div>
-                
-                <p>Click the button below to complete your account setup. This link will expire in <strong>${expiresIn}</strong>.</p>
-                
-                <div style="text-align: center;">
-                  <a href="${magicLink}" class="button">Complete Setup →</a>
-                </div>
-                
-                <p style="margin-top: 25px;">Or copy and paste this link in your browser:</p>
-                <p style="word-break: break-all; color: #667eea; font-size: 14px;">${magicLink}</p>
-                
-                <div class="security-note">
-                  <strong>🔒 Security Notice:</strong>
-                  <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                    <li>This link is for one-time use only</li>
-                    <li>Never share this link with anyone</li>
-                    <li>If you didn't expect this invitation, please ignore this email</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} SIWES Management System. All rights reserved.</p>
-                <p>If you have any questions, please contact <a href="mailto:support@siwes.edu">support@siwes.edu</a></p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
-      text: `
-You've been invited to join SIWES Management System!
+    const subject = `Invitation to join SIWES Management System as ${roleName}`;
+    const html = `
+      <html>
+      <body style="font-family: Arial, sans-serif;">
+      <h2>You've been invited!</h2>
+      <p>${invitedBy.firstName} ${invitedBy.lastName} invited you to join as <strong>${roleName}</strong>.</p>
 
-${invitedBy.firstName} ${
-        invitedBy.lastName
-      } has invited you to join as a ${roleName}.
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Role:</strong> ${roleName}</p>
 
-Your Email: ${email}
-Role: ${roleName}
+      <p>This link expires in ${expiresIn}</p>
 
-Complete your account setup by clicking this link:
+      <p>
+      <a href="${magicLink}" style="padding:12px 20px;background:#667eea;color:white;text-decoration:none;border-radius:6px;">
+      Complete Setup
+      </a>
+      </p>
+
+      <p>Or open this link:</p>
+      <p>${magicLink}</p>
+
+      <p>© ${new Date().getFullYear()} SIWES Management System</p>
+      </body>
+      </html>
+      `;
+    const text = `
+You've been invited to join the SIWES Management System.
+
+${invitedBy.firstName} ${invitedBy.lastName} invited you as ${roleName}
+
+Email: ${email}
+
+Setup your account here:
 ${magicLink}
 
-This link will expire in ${expiresIn}.
-
-Security Notice:
-- This link is for one-time use only
-- Never share this link with anyone
-- If you didn't expect this invitation, please ignore this email
-
-© ${new Date().getFullYear()} SIWES Management System
-      `.trim(),
-    };
+Link expires in ${expiresIn}
+      `;
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.dispatchEmail({
+        to: email,
+        subject,
+        html,
+        text,
+      });
 
       logger.info(`Invitation email sent to ${email}`, {
         messageId: info.messageId,
         role,
       });
 
-      // In development, log the preview URL
       if (process.env.NODE_ENV !== "production") {
         const previewUrl = nodemailer.getTestMessageUrl(info);
         if (previewUrl) {
@@ -262,10 +151,6 @@ Security Notice:
       return {
         success: true,
         messageId: info.messageId,
-        previewUrl:
-          process.env.NODE_ENV !== "production"
-            ? nodemailer.getTestMessageUrl(info)
-            : null,
       };
     } catch (error) {
       logger.error("Failed to send invitation email", error);
@@ -273,64 +158,53 @@ Security Notice:
     }
   }
 
-  /**
-   * Send invitation resend notification
-   * @param {Object} options - Email options
-   */
-  async resendInvitation(options) {
-    // Same as sendInvitation but with different subject/body
-    return this.sendInvitation(options);
-  }
-
-  /**
-   * Send password reset email
-   * @param {Object} options - Email options
-   */
   async sendPasswordReset(options) {
-    if (!this.initialized || !this.transporter) {
-      logger.warn("Email service not yet initialized, skipping email send");
-      return {
-        success: false,
-        message: "Email service not initialized",
-      };
-    }
+    await this.ensureInitialized();
 
     const { email, token } = options;
     const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
 
-    const mailOptions = {
-      from: config.email.from,
-      to: email,
-      subject: "Password Reset Request",
-      html: `<p>You requested a password reset for your SIWES account.</p>
-        <p>Click <a href='${resetUrl}'>here</a> to reset your password. This link is valid for 1 hour.</p>
-        <p>If you did not request this, please ignore this email.</p>`,
-      text: `You requested a password reset for your SIWES account.\n\nReset link: ${resetUrl}\n\nThis link is valid for 1 hour.`,
-    };
+    const subject = "Password Reset Request";
+    const html = `
+      <p>You requested a password reset.</p>
+      <p><a href="${resetUrl}">Reset Password</a></p>
+      <p>This link expires in 1 hour.</p>
+      `;
+    const text = `
+Password reset requested.
+
+Reset link:
+${resetUrl}
+
+Valid for 1 hour.
+      `;
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.dispatchEmail({
+        to: email,
+        subject,
+        html,
+        text,
+      });
+
       logger.info(`Password reset email sent to ${email}`);
-      return { success: true, messageId: info.messageId };
+
+      return {
+        success: true,
+        messageId: info.messageId,
+      };
     } catch (error) {
       logger.error("Failed to send password reset email", error);
-      return { success: false, error: error.message };
+
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
-  /**
-   * Send welcome email after account creation
-   * @param {Object} options - Email options
-   */
   async sendWelcome(options) {
-    // Ensure email service is initialized
-    if (!this.initialized || !this.transporter) {
-      logger.warn("Email service not yet initialized, skipping email send");
-      return {
-        success: false,
-        message: "Email service not initialized",
-      };
-    }
+    await this.ensureInitialized();
 
     const { email, firstName, role } = options;
 
@@ -345,55 +219,94 @@ Security Notice:
 
     const roleName = roleNames[role] || role;
 
-    const mailOptions = {
-      from: config.email.from,
-      to: email,
-      subject: "Welcome to SIWES Management System!",
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-              .content { background: #fff; padding: 30px; border: 1px solid #ddd; border-top: none; }
-              .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-              .footer { text-align: center; margin-top: 20px; color: #777; font-size: 12px; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🎉 Welcome to SIWES Management!</h1>
-              </div>
-              <div class="content">
-                <p>Hi ${firstName},</p>
-                <p>Your account has been successfully created! You can now access the SIWES Management System as a <strong>${roleName}</strong>.</p>
-                <div style="text-align: center;">
-                  <a href="${loginUrl}" class="button">Login to Dashboard</a>
-                </div>
-                <p>If you have any questions or need assistance, please don't hesitate to reach out to our support team.</p>
-              </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} SIWES Management System</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
-    };
+    const subject = "Welcome to SIWES Management System";
+    const html = `
+      <h2>Welcome ${firstName}</h2>
+      <p>Your account is ready.</p>
+      <p>You are registered as <strong>${roleName}</strong>.</p>
+
+      <p>
+      <a href="${loginUrl}" style="padding:12px 20px;background:#667eea;color:white;text-decoration:none;">
+      Login
+      </a>
+      </p>
+      `;
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.dispatchEmail({
+        to: email,
+        subject,
+        html,
+      });
+
       logger.info(`Welcome email sent to ${email}`);
-      return { success: true, messageId: info.messageId };
+
+      return {
+        success: true,
+        messageId: info.messageId,
+      };
     } catch (error) {
       logger.error("Failed to send welcome email", error);
-      // Don't throw - welcome email is not critical
-      return { success: false, error: error.message };
+
+      return {
+        success: false,
+        error: error.message,
+      };
     }
+  }
+
+  async resendInvitation(options) {
+    return this.sendInvitation(options);
+  }
+
+  async dispatchEmail({ to, subject, html, text }) {
+    await this.ensureInitialized();
+
+    if (this.provider === "resend") {
+      return this.sendWithResend({ to, subject, html, text });
+    }
+
+    return this.sendWithSmtp({ to, subject, html, text });
+  }
+
+  async sendWithSmtp({ to, subject, html, text }) {
+    if (!this.transporter) {
+      throw new Error("SMTP transporter not initialized");
+    }
+
+    return this.transporter.sendMail({
+      from: config.email.from,
+      to,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  async sendWithResend({ to, subject, html, text }) {
+    const from = config.resend.from || config.email.from;
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.resend.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text,
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`Resend API error (${response.status}): ${details}`);
+    }
+
+    const data = await response.json();
+    return { messageId: data?.id };
   }
 }
 

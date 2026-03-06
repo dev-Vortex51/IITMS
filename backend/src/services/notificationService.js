@@ -4,28 +4,10 @@ const { ApiError } = require("../middleware/errorHandler");
 const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../utils/constants");
 const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
-const nodemailer = require("nodemailer");
-const config = require("../config");
+const emailService = require("../utils/emailService");
 const { emitToUser } = require("../realtime/socket");
 
 const prisma = getPrismaClient();
-
-/**
- * Email transporter (initialized if email config is present)
- */
-let emailTransporter = null;
-
-if (config.email.user && config.email.password) {
-  emailTransporter = nodemailer.createTransport({
-    host: config.email.host,
-    port: config.email.port,
-    secure: config.email.secure,
-    auth: {
-      user: config.email.user,
-      pass: config.email.password,
-    },
-  });
-}
 
 /**
  * Create a single notification
@@ -57,8 +39,8 @@ const createNotification = async (notificationData) => {
       },
     });
 
-    // Send email if configured
-    if (emailTransporter && notificationData.sendEmail) {
+    // Send email if requested
+    if (notificationData.sendEmail) {
       await sendEmailNotification(notification);
     }
 
@@ -136,11 +118,6 @@ const createBulkNotifications = async (recipients, notificationData) => {
  * Send email notification
  */
 const sendEmailNotification = async (notification) => {
-  if (!emailTransporter) {
-    logger.warn("Email transporter not configured");
-    return;
-  }
-
   try {
     const user = await prisma.user.findUnique({
       where: { id: notification.recipientId },
@@ -151,8 +128,7 @@ const sendEmailNotification = async (notification) => {
       return;
     }
 
-    const mailOptions = {
-      from: config.email.from,
+    await emailService.dispatchEmail({
       to: user.email,
       subject: notification.title,
       html: `
@@ -168,9 +144,7 @@ const sendEmailNotification = async (notification) => {
         <br/><br/>
         <p>This is an automated message from SIWES Management System.</p>
       `,
-    };
-
-    await emailTransporter.sendMail(mailOptions);
+    });
 
     // Update notification email status
     await prisma.notification.update({

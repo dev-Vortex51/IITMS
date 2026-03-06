@@ -52,6 +52,10 @@ const config = {
       process.env.SMTP_FROM ||
       "SIWES Management <noreply@siwes.edu>",
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
+    from: process.env.RESEND_FROM || process.env.EMAIL_FROM,
+  },
 
   // CORS
   cors: {
