@@ -1,673 +1,211 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/providers/auth-provider";
-import { apiClient } from "@/lib/api-client";
+import { ChevronLeft } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  DashboardMetricsGrid,
+  ErrorGlobalState,
+  FilterFieldSearch,
+  FilterFieldSelect,
+  LoadingPage,
+  PageHeader,
+} from "@/components/design-system";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  BookOpen,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  MessageSquare,
-  ChevronLeft,
-  FileText,
-} from "lucide-react";
-import { toast } from "sonner";
-
-interface Student {
-  _id: string;
-  matricNumber: string;
-  user: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  logbooks?: Logbook[];
-  totalLogbooks?: number;
-  pendingReview?: number;
-  reviewed?: number;
-}
-
-interface Logbook {
-  _id: string;
-  student: Student;
-  weekNumber: number;
-  startDate: string;
-  endDate: string;
-  tasksPerformed: string;
-  skillsAcquired?: string;
-  challenges?: string;
-  lessonsLearned?: string;
-  evidence?: {
-    name: string;
-    path: string;
-  }[];
-  industrialReview?: {
-    status: string;
-    comment?: string;
-    rating?: number;
-    reviewedAt?: string;
-  };
-  departmentalReview?: {
-    status: string;
-    comment?: string;
-    rating?: number;
-    reviewedAt?: string;
-  };
-  status: string;
-  submittedAt?: string;
-  createdAt: string;
-}
+import { LogbookEntriesTable } from "./components/LogbookEntriesTable";
+import { LogbookReviewDialog } from "./components/LogbookReviewDialog";
+import { LogbookStudentTable } from "./components/LogbookStudentTable";
+import { useIndustrySupervisorLogbooks } from "./hooks/useIndustrySupervisorLogbooks";
+import { formatStudentName } from "./utils/logbook-ui";
 
 export default function ISupervisorLogbooksPage() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedLogbook, setSelectedLogbook] = useState<Logbook | null>(null);
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewRating, setReviewRating] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const supervisorId = user?.profileData?.id;
-
-  // Fetch assigned students with their logbook stats
-  const { data: studentsData, isLoading } = useQuery({
-    queryKey: ["supervisor-students", supervisorId],
-    queryFn: async () => {
-      const dashboardResponse = await apiClient.get(
-        `/supervisors/${supervisorId}/dashboard`
-      );
-      const assignedStudents =
-        dashboardResponse.data.data?.supervisor?.assignedStudents || [];
-
-      // Fetch logbooks for each student
-      const studentsWithLogbooks = await Promise.all(
-        assignedStudents.map(async (student: any) => {
-          try {
-            const logbooksResponse = await apiClient.get(
-              `/logbooks?student=${student.id}`
-            );
-            const logbooks = logbooksResponse.data.data || [];
-
-            return {
-              ...student,
-              logbooks,
-              totalLogbooks: logbooks.length,
-              pendingReview: logbooks.filter(
-                (l: any) => l.industrialReview?.status === "submitted"
-              ).length,
-              reviewed: logbooks.filter(
-                (l: any) =>
-                  l.industrialReview?.status === "approved" ||
-                  l.industrialReview?.status === "rejected"
-              ).length,
-            };
-          } catch (error) {
-            return {
-              ...student,
-              logbooks: [],
-              totalLogbooks: 0,
-              pendingReview: 0,
-              reviewed: 0,
-            };
-          }
-        })
-      );
-
-      return studentsWithLogbooks;
-    },
-    enabled: !!supervisorId,
-  });
-
-  // Review logbook mutation
-  const reviewMutation = useMutation({
-    mutationFn: async (data: {
-      logbookId: string;
-      comment: string;
-      rating: number;
-    }) => {
-      const response = await apiClient.post(
-        `/logbooks/${data.logbookId}/industrial-review`,
-        {
-          comment: data.comment,
-          rating: data.rating,
-        }
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success("Review submitted successfully");
-      queryClient.invalidateQueries({
-        queryKey: ["supervisor-students", supervisorId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["supervisor-dashboard", supervisorId],
-      });
-      setReviewDialogOpen(false);
-      setReviewComment("");
-      setReviewRating("");
-      setSelectedLogbook(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to submit review");
-    },
-  });
-
-  const handleReview = () => {
-    if (!selectedLogbook) return;
-    if (!reviewComment.trim()) {
-      toast.error("Please provide a comment");
-      return;
-    }
-    if (!reviewRating) {
-      toast.error("Please provide a rating");
-      return;
-    }
-
-    reviewMutation.mutate({
-      logbookId: selectedLogbook.id,
-      comment: reviewComment,
-      rating: parseInt(reviewRating),
-    });
-  };
-
-  const students = studentsData || [];
-
-  // Filter students based on search
-  const filteredStudents = students.filter((student: any) => {
-    const searchLower = searchQuery.toLowerCase();
-    const fullName =
-      `${student.user?.firstName} ${student.user?.lastName}`.toLowerCase();
-    return (
-      fullName.includes(searchLower) ||
-      student.matricNumber?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      submitted: {
-        variant: "secondary" as const,
-        icon: Clock,
-        label: "Pending Review",
-        className: undefined,
-      },
-      approved: {
-        variant: "default" as const,
-        icon: CheckCircle2,
-        label: "Reviewed",
-        className: "bg-green-500 hover:bg-green-600",
-      },
-      rejected: {
-        variant: "destructive" as const,
-        icon: XCircle,
-        label: "Reviewed",
-        className: undefined,
-      },
-    };
-    const config =
-      variants[status as keyof typeof variants] || variants.submitted;
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant} className={config.className || ""}>
-        <Icon className="h-3 w-3 mr-1" />
-        {config.label}
-      </Badge>
-    );
-  };
+  const {
+    selectedStudent,
+    setSelectedStudent,
+    selectedLogbook,
+    isReviewDialogOpen,
+    statusFilter,
+    setStatusFilter,
+    searchQuery,
+    setSearchQuery,
+    students,
+    filteredStudents,
+    filteredLogbooks,
+    totalPendingReviews,
+    totalLogbooks,
+    openReviewDialog,
+    closeReviewDialog,
+    goBackToStudents,
+    submitReview,
+    isLoading,
+    isError,
+    error,
+    retry,
+    isSubmittingReview,
+  } = useIndustrySupervisorLogbooks();
 
   if (isLoading) {
+    return <LoadingPage label="Loading students and logbooks..." />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">
-          Loading students and logbooks...
-        </div>
-      </div>
+      <ErrorGlobalState
+        title="Unable to load logbooks"
+        message={(error as Error)?.message || "Please try again."}
+        onRetry={() => {
+          void retry();
+        }}
+      />
     );
   }
 
-  // Student list view
-  if (!selectedStudent) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Student Logbooks</h1>
-          <p className="text-muted-foreground mt-2">
-            Review logbook entries from your assigned students
-          </p>
-        </div>
-
-        {/* Search */}
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Search students by name or matric number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Statistics */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Total Students
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{students.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Pending Reviews
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {students.reduce(
-                  (sum: number, s: any) => sum + s.pendingReview,
-                  0
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Total Logbooks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {students.reduce(
-                  (sum: number, s: any) => sum + s.totalLogbooks,
-                  0
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Students List */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredStudents.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-muted-foreground">
-              {searchQuery
-                ? "No students found matching your search"
-                : "No students assigned"}
-            </div>
-          ) : (
-            filteredStudents.map((student: any) => (
-              <Card
-                key={student.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedStudent(student)}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    {student.user?.firstName} {student.user?.lastName}
-                  </CardTitle>
-                  <CardDescription>{student.matricNumber}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Total Logbooks:
-                      </span>
-                      <span className="font-medium">
-                        {student.totalLogbooks}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Pending Review:
-                      </span>
-                      <span className="font-medium text-yellow-600">
-                        {student.pendingReview}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Reviewed:</span>
-                      <span className="font-medium text-green-600">
-                        {student.reviewed}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Student's logbooks view
-  const studentLogbooks = selectedStudent.logbooks || [];
-  const filteredLogbooks =
-    statusFilter === "all"
-      ? studentLogbooks
-      : studentLogbooks.filter((l: Logbook) => {
-          if (statusFilter === "pending")
-            return l.industrialReview?.status === "submitted";
-          if (statusFilter === "reviewed")
-            return (
-              l.industrialReview?.status === "approved" ||
-              l.industrialReview?.status === "rejected"
-            );
-          return true;
-        });
+  const isStudentListView = !selectedStudent;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedStudent(null)}
+    <div className="space-y-4 md:space-y-5">
+      <PageHeader
+        title={isStudentListView ? "Student Logbooks" : `${formatStudentName(selectedStudent)}'s Logbooks`}
+        description={
+          isStudentListView
+            ? "Review logbook entries from your assigned students"
+            : selectedStudent?.matricNumber || ""
+        }
+        actions={
+          isStudentListView ? null : (
+            <Button variant="outline" size="sm" onClick={goBackToStudents}>
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back to Students
+            </Button>
+          )
+        }
+      />
+
+      <DashboardMetricsGrid
+        items={
+          isStudentListView
+            ? [
+                {
+                  label: "Assigned Students",
+                  value: students.length,
+                  hint: "Students under your supervision",
+                  trend: "up" as const,
+                },
+                {
+                  label: "Pending Reviews",
+                  value: totalPendingReviews,
+                  hint: "Entries awaiting your action",
+                  trend: totalPendingReviews > 0 ? ("down" as const) : ("up" as const),
+                },
+                {
+                  label: "Total Logbooks",
+                  value: totalLogbooks,
+                  hint: "All submitted and draft entries",
+                  trend: "up" as const,
+                },
+                {
+                  label: "Review Rate",
+                  value:
+                    totalLogbooks > 0
+                      ? `${Math.round(((totalLogbooks - totalPendingReviews) / totalLogbooks) * 100)}%`
+                      : "0%",
+                  hint: "Reviewed vs total logbooks",
+                  trend: "neutral" as const,
+                },
+              ]
+            : [
+                {
+                  label: "Total Logbooks",
+                  value: selectedStudent.totalLogbooks || 0,
+                  hint: "Entries for this student",
+                  trend: "up" as const,
+                },
+                {
+                  label: "Pending Review",
+                  value: selectedStudent.pendingReview || 0,
+                  hint: "Awaiting your feedback",
+                  trend:
+                    (selectedStudent.pendingReview || 0) > 0
+                      ? ("down" as const)
+                      : ("up" as const),
+                },
+                {
+                  label: "Reviewed",
+                  value: selectedStudent.reviewed || 0,
+                  hint: "Approved and rejected entries",
+                  trend: "up" as const,
+                },
+                {
+                  label: "Review Rate",
+                  value:
+                    (selectedStudent.totalLogbooks || 0) > 0
+                      ? `${Math.round(((selectedStudent.reviewed || 0) / (selectedStudent.totalLogbooks || 1)) * 100)}%`
+                      : "0%",
+                  hint: "Reviewed entries ratio",
+                  trend: "neutral" as const,
+                },
+              ]
+        }
+      />
+
+      <section className="rounded-lg border bg-card p-3 shadow-sm md:p-4">
+        <div
+          className={
+            !isStudentListView
+              ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center"
+              : "grid gap-3"
+          }
         >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back to Students
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-primary">
-            {selectedStudent.user?.firstName} {selectedStudent.user?.lastName}
-            &apos;s Logbooks
-          </h1>
-          <p className="text-muted-foreground">
-            {selectedStudent.matricNumber}
-          </p>
+          <FilterFieldSearch
+            placeholder={
+              isStudentListView
+                ? "Search by student name or matric number..."
+                : "Search by week details..."
+            }
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full max-w-none"
+          />
+          {!isStudentListView ? (
+            <FilterFieldSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Filter by status"
+              className="w-full min-w-0"
+              options={[
+                { label: "All Status", value: "all" },
+                { label: "Pending Review", value: "pending" },
+                { label: "Reviewed", value: "reviewed" },
+              ]}
+            />
+          ) : null}
         </div>
-      </div>
+      </section>
 
-      {/* Filters */}
-      <div className="flex gap-4">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Logbooks</SelectItem>
-            <SelectItem value="pending">Pending Review</SelectItem>
-            <SelectItem value="reviewed">Reviewed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Logbooks List */}
-      <div className="space-y-4">
-        {filteredLogbooks.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              No logbooks found
-            </CardContent>
-          </Card>
-        ) : (
-          filteredLogbooks.map((logbook: Logbook) => (
-            <Card key={logbook.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">
-                      Week {logbook.weekNumber}
-                    </CardTitle>
-                    <CardDescription>
-                      {new Date(logbook.startDate).toLocaleDateString()} -{" "}
-                      {new Date(logbook.endDate).toLocaleDateString()}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    {logbook.industrialReview?.status &&
-                      getStatusBadge(logbook.industrialReview.status)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedLogbook(logbook);
-                        setReviewDialogOpen(true);
-                        setReviewComment(
-                          logbook.industrialReview?.comment || ""
-                        );
-                        setReviewRating(
-                          logbook.industrialReview?.rating?.toString() || ""
-                        );
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      {logbook.industrialReview?.status === "submitted"
-                        ? "Review"
-                        : "View"}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Tasks Performed
-                    </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {logbook.tasksPerformed}
-                    </p>
-                  </div>
-                  {logbook.industrialReview?.comment && (
-                    <div className="bg-muted p-3 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-4 w-4 text-primary" />
-                        <Label className="text-sm font-medium">
-                          Your Review
-                        </Label>
-                      </div>
-                      <p className="text-sm">
-                        {logbook.industrialReview.comment}
-                      </p>
-                      {logbook.industrialReview.rating && (
-                        <p className="text-sm mt-2">
-                          <span className="font-medium">Rating:</span>{" "}
-                          {logbook.industrialReview.rating}/10
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* Review Dialog */}
-      {reviewDialogOpen && (
-        <Dialog
-          open={true}
-          onOpenChange={(open) => {
-            if (!open) setReviewDialogOpen(false);
-          }}
-        >
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                Logbook Week {selectedLogbook?.weekNumber}
-              </DialogTitle>
-              <DialogDescription>
-                Review student&apos;s logbook entry
-              </DialogDescription>
-            </DialogHeader>
-            {selectedLogbook && (
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium">Period</Label>
-                  <p className="text-sm">
-                    {new Date(selectedLogbook.startDate).toLocaleDateString()} -{" "}
-                    {new Date(selectedLogbook.endDate).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Tasks Performed</Label>
-                  <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                    {selectedLogbook.tasksPerformed}
-                  </p>
-                </div>
-
-                {selectedLogbook.skillsAcquired && (
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Skills Acquired
-                    </Label>
-                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                      {selectedLogbook.skillsAcquired}
-                    </p>
-                  </div>
-                )}
-
-                {selectedLogbook.challenges && (
-                  <div>
-                    <Label className="text-sm font-medium">Challenges</Label>
-                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                      {selectedLogbook.challenges}
-                    </p>
-                  </div>
-                )}
-
-                {selectedLogbook.lessonsLearned && (
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Lessons Learned
-                    </Label>
-                    <p className="text-sm bg-muted p-3 rounded-lg mt-1">
-                      {selectedLogbook.lessonsLearned}
-                    </p>
-                  </div>
-                )}
-
-                {selectedLogbook.evidence &&
-                  selectedLogbook.evidence.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Evidence Files
-                      </Label>
-                      <div className="space-y-2 mt-1">
-                        {selectedLogbook.evidence.map((file, index) => (
-                          <a
-                            key={index}
-                            href={`${process.env.NEXT_PUBLIC_API_URL}${file.path}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-primary hover:underline"
-                          >
-                            <FileText className="h-4 w-4" />
-                            {file.name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {selectedLogbook.industrialReview?.status !== "submitted" && (
-                  <div className="bg-muted p-4 rounded-lg">
-                    <Label className="text-sm font-medium">
-                      Your Previous Review
-                    </Label>
-                    <p className="text-sm mt-2">
-                      {selectedLogbook.industrialReview?.comment}
-                    </p>
-                    {selectedLogbook.industrialReview?.rating && (
-                      <p className="text-sm mt-2">
-                        <span className="font-medium">Rating:</span>{" "}
-                        {selectedLogbook.industrialReview.rating}/10
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {selectedLogbook.industrialReview?.status === "submitted" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="rating">Rating (0-10) *</Label>
-                      <Input
-                        id="rating"
-                        type="number"
-                        min="0"
-                        max="10"
-                        value={reviewRating}
-                        onChange={(e) => setReviewRating(e.target.value)}
-                        placeholder="Enter rating"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="comment">Comment *</Label>
-                      <Textarea
-                        id="comment"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="Provide your feedback..."
-                        rows={4}
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setReviewDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleReview}
-                        disabled={reviewMutation.isPending}
-                      >
-                        {reviewMutation.isPending
-                          ? "Submitting..."
-                          : "Submit Review"}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+      {isStudentListView ? (
+        <LogbookStudentTable
+          students={filteredStudents}
+          searchQuery={searchQuery}
+          onSelectStudent={setSelectedStudent}
+        />
+      ) : (
+        <LogbookEntriesTable
+          logbooks={filteredLogbooks}
+          statusFilter={statusFilter}
+          isSubmittingReview={isSubmittingReview}
+          onReview={openReviewDialog}
+        />
       )}
+
+      <LogbookReviewDialog
+        open={isReviewDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeReviewDialog();
+          }
+        }}
+        logbook={selectedLogbook}
+        onSubmitReview={submitReview}
+        isSubmittingReview={isSubmittingReview}
+      />
     </div>
   );
 }
-

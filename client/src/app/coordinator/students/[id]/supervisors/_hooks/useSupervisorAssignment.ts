@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentService, placementService } from "@/services/student.service";
 import adminService from "@/services/admin.service";
@@ -65,25 +65,48 @@ export function useSupervisorAssignment(studentId: string) {
   });
 
   // Process Lists
-  const academicSuggestions = academicSuggestionsData?.data || [];
-  const industrialSuggestions = industrialSuggestionsData?.data || [];
-  const departmentalSupervisors = dSupervisorsData?.data || [];
-  const industrialSupervisors = industrialSupervisorsData?.data || [];
+  const academicSuggestions = useMemo(
+    () => academicSuggestionsData?.data || [],
+    [academicSuggestionsData],
+  );
+  const industrialSuggestions = useMemo(
+    () => industrialSuggestionsData?.data || [],
+    [industrialSuggestionsData],
+  );
+  const departmentalSupervisors = useMemo(
+    () => dSupervisorsData?.data || [],
+    [dSupervisorsData],
+  );
+  const industrialSupervisors = useMemo(
+    () => industrialSupervisorsData?.data || [],
+    [industrialSupervisorsData],
+  );
 
-  const academicList = departmentalSupervisors.length
-    ? departmentalSupervisors
-    : academicSuggestions;
-  const industrialList = industrialSuggestions.length
-    ? industrialSuggestions
-    : industrialSupervisors;
+  const academicList = useMemo(
+    () =>
+      departmentalSupervisors.length
+        ? departmentalSupervisors
+        : academicSuggestions,
+    [departmentalSupervisors, academicSuggestions],
+  );
+  const industrialList = useMemo(
+    () =>
+      industrialSuggestions.length
+        ? industrialSuggestions
+        : industrialSupervisors,
+    [industrialSuggestions, industrialSupervisors],
+  );
 
   // 4. Synchronize state with fetched data
   useEffect(() => {
-    if (student?.departmentalSupervisor) {
+    const existingAcademicSupervisor =
+      student?.departmentalSupervisor || student?.academicSupervisor;
+
+    if (existingAcademicSupervisor) {
       const dsId =
-        typeof student.departmentalSupervisor === "object"
-          ? student.departmentalSupervisor.id
-          : student.departmentalSupervisor;
+        typeof existingAcademicSupervisor === "object"
+          ? existingAcademicSupervisor.id
+          : existingAcademicSupervisor;
       setDepartmentalSupervisorId(dsId || "");
     } else if (!departmentalSupervisorId && academicSuggestions.length > 0) {
       setDepartmentalSupervisorId(academicSuggestions[0].id);

@@ -48,7 +48,7 @@ export function useSupervisors(user: any) {
     }
 
     const departmentId =
-      typeof user.department === "object"
+      user.department && typeof user.department === "object"
         ? user.department.id
         : user.department;
 

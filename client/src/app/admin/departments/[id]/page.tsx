@@ -1,10 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useDepartmentDetails } from "./_hooks/useDepartmentDetails";
-import DepartmentHeader from "./_components/DepartmentHeader";
 import DepartmentOverview from "./_components/DepartmentOverview";
 import DepartmentCoordinators from "./_components/DepartmentCoordinators";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  EmptyState,
+  ErrorGlobalState,
+  LoadingPage,
+  PageHeader,
+  SectionCard,
+} from "@/components/design-system";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Building, School, UserCog } from "lucide-react";
 
 export default function DepartmentDetailsPage({
   params,
@@ -13,68 +21,107 @@ export default function DepartmentDetailsPage({
 }) {
   const { queries, mutations, data } = useDepartmentDetails(params.id);
 
-  console.log("Page render - coordinatorsList:", data.coordinatorsList);
-  console.log(
-    "Page render - coordinatorQueries.isLoading:",
-    queries.coordinatorQueries.isLoading,
-  );
-  console.log(
-    "Page render - coordinatorQueries.data:",
-    queries.coordinatorQueries.data,
-  );
-
   if (queries.departmentQuery.isLoading) {
+    return <LoadingPage label="Loading department details..." />;
+  }
+
+  if (queries.departmentQuery.isError) {
     return (
-      <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in duration-500">
-        <Skeleton className="h-8 w-32" />
-        <div className="flex justify-between items-end border-b pb-6">
-          <div className="space-y-3">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-10 w-64" />
-          </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-20 w-32 rounded-xl" />
-            <Skeleton className="h-20 w-32 rounded-xl" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <Skeleton className="h-[300px] rounded-xl lg:col-span-4 lg:sticky lg:top-6" />
-          <Skeleton className="h-[400px] rounded-xl lg:col-span-8" />
-        </div>
-      </div>
+      <ErrorGlobalState
+        title="Unable to load department"
+        message={
+          (queries.departmentQuery.error as Error)?.message || "Please try again."
+        }
+        onRetry={() => void queries.departmentQuery.refetch()}
+      />
     );
   }
 
   if (!data.department) {
     return (
-      <div className="flex items-center justify-center h-[50vh] text-muted-foreground">
-        Department not found.
+      <div className="space-y-4 md:space-y-5">
+        <PageHeader
+          title="Department Not Found"
+          description="The requested department could not be located."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/departments">Back to Departments</Link>
+            </Button>
+          }
+        />
+        <EmptyState
+          title="No department record"
+          description="This department doesn't exist or was removed."
+          icon={<Building className="h-12 w-12 text-muted-foreground/50" />}
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-10 max-w-6xl mx-auto pb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <DepartmentHeader department={data.department} />
+    <div className="space-y-4 md:space-y-5">
+      <PageHeader
+        title={data.department.name}
+        description={`Department details and coordinator coverage for ${data.department.code}.`}
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/admin/departments">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Departments
+            </Link>
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        {/* Left Column: Fixed Overview */}
-        <div className="lg:col-span-4 lg:sticky lg:top-6">
-          <DepartmentOverview
-            department={data.department}
-            faculties={data.faculties}
-            updateMutation={mutations.updateMutation}
-          />
+      <section className="rounded-md border border-border bg-card p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Building className="h-4 w-4" />
+            <span>Code: {data.department.code || "N/A"}</span>
+          </div>
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <School className="h-4 w-4" />
+            <span>
+              Faculty:{" "}
+              {typeof data.department.faculty === "object"
+                ? data.department.faculty?.code || "N/A"
+                : "N/A"}
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <UserCog className="h-4 w-4" />
+            <span>{data.coordinatorsList.length} coordinator(s) assigned</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <SectionCard
+            title="Department Overview"
+            description="Core metadata and editable attributes."
+          >
+            <DepartmentOverview
+              department={data.department}
+              faculties={data.faculties}
+              updateMutation={mutations.updateMutation}
+            />
+          </SectionCard>
         </div>
 
-        {/* Right Column: Coordinators */}
         <div className="lg:col-span-8">
-          <DepartmentCoordinators
-            isLoading={queries.coordinatorQueries.isLoading}
-            coordinators={data.coordinatorsList}
-          />
+          <SectionCard
+            title="Assigned Coordinators"
+            description="Primary staff contacts managing placements for this department."
+          >
+            <DepartmentCoordinators
+              isLoading={queries.coordinatorQueries.isLoading}
+              coordinators={data.coordinatorsList}
+            />
+          </SectionCard>
         </div>
       </div>
+
     </div>
   );
 }

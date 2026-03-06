@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
+import { EmptyState, LoadingSectionSkeleton } from "@/components/design-system";
 import { UserCog, Mail, Phone } from "lucide-react";
 
 export default function DepartmentCoordinators({
@@ -10,71 +10,50 @@ export default function DepartmentCoordinators({
   coordinators: any[];
 }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col space-y-1 pb-4 border-b border-border/40">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <UserCog className="h-5 w-5 text-muted-foreground" />
-          Assigned Coordinators
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Primary staff contacts managing internships and placements.
-        </p>
-      </div>
-
+    <div className="space-y-3">
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-24 rounded-xl bg-muted/50 animate-pulse"
-            />
-          ))}
-        </div>
+        <LoadingSectionSkeleton rows={2} />
       ) : coordinators.length > 0 ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {coordinators.map((coord: any) => (
             <div
               key={coord.id}
-              className="group flex items-center gap-4 p-4 rounded-xl border border-border/40 bg-card hover:border-primary/20 hover:shadow-sm transition-all"
+              className="group flex items-center gap-4 rounded-md border border-border bg-background p-4 transition-colors hover:bg-muted/30"
             >
               <Avatar className="h-12 w-12 border border-border">
-                <AvatarFallback className="bg-primary/5 text-primary font-medium">
+                <AvatarFallback className="bg-primary/5 font-medium text-primary">
                   {coord.firstName?.[0]}
                   {coord.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-1 min-w-0 flex-1">
-                <p className="font-semibold text-sm truncate">
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-sm font-semibold">
                   {coord.firstName} {coord.lastName}
                 </p>
                 <div className="flex flex-col gap-1">
                   <a
                     href={`mailto:${coord.email}`}
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <Mail className="h-3 w-3" />{" "}
+                    <Mail className="h-3 w-3" />
                     <span className="truncate">{coord.email}</span>
                   </a>
-                  {coord.phone && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  {coord.phone ? (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Phone className="h-3 w-3" /> {coord.phone}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <Card className="border-dashed border-2 bg-transparent shadow-none py-12 flex flex-col items-center justify-center text-center px-4">
-          <UserCog className="h-10 w-10 text-muted-foreground/30 mb-3" />
-          <h3 className="text-sm font-semibold text-foreground">
-            No Coordinators Assigned
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">
-            Assign staff from the main departments page to manage placements.
-          </p>
-        </Card>
+        <EmptyState
+          title="No Coordinators Assigned"
+          description="Assign staff from the main departments page to manage placements."
+          icon={<UserCog className="h-10 w-10 text-muted-foreground/30" />}
+        />
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 import { apiClient } from "@/lib/api-client";
 
 export interface LogbookEntry {
+  id?: string;
   _id: string;
-  student: string;
+  student: any;
   weekNumber: number;
   startDate: string;
   endDate: string;
@@ -31,9 +32,6 @@ export interface LogbookEntry {
 }
 
 export interface CreateLogbookData {
-  weekNumber: number;
-  startDate: string;
-  endDate: string;
   tasksPerformed: string;
   skillsAcquired?: string;
   challenges?: string;

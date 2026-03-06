@@ -5,6 +5,11 @@ import { usePlacements } from "./hooks/usePlacements";
 import { PlacementMetrics } from "./components/PlacementMetrics";
 import { PlacementFilters } from "./components/PlacementFilters";
 import { PlacementList } from "./components/PlacementList";
+import {
+  ErrorLocalState,
+  LoadingPage,
+  PageHeader,
+} from "@/components/design-system";
 
 export default function CoordinatorPlacementsPage() {
   useEffect(() => {
@@ -19,36 +24,42 @@ export default function CoordinatorPlacementsPage() {
     filteredPlacements,
     metrics,
     isLoading,
+    isError,
   } = usePlacements();
 
-  return (
-    <div className="space-y-6 max-w-[1400px] mx-auto pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Student Placements
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Review, approve, and manage placement applications.
-          </p>
-        </div>
-      </div>
+  if (isLoading) {
+    return <LoadingPage label="Loading placements..." />;
+  }
 
-      {/* Ribbon Metrics */}
+  if (isError) {
+    return (
+      <div className="space-y-4 md:space-y-5">
+        <PageHeader
+          title="Student Placements"
+          description="Review, approve, and manage placement applications."
+        />
+        <ErrorLocalState message="Placement data could not be loaded." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 md:space-y-5">
+      <PageHeader
+        title="Student Placements"
+        description="Review, approve, and manage placement applications."
+      />
+
       <PlacementMetrics metrics={metrics} />
 
-      {/* Main Content Area */}
-      <div className="space-y-4">
-        <PlacementFilters
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
+      <PlacementFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
 
-        <PlacementList placements={filteredPlacements} isLoading={isLoading} />
-      </div>
+      <PlacementList placements={filteredPlacements} isLoading={isLoading} />
     </div>
   );
 }

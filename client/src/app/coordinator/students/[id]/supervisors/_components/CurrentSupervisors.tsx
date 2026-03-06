@@ -1,6 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building, Users } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 // Helper to safely extract name and email from complex supervisor objects
 function getSupervisorDetails(supervisor: any) {
@@ -19,9 +27,12 @@ function getSupervisorDetails(supervisor: any) {
 }
 
 export function CurrentSupervisors({ student }: { student: any }) {
+  const academicSupervisor =
+    student?.departmentalSupervisor || student?.academicSupervisor;
+
   const currentDeptSup =
-    typeof student?.departmentalSupervisor === "object"
-      ? student.departmentalSupervisor
+    typeof academicSupervisor === "object"
+      ? academicSupervisor
       : null;
   const currentIndSup =
     typeof student?.industrialSupervisor === "object"
@@ -32,51 +43,65 @@ export function CurrentSupervisors({ student }: { student: any }) {
   const indDetails = getSupervisorDetails(currentIndSup);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <AssignmentCard
-        title="Academic Supervisor"
-        icon={<Building className="h-5 w-5 text-primary" />}
-        details={deptDetails}
-        isActive={!!currentDeptSup}
-        badgeText="Faculty-based"
-      />
-      <AssignmentCard
-        title="Industrial Supervisor"
-        icon={<Users className="h-5 w-5 text-primary" />}
-        details={indDetails}
-        isActive={!!currentIndSup}
-      />
-    </div>
+    <Card className="shadow-sm border-border/50">
+      <CardHeader className="border-b border-border/60">
+        <CardTitle>Current Assignments</CardTitle>
+        <CardDescription>
+          Review currently assigned supervisors before updating.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="rounded-md border border-border/60 overflow-hidden">
+          <SupervisorRow
+            title="Academic Supervisor"
+            details={deptDetails}
+            isAssigned={!!currentDeptSup}
+            icon={<Building className="h-4 w-4" />}
+          />
+          <Separator />
+          <SupervisorRow
+            title="Industrial Supervisor"
+            details={indDetails}
+            isAssigned={!!currentIndSup}
+            icon={<Users className="h-4 w-4" />}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function AssignmentCard({ title, icon, details, isActive, badgeText }: any) {
+function SupervisorRow({
+  title,
+  details,
+  isAssigned,
+  icon,
+}: {
+  title: string;
+  details: { name: string; email: string };
+  isAssigned: boolean;
+  icon: React.ReactNode;
+}) {
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardHeader className="pb-3 flex flex-row items-center space-y-0 gap-2">
-        {icon}
-        <CardTitle className="text-base">{title}</CardTitle>
-        {badgeText && (
-          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded ml-auto">
-            {badgeText}
-          </span>
-        )}
-      </CardHeader>
-      <CardContent>
-        {isActive ? (
-          <div>
-            <p className="font-medium">{details.name}</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {details.email}
-            </p>
-            <Badge variant="success" className="mt-2 text-xs">
-              Assigned
-            </Badge>
-          </div>
-        ) : (
-          <p className="text-muted-foreground italic text-sm">Not assigned</p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="p-3">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-[220px_1fr_auto] md:items-center">
+        <Label className="text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+          {icon}
+          {title}
+        </Label>
+        <div className="min-w-0">
+          <p className="font-medium text-sm">{details.name}</p>
+          <p className="text-xs text-muted-foreground truncate">{details.email}</p>
+        </div>
+        <div className="md:justify-self-end">
+          <Badge
+            variant="secondary"
+            className={isAssigned ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}
+          >
+            {isAssigned ? "Assigned" : "Unassigned"}
+          </Badge>
+        </div>
+      </div>
+    </div>
   );
 }

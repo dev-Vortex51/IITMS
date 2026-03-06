@@ -459,6 +459,9 @@ const getPlacementReport = async (filters = {}) => {
         student: {
           include: { user: true },
         },
+        industryPartner: {
+          select: { name: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -480,8 +483,10 @@ const getPlacementReport = async (filters = {}) => {
     const companyDistribution = {};
     placements.forEach((p) => {
       if (p.status === PLACEMENT_STATUS.APPROVED) {
-        companyDistribution[p.companyName] =
-          (companyDistribution[p.companyName] || 0) + 1;
+        const companyName =
+          p.industryPartner?.name || p.companyName || "Unknown Company";
+        companyDistribution[companyName] =
+          (companyDistribution[companyName] || 0) + 1;
       }
     });
 

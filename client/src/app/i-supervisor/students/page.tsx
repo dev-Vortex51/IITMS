@@ -1,263 +1,217 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/components/providers/auth-provider";
-import { apiClient } from "@/lib/api-client";
-import { LoadingCard } from "@/components/ui/loading";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Users, Search, Eye, Building2, BookOpen } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Eye, Search, Users } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useUrlSearchState } from "@/hooks/useUrlSearchState";
+import { apiClient } from "@/lib/api-client";
+import {
+  ActionMenu,
+  AtlassianTable,
+  DashboardMetricsGrid,
+  ErrorLocalState,
+  FilterBar,
+  FilterFieldSearch,
+  LoadingPage,
+  PageHeader,
+  StatusBadge,
+} from "@/components/design-system";
 
 export default function ISupervisorStudentsPage() {
-  const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
+  useEffect(() => {
+    document.title = "My Students | ITMS";
+  }, []);
 
+  const { user } = useAuth();
+  const { searchQuery, setSearchQuery } = useUrlSearchState();
   const supervisorId = user?.profileData?.id;
 
-  // Fetch supervisor dashboard data
-  const { data: dashboardData, isLoading } = useQuery({
+  const { data: dashboardData, isLoading, isError, refetch } = useQuery({
     queryKey: ["supervisor-dashboard", supervisorId],
     queryFn: async () => {
-      const response = await apiClient.get(
-        `/supervisors/${supervisorId}/dashboard`
-      );
+      const response = await apiClient.get(`/supervisors/${supervisorId}/dashboard`);
       return response.data.data;
     },
     enabled: !!supervisorId,
   });
 
-  const students = dashboardData?.supervisor?.assignedStudents || [];
+  const students = useMemo(
+    () => dashboardData?.supervisor?.assignedStudents || [],
+    [dashboardData],
+  );
+  const pendingLogbooks = dashboardData?.statistics?.pendingLogbooks || 0;
 
-  // Filter students based on search query
-  const filteredStudents = students.filter((student: any) => {
-    const searchLower = searchQuery.toLowerCase();
-    const fullName =
-      `${student.user?.firstName} ${student.user?.lastName}`.toLowerCase();
-    return (
-      fullName.includes(searchLower) ||
-      student.matricNumber?.toLowerCase().includes(searchLower) ||
-      student.user?.email?.toLowerCase().includes(searchLower)
-    );
-  });
+  const filteredStudents = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return students;
 
-  const getPlacementStatus = (student: any) => {
-    if (!student.currentPlacement) {
-      return {
-        text: "No Placement",
-        variant: "secondary" as const,
-        className: "",
-      };
-    }
-    const status = student.currentPlacement.status || "pending";
-    const variants = {
-      approved: {
-        text: "Approved",
-        variant: "default" as const,
-        className: "bg-green-500 hover:bg-green-600",
-      },
-      pending: {
-        text: "Pending",
-        variant: "secondary" as const,
-        className: "bg-yellow-500 hover:bg-yellow-600",
-      },
-      rejected: {
-        text: "Rejected",
-        variant: "destructive" as const,
-        className: "",
-      },
-      withdrawn: {
-        text: "Withdrawn",
-        variant: "secondary" as const,
-        className: "bg-gray-500 hover:bg-gray-600",
-      },
-    };
+    return students.filter((student: any) => {
+      const fullName = `${student.user?.firstName || ""} ${student.user?.lastName || ""}`
+        .trim()
+        .toLowerCase();
+      return (
+        fullName.includes(query) ||
+        student.matricNumber?.toLowerCase().includes(query) ||
+        student.user?.email?.toLowerCase().includes(query)
+      );
+    });
+  }, [searchQuery, students]);
+
+  const activePlacements = students.filter(
+    (student: any) => student.currentPlacement?.status === "approved",
+  ).length;
+  const noPlacement = students.filter((student: any) => !student.currentPlacement).length;
+
+  const metrics = [
+    {
+      label: "Total Students",
+      value: students.length,
+      hint: "Students assigned to you",
+      trend: "up" as const,
+    },
+    {
+      label: "Active Placements",
+      value: activePlacements,
+      hint: "Students with approved placement",
+      trend: "up" as const,
+    },
+    {
+      label: "Pending Logbooks",
+      value: pendingLogbooks,
+      hint: "Entries waiting for your review",
+      trend: pendingLogbooks > 0 ? ("down" as const) : ("up" as const),
+    },
+    {
+      label: "No Placement",
+      value: noPlacement,
+      hint: "Students yet to secure placement",
+      trend: "neutral" as const,
+    },
+  ];
+
+  if (isLoading) {
+    return <LoadingPage label="Loading students..." />;
+  }
+
+  if (isError) {
     return (
-      variants[status as keyof typeof variants] || {
-        text: "Unknown",
-        variant: "secondary" as const,
-        className: "",
-      }
+      <div className="space-y-4 md:space-y-5">
+        <PageHeader
+          title="My Students"
+          description="Monitor assigned students, placement status, and review workload."
+        />
+        <ErrorLocalState
+          message="Student records could not be loaded."
+          onRetry={() => {
+            void refetch();
+          }}
+        />
+      </div>
     );
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">My Students</h1>
-          <p className="text-muted-foreground mt-2">
-            Students under your workplace supervision
-          </p>
-        </div>
-      </div>
+    <div className="space-y-4 md:space-y-5">
+      <PageHeader
+        title="My Students"
+        description="Monitor assigned students, placement status, and review workload."
+      />
 
-      {/* Search Bar */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search Students</CardTitle>
-          <CardDescription>
-            Find students by name, matric number, or email
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search students..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-md"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardMetricsGrid items={metrics} />
 
-      {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-primary">
-                {students.length}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      <FilterBar>
+        <FilterFieldSearch
+          placeholder="Search by student name, matric number, or email"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          className="max-w-md"
+        />
+      </FilterBar>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Placements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {
-                students.filter(
-                  (s: any) => s.currentPlacement?.status === "approved"
-                ).length
-              }
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Logbooks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-yellow-600" />
-              <span className="text-2xl font-bold text-yellow-600">
-                {dashboardData?.statistics?.pendingLogbooks || 0}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Students List */}
-      {isLoading ? (
-        <LoadingCard />
-      ) : filteredStudents.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Students List ({filteredStudents.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {filteredStudents.map((student: any) => {
-                const placementStatus = getPlacementStatus(student);
-
-                return (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Users className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {student.user?.firstName} {student.user?.lastName}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <p className="text-sm text-muted-foreground">
-                            {student.matricNumber || "N/A"}
-                          </p>
-                          {student.currentPlacement?.companyName && (
-                            <>
-                              <span className="text-muted-foreground">•</span>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                <Building2 className="h-3 w-3" />
-                                {student.currentPlacement.companyName}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Badge
-                        variant={placementStatus.variant}
-                        className={placementStatus.className}
-                      >
-                        {placementStatus.text}
-                      </Badge>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/i-supervisor/students/${student.id}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-accent-foreground" />
+      <AtlassianTable
+        title="Assigned Students"
+        subtitle={`${filteredStudents.length} record${filteredStudents.length === 1 ? "" : "s"}`}
+        data={filteredStudents}
+        rowKey={(student: any) => student.id}
+        columns={[
+          {
+            id: "student",
+            header: "Student",
+            sortable: true,
+            sortAccessor: (student: any) =>
+              `${student.user?.firstName || ""} ${student.user?.lastName || ""}`.trim(),
+            render: (student: any) => (
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-md bg-primary/10 p-1.5 text-primary">
+                  <Users className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {student.user?.firstName} {student.user?.lastName}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">
-                  {searchQuery ? "No Students Found" : "No Students Assigned"}
-                </h3>
-                <p className="text-muted-foreground mt-1">
-                  {searchQuery
-                    ? "Try adjusting your search query"
-                    : "Students will appear here once assigned to you"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            ),
+          },
+          {
+            id: "matricNumber",
+            header: "Matric Number",
+            sortable: true,
+            sortAccessor: (student: any) => student.matricNumber || "",
+            render: (student: any) => (
+              <span className="text-sm text-foreground">{student.matricNumber || "N/A"}</span>
+            ),
+          },
+          {
+            id: "department",
+            header: "Department",
+            sortable: true,
+            sortAccessor: (student: any) =>
+              typeof student.department === "object" ? student.department?.name || "" : "",
+            render: (student: any) => (
+              <span className="text-sm text-foreground">
+                {typeof student.department === "object" ? student.department?.name || "N/A" : "N/A"}
+              </span>
+            ),
+          },
+          {
+            id: "placement",
+            header: "Placement",
+            render: (student: any) => <StatusBadge status={student.currentPlacement?.status || "No Placement"} />,
+          },
+          {
+            id: "actions",
+            header: "",
+            align: "right",
+            width: 56,
+            render: (student: any) => (
+              <ActionMenu
+                items={[
+                  {
+                    label: "View Student",
+                    href: `/i-supervisor/students/${student.id}`,
+                    icon: <Eye className="h-3.5 w-3.5" />,
+                  },
+                  {
+                    label: "Review Logbooks",
+                    href: `/i-supervisor/logbooks?student=${student.id}`,
+                    icon: <Search className="h-3.5 w-3.5" />,
+                  },
+                ]}
+              />
+            ),
+          },
+        ]}
+        emptyTitle={searchQuery ? "No Students Found" : "No Students Assigned"}
+        emptyDescription={
+          searchQuery
+            ? "Try adjusting your search query."
+            : "Students will appear here once assigned to you."
+        }
+        emptyIcon={<Users className="h-6 w-6 text-accent-foreground" />}
+      />
     </div>
   );
 }

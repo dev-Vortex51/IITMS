@@ -1,29 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { usePagination } from "@/hooks/usePagination";
 import { useDepartmentsLogic } from "./_hooks/useDepartmentsLogic";
-import DepartmentFilters from "./_components/DepartmentFilters";
-import DepartmentCard from "./_components/DepartmentCard";
+import { DashboardMetricsGrid, LoadingPage, PageHeader } from "@/components/design-system";
 import CreateDepartment from "./_components/CreateDepartment";
 import AssignCoordinator from "./_components/AssignCoordinator";
-import { Building } from "lucide-react";
+import DepartmentsTable from "./_components/DepartmentsTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  PaginationEllipsis,
 } from "@/components/ui/pagination";
 
 export default function DepartmentsPage() {
   const { state, setters, queries, mutations } = useDepartmentsLogic();
   const [selectedDeptForAssign, setSelectedDeptForAssign] = useState<any>(null);
 
-  const departments = queries.departmentsQuery.data?.data || [];
-  const faculties = queries.facultiesQuery.data?.data || [];
+  const departments = useMemo(
+    () => queries.departmentsQuery.data?.data || [],
+    [queries.departmentsQuery.data],
+  );
+  const faculties = useMemo(
+    () => queries.facultiesQuery.data?.data || [],
+    [queries.facultiesQuery.data],
+  );
   const meta = queries.departmentsQuery.data?.meta || {};
 
   const totalCount = meta.totalItems || meta.totalCount || departments.length;
@@ -35,6 +52,44 @@ export default function DepartmentsPage() {
     siblingCount: 1,
   });
 
+  const metrics = useMemo(() => {
+    const activeCount = departments.filter((dept: any) => dept.isActive).length;
+    const withCoordinator = departments.filter(
+      (dept: any) => dept.coordinators && dept.coordinators.length > 0,
+    ).length;
+    const totalStudents = departments.reduce(
+      (sum: number, dept: any) => sum + (dept.studentCount || 0),
+      0,
+    );
+
+    return [
+      {
+        label: "Total Departments",
+        value: totalCount,
+        hint: "Across all faculties",
+        trend: "neutral" as const,
+      },
+      {
+        label: "Active (Current View)",
+        value: activeCount,
+        hint: "Currently active departments",
+        trend: "up" as const,
+      },
+      {
+        label: "With Coordinators",
+        value: withCoordinator,
+        hint: "Departments with assignment",
+        trend: "up" as const,
+      },
+      {
+        label: "Students (Current View)",
+        value: totalStudents,
+        hint: "Students across listed departments",
+        trend: "neutral" as const,
+      },
+    ];
+  }, [departments, totalCount]);
+
   const handleToggleStatus = (dept: any) => {
     const action = dept.isActive ? "deactivate" : "activate";
     if (window.confirm(`Are you sure you want to ${action} ${dept.name}?`)) {
@@ -44,63 +99,107 @@ export default function DepartmentsPage() {
 
   const handleHardDelete = (dept: any) => {
     if (
-      window.confirm(`This will PERMANENTLY delete ${dept.name}!\n\nContinue?`)
+      window.confirm(`This will permanently delete ${dept.name}. Continue?`)
     ) {
       mutations.hardDeleteMutation.mutate(dept.id);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">
-            Departments
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Manage departments across all faculties ({totalCount} total)
-          </p>
-        </div>
-        <CreateDepartment
-          faculties={faculties}
-          createMutation={mutations.createMutation}
-        />
-      </div>
+  const clearFilters = () => {
+    setters.setSearchTerm("");
+    setters.setSelectedFaculty("all");
+    setters.setShowInactive(false);
+    setters.setCurrentPage(1);
+  };
 
-      <DepartmentFilters
-        state={state}
-        setters={setters}
-        faculties={faculties}
+  return (
+    <div className="space-y-4 md:space-y-5">
+      <PageHeader
+        title="Departments"
+        description={`Manage departments across all faculties (${totalCount} total).`}
+        actions={
+          <CreateDepartment
+            faculties={faculties}
+            createMutation={mutations.createMutation}
+          />
+        }
       />
 
-      {queries.departmentsQuery.isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : departments.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {departments.map((dept: any) => (
-            <DepartmentCard
-              key={dept.id}
-              department={dept}
-              onAssign={() => setSelectedDeptForAssign(dept)}
-              onToggleStatus={handleToggleStatus}
-              onHardDelete={handleHardDelete}
-              isLoading={
-                mutations.toggleStatusMutation.isPending ||
-                mutations.hardDeleteMutation.isPending
-              }
+      <DashboardMetricsGrid items={metrics} />
+
+      <section className="rounded-md border border-border bg-card p-4 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="relative md:col-span-1">
+            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={state.searchTerm}
+              onChange={(event) => {
+                setters.setSearchTerm(event.target.value);
+                setters.setCurrentPage(1);
+              }}
+              placeholder="Search by department name..."
+              className="pl-9"
             />
-          ))}
+          </div>
+
+          <div className="md:col-span-1">
+            <Select
+              value={state.selectedFaculty}
+              onValueChange={(value) => {
+                setters.setSelectedFaculty(value);
+                setters.setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by faculty" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Faculties</SelectItem>
+                {faculties.map((faculty: any) => (
+                  <SelectItem key={faculty.id} value={faculty.id}>
+                    {faculty.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 md:col-span-1 md:justify-end">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="showInactive"
+                checked={state.showInactive}
+                onCheckedChange={(checked) => {
+                  setters.setShowInactive(checked);
+                  setters.setCurrentPage(1);
+                }}
+              />
+              <Label htmlFor="showInactive" className="text-sm text-muted-foreground">
+                Show inactive
+              </Label>
+            </div>
+            {(state.searchTerm ||
+              state.selectedFaculty !== "all" ||
+              state.showInactive) && (
+              <Button variant="outline" onClick={clearFilters}>
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
+      </section>
+
+      {queries.departmentsQuery.isLoading ? (
+        <LoadingPage label="Loading departments..." />
       ) : (
-        <div className="text-center py-12 bg-white rounded-lg border">
-          <Building className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-          <h3 className="font-semibold text-lg">No Departments Found</h3>
-          <p className="text-muted-foreground mt-1">
-            Try adjusting your search or filter criteria.
-          </p>
-        </div>
+        <DepartmentsTable
+          departments={departments}
+          onAssign={setSelectedDeptForAssign}
+          onToggleStatus={handleToggleStatus}
+          onHardDelete={handleHardDelete}
+          isAssigning={mutations.assignCoordinatorMutation.isPending}
+          isDeleting={mutations.hardDeleteMutation.isPending}
+        />
       )}
 
       {totalPages > 1 && (
@@ -111,9 +210,7 @@ export default function DepartmentsPage() {
                 <PaginationItem key={index}>
                   {item.type === "previous" && (
                     <PaginationPrevious
-                      onClick={() =>
-                        setters.setCurrentPage(state.currentPage - 1)
-                      }
+                      onClick={() => setters.setCurrentPage(state.currentPage - 1)}
                       className={
                         item.disabled
                           ? "pointer-events-none opacity-50"
@@ -123,9 +220,7 @@ export default function DepartmentsPage() {
                   )}
                   {item.type === "next" && (
                     <PaginationNext
-                      onClick={() =>
-                        setters.setCurrentPage(state.currentPage + 1)
-                      }
+                      onClick={() => setters.setCurrentPage(state.currentPage + 1)}
                       className={
                         item.disabled
                           ? "pointer-events-none opacity-50"

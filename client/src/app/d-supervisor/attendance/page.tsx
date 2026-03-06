@@ -5,13 +5,19 @@ import { SupervisorApprovalInterface } from "@/components/attendance/supervisor-
 import { placementService } from "@/services/placement.service";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
+  EmptyState,
+  LoadingPage,
+  PageHeader,
+  SectionCard,
+} from "@/components/design-system";
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileText, Users } from "lucide-react";
+import { Users } from "lucide-react";
 
 export default function AcademicSupervisorAttendancePage() {
   const { user } = useAuth();
@@ -26,31 +32,19 @@ export default function AcademicSupervisorAttendancePage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
-    );
+    return <LoadingPage label="Loading attendance..." />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <FileText className="h-8 w-8" />
-          Attendance Review
-        </h1>
-        <p className="text-muted-foreground">
-          Review and approve student attendance records
-        </p>
-      </div>
+      <PageHeader
+        title="Attendance Review"
+        description="Review and approve student attendance records"
+      />
 
       {/* Stats */}
       {placements && placements.length > 0 && (
-        <Card>
+        <SectionCard title="Your Students">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -66,7 +60,7 @@ export default function AcademicSupervisorAttendancePage() {
               Review their attendance records and approve/reject as needed
             </div>
           </CardContent>
-        </Card>
+        </SectionCard>
       )}
 
       {/* Attendance review for each placement */}
@@ -92,8 +86,11 @@ export default function AcademicSupervisorAttendancePage() {
       ) : (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No students assigned yet</p>
+            <EmptyState
+              title="No Students Assigned"
+              description="Students will appear here once assigned to you."
+              icon={<Users className="h-12 w-12 text-muted-foreground/50" />}
+            />
           </CardContent>
         </Card>
       )}

@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useUrlSearchState } from "@/hooks/useUrlSearchState";
 import { placementService } from "@/services/student.service";
 
 export function usePlacements() {
   const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { searchQuery, setSearchQuery } = useUrlSearchState();
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const departmentId =
@@ -23,7 +24,7 @@ export function usePlacements() {
     enabled: !!departmentId,
   });
 
-  const placements = data?.data || [];
+  const placements = useMemo(() => data?.data || [], [data]);
 
   // Memoize filtering to prevent unnecessary recalculations on re-renders
   const filteredPlacements = useMemo(() => {

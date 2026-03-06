@@ -1,15 +1,9 @@
 import { apiClient } from "@/lib/api-client";
 import { LoginCredentials, LoginResponse, User } from "@/types/auth";
-import Cookies from "js-cookie";
 
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     const response = await apiClient.post("/auth/login", credentials);
-    if (response.data.success && response.data.data?.accessToken) {
-      Cookies.set("accessToken", response.data.data.accessToken, {
-        expires: 7,
-      });
-    }
     return response.data;
   },
 
@@ -17,12 +11,7 @@ export const authService = {
     try {
       const response = await apiClient.get("/auth/profile");
       return response.data.data;
-    } catch (error: any) {
-      console.error(
-        "getProfile error:",
-        error.response?.status,
-        error.response?.data || error.message
-      );
+    } catch (error) {
       return null;
     }
   },
@@ -52,7 +41,11 @@ export const authService = {
     });
   },
 
-  logout: () => {
-    Cookies.remove("accessToken");
+  logout: async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch {
+      // Ignore logout errors
+    }
   },
 };

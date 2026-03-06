@@ -1,24 +1,36 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useAuth } from "@/components/providers/auth-provider";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  BookOpen,
-  ClipboardCheck,
-  Settings,
-  LogOut,
+  AppShell,
+  Group,
+  Text,
+  Stack,
+  Avatar,
   Menu,
-  X,
+  ActionIcon,
+  UnstyledButton,
+  Box,
+  ScrollArea,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  Bell,
+  ChevronDown,
   GraduationCap,
+  LogOut,
+  Menu as MenuIcon,
+  Search,
+  Settings,
+  UserCircle,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+
+import { useAuth } from "@/components/providers/auth-provider";
+import { NotificationsDropdown } from "@/components/notifications/NotificationsDropdown";
+import classes from "./NavbarSimple.module.css";
 
 interface NavItem {
   title: string;
@@ -32,111 +44,278 @@ interface DashboardShellProps {
   title: string;
 }
 
+function getUserLabel(user: any) {
+  if (!user) return "User";
+  return (
+    user.name ||
+    `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+    user.email ||
+    "User"
+  );
+}
+
+function getUserInitials(user: any) {
+  const label = getUserLabel(user);
+  return label
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 function DashboardShell({ children, navItems, title }: DashboardShellProps) {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const [opened, { toggle, close }] = useDisclosure();
+  const [searchDraft, setSearchDraft] = useState("");
+  const [searchPulse, setSearchPulse] = useState(false);
+  const basePath = pathname?.split("/")[1] ? `/${pathname.split("/")[1]}` : "";
+  const settingsPath = basePath ? `${basePath}/settings` : "/settings";
+  const profilePath = `${settingsPath}?tab=profile`;
+  const notificationPath = basePath ? `${basePath}/notification` : "/notification";
+  const activeSearch = searchParams.get("search") ?? "";
+
+  useEffect(() => {
+    setSearchDraft(activeSearch);
+  }, [activeSearch]);
+
+  useEffect(() => {
+    if (!searchPulse) return undefined;
+    const timeoutId = window.setTimeout(() => setSearchPulse(false), 220);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchPulse]);
+
+  const applySearch = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const normalized = value.trim();
+
+    if (normalized) {
+      params.set("search", normalized);
+    } else {
+      params.delete("search");
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    applySearch(searchDraft);
+    setSearchPulse(true);
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setSearchDraft("");
+      applySearch("");
+      setSearchPulse(true);
+    }
+  };
+
+  const links = navItems.map((item) => {
+    const IconComponent = item.icon;
+    const isActive =
+      pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+    return (
+      <Link
+        className={classes.link}
+        data-active={isActive || undefined}
+        href={item.href}
+        key={item.title}
+        onClick={close}
+      >
+        {IconComponent && (
+          <IconComponent
+            className={classes.linkIcon}
+            size={22}
+            strokeWidth={1.5}
+          />
+        )}
+        <span>{item.title}</span>
+      </Link>
+    );
+  });
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="h-6 w-6" />
-          <span className="font-bold">SIWES</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-primary-foreground hover:bg-primary/90"
-        >
-          {sidebarOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </Button>
-      </div>
+    <AppShell
+      layout="alt"
+      header={{ height: 64 }}
+      navbar={{
+        width: 248,
+        breakpoint: "md",
+        collapsed: { mobile: !opened },
+      }}
+      className={classes.shell}
+    >
+      <AppShell.Navbar p="md" className={classes.navbar}>
+        <div className={classes.navbarMain}>
+          <Group className={classes.header} justify="space-between">
+            <Group gap="sm" wrap="nowrap">
+              <Box className={classes.brandMark}>
+                <GraduationCap size={16} strokeWidth={2} />
+              </Box>
+              <Box>
+                <Text className={classes.brandTitle}>PORTAL</Text>
+              </Box>
+            </Group>
+            <Group gap="xs">
+              <ActionIcon
+                onClick={close}
+                hiddenFrom="md"
+                size="md"
+                variant="subtle"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close sidebar"
+              >
+                <X size={18} />
+              </ActionIcon>
+            </Group>
+          </Group>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed top-0 left-0 z-40 h-screen w-64 bg-primary text-primary-foreground transition-transform duration-200",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-primary-foreground/20">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-8 w-8" />
-              <div>
-                <h2 className="font-bold text-lg">SIWES Portal</h2>
-                <p className="text-xs text-primary-foreground/70">{title}</p>
-              </div>
-            </div>
+          <div className={classes.navScroll}>
+            <ScrollArea h="100%" offsetScrollbars>
+              <Stack gap={4}>{links}</Stack>
+            </ScrollArea>
           </div>
+        </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                pathname === item.href || pathname.startsWith(item.href + "/");
+        <div className={classes.footer}>
+          <UnstyledButton
+            className={`${classes.link} text-destructive hover:bg-destructive/10`}
+            onClick={() => logout()}
+            w="100%"
+          >
+            <LogOut className={classes.linkIcon} size={22} strokeWidth={1.5} />
+            <span>Logout</span>
+          </UnstyledButton>
+        </div>
+      </AppShell.Navbar>
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                    isActive
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "hover:bg-primary/90 text-primary-foreground"
-                  )}
-                  onClick={() => {
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.title}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User Info & Logout */}
-          <div className="p-4 border-t border-primary-foreground/20">
-            <Button
-              className="w-full justify-start bg-transparent text-primary-foreground border-primary-foreground/20 hover:bg-primary/90"
-              onClick={logout}
+      {/* HEADER */}
+      <AppShell.Header className="border-b border-border bg-card px-4 md:px-6">
+        <Group h="100%" justify="space-between" wrap="nowrap">
+          <Group className={classes.headerLeft} wrap="nowrap">
+            <ActionIcon
+              onClick={toggle}
+              hiddenFrom="md"
+              size="md"
+              variant="subtle"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Toggle sidebar"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
+              <MenuIcon size={20} />
+            </ActionIcon>
+            <form
+              className={`${classes.searchWrap} ${searchPulse ? classes.searchPulse : ""}`}
+              onSubmit={handleSearchSubmit}
+            >
+              <input
+                className={classes.searchInput}
+                placeholder="Search..."
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.currentTarget.value)}
+                onKeyDown={handleSearchKeyDown}
+                aria-label={`Search ${title.toLowerCase()}`}
+              />
+              <button
+                type="submit"
+                className={classes.searchSubmit}
+                aria-label={`Submit search for ${title.toLowerCase()}`}
+              >
+                <Search className={classes.searchIcon} size={14} strokeWidth={1.8} />
+              </button>
+            </form>
+          </Group>
+
+          <Group gap="xs" className={classes.headerActions}>
+            <Menu
+              shadow="md"
+              width={260}
+              position="bottom-end"
+              withinPortal={false}
+              styles={{
+                dropdown: {
+                  width: "min(260px, calc(100vw - 1rem))",
+                  maxWidth: "calc(100vw - 1rem)",
+                  left: "auto",
+                  right: 0,
+                  backgroundColor: "#ffffff",
+                  borderColor: "#e5e7eb",
+                  borderRadius: "0.75rem",
+                },
+              }}
+            >
+              <Menu.Target>
+                <UnstyledButton className={classes.avatarButton} aria-label="Open account menu">
+                  <Avatar radius="xl" size={24} className={classes.avatar}>
+                    <span className="leading-none">{getUserInitials(user)}</span>
+                  </Avatar>
+                  <Text size="sm" fw={500} className="hidden truncate text-foreground sm:block">
+                    {getUserLabel(user)}
+                  </Text>
+                  <ChevronDown size={14} className="hidden shrink-0 text-muted-foreground sm:block" />
+                </UnstyledButton>
+              </Menu.Target>
+
+              <Menu.Dropdown className="bg-white text-foreground border-border">
+                <Menu.Label className="text-muted-foreground">Account</Menu.Label>
+                <Box px="sm" py="xs">
+                  <Text size="sm" fw={500} className="text-foreground">
+                    {getUserLabel(user)}
+                  </Text>
+                  <Text size="xs" className="text-muted-foreground">
+                    {user?.email}
+                  </Text>
+                </Box>
+                <Menu.Divider className="border-border" />
+                <Menu.Item
+                  className="hover:bg-accent"
+                  leftSection={<UserCircle size={14} />}
+                  onClick={() => router.push(profilePath)}
+                >
+                  Profile
+                </Menu.Item>
+                <Menu.Item
+                  className="hover:bg-accent"
+                  leftSection={<Settings size={14} />}
+                  onClick={() => router.push(settingsPath)}
+                >
+                  Settings
+                </Menu.Item>
+                <Menu.Item
+                  className="hover:bg-accent"
+                  leftSection={<Bell size={14} />}
+                  onClick={() => router.push(notificationPath)}
+                >
+                  Notifications
+                </Menu.Item>
+                <Menu.Item
+                  className="text-destructive hover:bg-destructive/10"
+                  leftSection={<LogOut size={14} />}
+                  onClick={logout}
+                >
+                  Logout
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+            <NotificationsDropdown />
+          </Group>
+        </Group>
+      </AppShell.Header>
+
+      {/* MAIN CONTENT AREA */}
+      <AppShell.Main className={classes.main}>
+        <div className={classes.mainContainer}>
+          {children}
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
-        <div className="p-6">{children}</div>
-      </main>
-
-      {/* Sidebar Overlay (Mobile) */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden cursor-pointer"
-          onClick={() => setSidebarOpen(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setSidebarOpen(false);
-          }}
-          role="button"
-          tabIndex={0}
-        />
-      )}
-    </div>
+      </AppShell.Main>
+    </AppShell>
   );
 }
 

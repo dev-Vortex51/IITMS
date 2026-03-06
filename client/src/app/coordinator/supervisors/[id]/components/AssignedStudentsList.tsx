@@ -1,76 +1,80 @@
+import { Group, Text } from "@mantine/core";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Users } from "lucide-react";
-import Link from "next/link";
+  ActionMenu,
+  AtlassianTable,
+  type AtlassianTableColumn,
+} from "@/components/design-system";
+import { GraduationCap, Eye } from "lucide-react";
 
 export function AssignedStudentsList({ students }: { students: any[] }) {
-  console.log(students);
-  return (
-    <Card className="border-border/50 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/50">
-        <div className="space-y-1">
-          <CardTitle className="text-lg">Assigned Students</CardTitle>
-          <CardDescription>Mentees currently under guidance.</CardDescription>
+  const columns: AtlassianTableColumn<any>[] = [
+    {
+      id: "student",
+      header: "Student",
+      width: 320,
+      sortable: true,
+      sortAccessor: (student) => (student.name || "").toLowerCase(),
+      render: (student) => (
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-full bg-muted p-1.5">
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <Text fw={600} size="sm">
+            {student.name || "Unknown Student"}
+          </Text>
         </div>
-        <Badge variant="secondary" className="rounded-full px-3">
-          {students.length} Total
-        </Badge>
-      </CardHeader>
-      <CardContent className="p-0">
-        {students.length > 0 ? (
-          <div className="divide-y divide-border/50">
-            {students.map((student: any) => (
-              <div
-                key={student.id}
-                className="flex items-center justify-between p-4 sm:px-6 hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-primary font-semibold text-sm">
-                      {student.name?.charAt(0) || "S"}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {student.name || "Unknown Student"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {student.matricNumber || "No Matric Number"}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 text-muted-foreground hover:text-primary"
-                >
-                  <Link href={`/coordinator/students/${student.id}`}>View</Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 flex flex-col items-center">
-            <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-              <Users className="h-6 w-6 text-muted-foreground/50" />
-            </div>
-            <p className="text-sm font-medium text-foreground">
-              No students assigned
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              This supervisor currently has no active mentees.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      ),
+    },
+    {
+      id: "matric",
+      header: "Matric No.",
+      width: 170,
+      sortable: true,
+      sortAccessor: (student) => (student.matricNumber || "").toLowerCase(),
+      render: (student) => (
+        <Text size="sm" ff="monospace">
+          {student.matricNumber || "N/A"}
+        </Text>
+      ),
+    },
+    {
+      id: "level",
+      header: "Level",
+      width: 120,
+      sortable: true,
+      sortAccessor: (student) => Number(student.level || 0),
+      render: (student) => <Text size="sm">{student.level || "N/A"}</Text>,
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      width: 90,
+      align: "right",
+      render: (student) => (
+        <Group justify="flex-end">
+          <ActionMenu
+            items={[
+              {
+                label: "View student",
+                href: `/coordinator/students/${student.id}`,
+                icon: <Eye className="h-3.5 w-3.5" />,
+              },
+            ]}
+          />
+        </Group>
+      ),
+    },
+  ];
+
+  return (
+    <AtlassianTable
+      title="Assigned Students"
+      subtitle="Students currently under this supervisor's mentorship."
+      data={students}
+      columns={columns}
+      rowKey={(student) => student.id}
+      emptyTitle="No students assigned"
+      emptyDescription="This supervisor currently has no active mentees."
+    />
   );
 }

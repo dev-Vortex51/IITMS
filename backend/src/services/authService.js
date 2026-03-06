@@ -7,11 +7,13 @@ const {
   HTTP_STATUS,
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
+  NOTIFICATION_TYPES,
 } = require("../utils/constants");
 const { generateToken, generateRefreshToken } = require("../middleware/auth");
 const logger = require("../utils/logger");
 const { handlePrismaError } = require("../utils/prismaErrors");
 const { hashPassword, comparePassword } = require("../utils/helpers");
+const notificationService = require("./notificationService");
 
 const login = async (email, password) => {
   try {
@@ -168,6 +170,18 @@ const changePassword = async (userId, oldPassword, newPassword) => {
     });
 
     logger.info(`User changed password: ${user.email}`);
+
+    try {
+      await notificationService.createNotification({
+        recipientId: user.id,
+        type: NOTIFICATION_TYPES.PASSWORD_CHANGED,
+        title: "Password Updated",
+        message: "Your account password was changed successfully.",
+        priority: "high",
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create password-changed notification: ${notifError.message}`);
+    }
 
     return {
       message: SUCCESS_MESSAGES.PASSWORD_RESET,
@@ -409,6 +423,20 @@ const forgotPassword = async (email) => {
       logger.error(`Failed to send reset email: ${emailError.message}`);
       // Don't throw - email failure shouldn't block the reset link generation
     }
+
+    try {
+      await notificationService.createNotification({
+        recipientId: user.id,
+        type: NOTIFICATION_TYPES.PASSWORD_RESET_REQUESTED,
+        title: "Password Reset Requested",
+        message: "A password reset request was initiated for your account.",
+        priority: "high",
+      });
+    } catch (notifError) {
+      logger.warn(
+        `Failed to create password-reset-requested notification: ${notifError.message}`,
+      );
+    }
   } catch (error) {
     logger.error(`forgotPassword error: ${error.message}`);
     // Don't throw - security measure to not reveal if email exists
@@ -451,6 +479,18 @@ const resetPassword = async (token, newPassword) => {
 
     logger.info(`User reset password via token: ${user.email}`);
 
+    try {
+      await notificationService.createNotification({
+        recipientId: user.id,
+        type: NOTIFICATION_TYPES.PASSWORD_CHANGED,
+        title: "Password Updated",
+        message: "Your password has been reset successfully.",
+        priority: "high",
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create password-changed notification: ${notifError.message}`);
+    }
+
     return { email: user.email };
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -483,6 +523,18 @@ const resetPasswordFirstLogin = async (userId, newPassword) => {
     });
 
     logger.info(`User reset password on first login: ${user.email}`);
+
+    try {
+      await notificationService.createNotification({
+        recipientId: user.id,
+        type: NOTIFICATION_TYPES.PASSWORD_CHANGED,
+        title: "Password Updated",
+        message: "Your password has been updated.",
+        priority: "medium",
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create password-changed notification: ${notifError.message}`);
+    }
 
     return { email: user.email };
   } catch (error) {

@@ -75,15 +75,36 @@ enum SupervisorType {
 }
 
 enum NotificationType {
+  invite_sent
+  invite_accepted
+  password_reset_requested
+  password_changed
+  placement_submitted
+  placement_updated
   placement_approved
   placement_rejected
+  logbook_draft_saved
+  logbook_submitted
+  logbook_reviewed
+  logbook_rejected_by_industrial
+  logbook_approved_final
+  logbook_rejected_final
+  attendance_checked_in
+  absence_request_submitted
+  attendance_approved
+  attendance_rejected
+  attendance_reclassified
   supervisor_assigned
   supervisor_unassigned
+  assessment_assigned
+  assessment_reviewed
   logbook_comment
   logbook_approved
   logbook_rejected
   assessment_submitted
+  assessment_deadline_reminder
   deadline_reminder
+  broadcast_announcement
   password_reset
   account_created
   general
@@ -215,6 +236,30 @@ model Faculty {
   @@map("faculties")
 }
 
+model IndustryPartner {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  email     String?
+  phone     String?
+  website   String?
+  sector    String?
+  isActive  Boolean  @default(true)
+
+  // Relations
+  placements  Placement[]
+  supervisors Supervisor[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([email])
+  @@index([isActive])
+  @@map("industry_partners")
+}
+
 model Department {
   id          String   @id @default(uuid())
   name        String
@@ -317,6 +362,8 @@ model Supervisor {
   companyName    String?
   companyAddress String?
   position       String?
+  industryPartnerId String?
+  industryPartner   IndustryPartner? @relation(fields: [industryPartnerId], references: [id])
   
   // Professional information
   qualification      String?
@@ -348,6 +395,7 @@ model Supervisor {
   @@index([userId])
   @@index([type])
   @@index([departmentId])
+  @@index([industryPartnerId])
   @@index([isActive])
   @@index([isAvailable])
   @@map("supervisors")
@@ -373,6 +421,8 @@ model Placement {
   companyPhone   String
   companyWebsite String?
   companySector  String?
+  industryPartnerId String?
+  industryPartner   IndustryPartner? @relation(fields: [industryPartnerId], references: [id])
   
   // Position information
   position   String
@@ -418,6 +468,7 @@ model Placement {
   @@index([status])
   @@index([startDate])
   @@index([industrialSupervisorId])
+  @@index([industryPartnerId])
   @@index([studentId, status])
   @@map("placements")
 }

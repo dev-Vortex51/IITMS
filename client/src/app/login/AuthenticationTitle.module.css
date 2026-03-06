@@ -1,0 +1,11 @@
+.title {
+  font-family: var(--mantine-font-family);
+  font-weight: 900;
+  color: var(--mantine-color-itmsBlue-8);
+}
+
+.subtitle {
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+  margin-top: var(--mantine-spacing-xs);
+}

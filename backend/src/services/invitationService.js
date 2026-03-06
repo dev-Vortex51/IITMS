@@ -1,10 +1,11 @@
 const { getPrismaClient } = require("../config/prisma");
 const { handlePrismaError } = require("../utils/prismaErrors");
-const { USER_ROLES } = require("../utils/constants");
+const { USER_ROLES, NOTIFICATION_TYPES } = require("../utils/constants");
 const { ApiError } = require("../middleware/errorHandler");
 const logger = require("../utils/logger");
 const emailService = require("../utils/emailService");
 const crypto = require("crypto");
+const notificationService = require("./notificationService");
 
 const prisma = getPrismaClient();
 
@@ -127,6 +128,21 @@ const createInvitation = async (inviterUser, invitationData) => {
     logger.info(
       `Invitation created for ${email} as ${role} by ${inviterUser.email}`,
     );
+
+    try {
+      await notificationService.createNotification({
+        recipientId: inviterUser.id,
+        type: NOTIFICATION_TYPES.INVITE_SENT,
+        title: "Invitation Sent",
+        message: `Invitation sent to ${invitation.email} for role ${invitation.role}.`,
+        priority: "low",
+        relatedModel: "Invitation",
+        relatedId: invitation.id,
+        createdById: inviterUser.id,
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create invite-sent notification: ${notifError.message}`);
+    }
 
     return invitation;
   } catch (error) {
@@ -573,6 +589,37 @@ const completeSetup = async (token, userData) => {
     logger.info(
       `User account created for ${user.email} via invitation (${invitation.role})`,
     );
+
+    try {
+      await notificationService.createNotification({
+        recipientId: invitation.invitedById,
+        type: NOTIFICATION_TYPES.INVITE_ACCEPTED,
+        title: "Invitation Accepted",
+        message: `${user.firstName} ${user.lastName} accepted the invitation (${invitation.role}).`,
+        priority: "medium",
+        relatedModel: "Invitation",
+        relatedId: invitation.id,
+        createdById: user.id,
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create invite-accepted notification: ${notifError.message}`);
+    }
+
+    try {
+      await notificationService.createNotification({
+        recipientId: user.id,
+        type: NOTIFICATION_TYPES.INVITE_ACCEPTED,
+        title: "Welcome Onboard",
+        message: "Your invited account setup is complete.",
+        priority: "low",
+        relatedModel: "Invitation",
+        relatedId: invitation.id,
+        createdById: invitation.invitedById,
+      });
+    } catch (notifError) {
+      logger.warn(`Failed to create invite-accepted confirmation: ${notifError.message}`);
+    }
+
     return user;
   } catch (error) {
     logger.error(`Error completing setup: ${error.message}`);

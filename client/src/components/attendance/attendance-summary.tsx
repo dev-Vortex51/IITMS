@@ -2,32 +2,51 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  attendanceService,
-  type AttendanceSummary,
-  type Anomaly,
-} from "@/services/attendance.service";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
+  AlertCircle,
+  AlertTriangle,
+  Calendar,
   CheckCircle2,
   Clock,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  AlertCircle,
+  PieChart as PieChartIcon,
+  Timer,
 } from "lucide-react";
+import {
+  Area,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  attendanceService,
+  type Anomaly,
+  type AttendanceSummary,
+} from "@/services/attendance.service";
+import { StatCard } from "@/components/design-system/stat-card";
+import { DashboardChartCard } from "@/components/design-system/dashboard-chart-card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface AttendanceSummaryProps {
   studentId: string;
 }
+
+const toNumber = (value: unknown) => Number(value ?? 0);
+
+const getSeverityTone = (severity: string) => {
+  const map: Record<string, string> = {
+    HIGH: "border-rose-200 bg-rose-50 text-rose-800",
+    MEDIUM: "border-amber-200 bg-amber-50 text-amber-800",
+    LOW: "border-blue-200 bg-blue-50 text-blue-800",
+  };
+  return map[severity] || "border-slate-200 bg-slate-50 text-slate-700";
+};
 
 export function AttendanceSummaryCard({ studentId }: AttendanceSummaryProps) {
   const { data: summary, isLoading } = useQuery({
@@ -37,251 +56,199 @@ export function AttendanceSummaryCard({ studentId }: AttendanceSummaryProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="shadow-sm">
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 w-1/3 rounded bg-muted" />
+            <div className="h-16 rounded bg-muted" />
+            <div className="h-48 rounded bg-muted" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!summary) return null;
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case "HIGH":
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
-      case "MEDIUM":
-        return <AlertCircle className="h-4 w-4 text-orange-600" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-    }
-  };
+  const completionPercentage = toNumber(summary.completionPercentage);
+  const punctualityRate = toNumber(summary.punctualityRate);
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "HIGH":
-        return "border-red-200 bg-red-50 text-red-700";
-      case "MEDIUM":
-        return "border-orange-200 bg-orange-50 text-orange-700";
-      default:
-        return "border-yellow-200 bg-yellow-50 text-yellow-700";
-    }
-  };
+  const dayStatusData = [
+    { label: "On Time", value: toNumber(summary.presentOnTime), color: "hsl(142 72% 29%)" },
+    { label: "Late", value: toNumber(summary.presentLate), color: "hsl(38 92% 50%)" },
+    { label: "Half Day", value: toNumber(summary.halfDay), color: "hsl(31 100% 50%)" },
+    { label: "Absent", value: toNumber(summary.absent), color: "hsl(346 84% 61%)" },
+    { label: "Excused", value: toNumber(summary.excusedAbsence), color: "hsl(221 83% 53%)" },
+    { label: "Incomplete", value: toNumber(summary.incomplete), color: "hsl(215 14% 56%)" },
+  ];
+
+  const approvalData = [
+    { label: "Approved", value: toNumber(summary.approved), color: "hsl(142 72% 29%)" },
+    { label: "Pending", value: toNumber(summary.pending), color: "hsl(38 92% 50%)" },
+    { label: "Needs Review", value: toNumber(summary.needsReview), color: "hsl(31 100% 50%)" },
+    { label: "Rejected", value: toNumber(summary.rejected), color: "hsl(346 84% 61%)" },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Anomaly Alerts */}
-      {summary.anomalies && summary.anomalies.length > 0 && (
-        <Card className="border-orange-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-700">
-              <AlertTriangle className="h-5 w-5" />
-              Attendance Alerts
-            </CardTitle>
-            <CardDescription>
-              Issues detected that require attention
-            </CardDescription>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total Days"
+          value={toNumber(summary.total)}
+          hint="Attendance timeline records"
+          icon={<Calendar className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Completion Rate"
+          value={`${completionPercentage.toFixed(1)}%`}
+          hint="Days with complete in/out records"
+          icon={<CheckCircle2 className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Punctuality"
+          value={`${punctualityRate.toFixed(1)}%`}
+          hint="On-time check-in performance"
+          icon={<Timer className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Open Reviews"
+          value={toNumber(summary.pending) + toNumber(summary.needsReview)}
+          hint="Pending + needs review"
+          icon={<Clock className="h-4 w-4" />}
+        />
+      </div>
+
+      {summary.anomalies?.length ? (
+        <Card className="border border-border/60 shadow-sm">
+          <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
+            <CardTitle className="text-base">Attendance Insights</CardTitle>
+            <CardDescription>System-detected patterns requiring attention</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2 pt-4">
             {summary.anomalies.map((anomaly: Anomaly, index: number) => (
               <div
-                key={index}
-                className={cn(
-                  "flex items-start gap-3 rounded-md border p-3 text-sm",
-                  getSeverityColor(anomaly.severity)
-                )}
+                key={`${anomaly.type}-${index}`}
+                className={cn("flex items-start gap-2 rounded-md border px-3 py-2 text-sm", getSeverityTone(anomaly.severity))}
               >
-                {getSeverityIcon(anomaly.severity)}
-                <div className="flex-1">
+                {anomaly.severity === "HIGH" ? (
+                  <AlertTriangle className="mt-0.5 h-4 w-4" />
+                ) : (
+                  <AlertCircle className="mt-0.5 h-4 w-4" />
+                )}
+                <div>
                   <p className="font-medium">{anomaly.description}</p>
-                  <p className="text-xs mt-1 opacity-80">
-                    Severity: {anomaly.severity}
-                  </p>
+                  <p className="text-xs opacity-90">Severity: {anomaly.severity}</p>
                 </div>
               </div>
             ))}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
-      {/* Overall Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Attendance Summary
-          </CardTitle>
-          <CardDescription>
-            Comprehensive overview of attendance records
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Completion and Punctuality */}
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Completion Rate</span>
-                <span className="text-2xl font-bold text-green-600">
-                  {summary.completionPercentage}%
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <DashboardChartCard
+          title="Day Status Distribution"
+          badge="Attendance classification"
+          className="[&>div:last-child]:h-[300px]"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={dayStatusData} margin={{ top: 8, right: 12, left: -16, bottom: 6 }}>
+              <defs>
+                <linearGradient id="attendanceLineFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 10,
+                  borderColor: "hsl(var(--border))",
+                  background: "hsl(var(--background))",
+                  fontSize: 12,
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="none"
+                fill="url(#attendanceLineFill)"
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(var(--primary))"
+                strokeWidth={3}
+                dot={{
+                  r: 4,
+                  fill: "hsl(var(--background))",
+                  stroke: "hsl(var(--primary))",
+                  strokeWidth: 2,
+                }}
+                activeDot={{
+                  r: 6,
+                  fill: "hsl(var(--primary))",
+                  stroke: "hsl(var(--background))",
+                  strokeWidth: 2,
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </DashboardChartCard>
+
+        <DashboardChartCard
+          title="Approval Flow"
+          badge="Supervisor review outcomes"
+          rightAddon={<PieChartIcon className="h-4 w-4 text-muted-foreground" />}
+          controls={
+            <div className="flex flex-wrap items-center gap-2">
+              {approvalData.map((entry) => (
+                <span
+                  key={entry.label}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  {entry.label}: {entry.value}
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full transition-all"
-                  style={{ width: `${summary.completionPercentage}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Days with complete attendance records
-              </p>
+              ))}
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Punctuality Rate</span>
-                <span className="text-2xl font-bold text-blue-600">
-                  {summary.punctualityRate}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all"
-                  style={{ width: `${summary.punctualityRate}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                On-time check-ins (≤8:15 AM)
-              </p>
-            </div>
-          </div>
-
-          {/* Day Status Breakdown */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Day Status Breakdown</h4>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <StatCard
-                icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
-                label="Present On Time"
-                value={summary.presentOnTime}
-                variant="success"
-              />
-              <StatCard
-                icon={<Clock className="h-4 w-4 text-orange-600" />}
-                label="Present Late"
-                value={summary.presentLate}
-                variant="warning"
-              />
-              <StatCard
-                icon={<Clock className="h-4 w-4 text-yellow-600" />}
-                label="Half Day"
-                value={summary.halfDay}
-                variant="warning"
-              />
-              <StatCard
-                icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-                label="Absent"
-                value={summary.absent}
-                variant="danger"
-              />
-              <StatCard
-                icon={<CheckCircle2 className="h-4 w-4 text-blue-600" />}
-                label="Excused Absence"
-                value={summary.excusedAbsence}
-                variant="info"
-              />
-              <StatCard
-                icon={<AlertCircle className="h-4 w-4 text-gray-600" />}
-                label="Incomplete"
-                value={summary.incomplete}
-                variant="secondary"
-              />
-            </div>
-          </div>
-
-          {/* Approval Status */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Approval Status</h4>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard
-                icon={<Clock className="h-4 w-4 text-yellow-600" />}
-                label="Pending"
-                value={summary.pending}
-                variant="warning"
-              />
-              <StatCard
-                icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
-                label="Approved"
-                value={summary.approved}
-                variant="success"
-              />
-              <StatCard
-                icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-                label="Rejected"
-                value={summary.rejected}
-                variant="danger"
-              />
-              <StatCard
-                icon={<AlertCircle className="h-4 w-4 text-orange-600" />}
-                label="Needs Review"
-                value={summary.needsReview}
-                variant="warning"
-              />
-            </div>
-          </div>
-
-          {/* Total Summary */}
-          <div className="pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total Attendance Days</span>
-              <span className="text-2xl font-bold">{summary.total}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  variant?: "success" | "warning" | "danger" | "info" | "secondary";
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  variant = "secondary",
-}: StatCardProps) {
-  const variantClasses = {
-    success: "border-green-200 bg-green-50",
-    warning: "border-orange-200 bg-orange-50",
-    danger: "border-red-200 bg-red-50",
-    info: "border-blue-200 bg-blue-50",
-    secondary: "border-gray-200 bg-gray-50",
-  };
-
-  return (
-    <div
-      className={cn(
-        "rounded-md border p-3 transition-colors",
-        variantClasses[variant]
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-xs font-medium">{label}</span>
-        </div>
-        <span className="text-lg font-bold">{value}</span>
+          }
+          className="[&>div:last-child]:h-[300px]"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={approvalData}
+                cx="50%"
+                cy="48%"
+                innerRadius={56}
+                outerRadius={86}
+                paddingAngle={2}
+                dataKey="value"
+                stroke="none"
+              >
+                {approvalData.map((entry) => (
+                  <Cell key={entry.label} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </DashboardChartCard>
       </div>
     </div>
   );

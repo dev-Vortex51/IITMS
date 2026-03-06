@@ -1,8 +1,5 @@
-import { apiClient } from "@/lib/api-client";
+import { API_URL, apiClient } from "@/lib/api-client";
 import axios from "axios";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 // Create a public axios instance for unauthenticated requests
 const publicClient = axios.create({
@@ -84,21 +81,10 @@ export interface InvitationStats {
 const baseUrl = "/invitations";
 
 const createInvitation = async (data: CreateInvitationData) => {
-  console.log("Creating invitation with data:", data);
-  console.log("Using API URL:", API_URL);
-  console.log("Full URL:", `${API_URL}${baseUrl}`);
-
   try {
     const response = await apiClient.post(baseUrl, data);
-    console.log("Invitation created successfully:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating invitation:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      config: error.config,
-    });
     throw error;
   }
 };

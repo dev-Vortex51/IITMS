@@ -1,56 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import {
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import {
   attendanceService,
   type AttendanceRecord,
 } from "@/services/attendance.service";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-// Replaced Alert with inline styled div to avoid missing component import
-import { format, formatDistanceToNow } from "date-fns";
-import {
-  CheckCircle2,
-  Clock,
-  MapPin,
-  Calendar as CalendarIcon,
-  TrendingUp,
-} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function AttendanceCheckIn() {
   const [notes, setNotes] = useState("");
   const queryClient = useQueryClient();
 
-  // Get today's check-in status
+  const today = new Date();
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+
   const { data: todayCheckIn, isLoading: isLoadingToday } = useQuery({
     queryKey: ["attendance", "today"],
     queryFn: () => attendanceService.getTodayCheckIn(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
   });
 
-  // Get attendance stats
+  const { data: monthAttendance, isLoading: isLoadingMonth } = useQuery({
+    queryKey: ["attendance", "month", monthStart.toISOString()],
+    queryFn: () =>
+      attendanceService.getMyAttendance({
+        startDate: monthStart.toISOString(),
+        endDate: monthEnd.toISOString(),
+      }),
+  });
+
   const { data: stats, isLoading: isLoadingStats } = useQuery({
     queryKey: ["attendance", "stats"],
     queryFn: () => attendanceService.getMyStats(),
   });
 
-  // Check-in mutation
   const checkInMutation = useMutation({
     mutationFn: (data: { notes?: string; location?: any }) =>
       attendanceService.checkIn(data),
     onSuccess: () => {
-      toast.success("Check-in successful!");
+      toast.success("Check-in successful");
       setNotes("");
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
@@ -59,16 +68,11 @@ export function AttendanceCheckIn() {
     },
   });
 
-  // Check-out mutation
   const checkOutMutation = useMutation({
     mutationFn: (data: { notes?: string; location?: any }) =>
       attendanceService.checkOut(data),
-    onSuccess: (data) => {
-      toast.success(
-        `Check-out successful! Hours worked: ${
-          data.hoursWorked?.toFixed(1) || 0
-        }hrs`
-      );
+    onSuccess: () => {
+      toast.success("Check-out successful");
       setNotes("");
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
@@ -77,424 +81,216 @@ export function AttendanceCheckIn() {
     },
   });
 
-  const handleCheckIn = async () => {
-    // Get location if available
-    let location = undefined;
+  const attendanceByDay = useMemo(() => {
+    const records = monthAttendance || [];
+    return records.reduce<Record<string, AttendanceRecord>>((acc, record) => {
+      const key = format(new Date(record.date), "yyyy-MM-dd");
+      acc[key] = record;
+      return acc;
+    }, {});
+  }, [monthAttendance]);
 
-    if (navigator.geolocation) {
-      try {
-        const position = await new Promise<GeolocationPosition>(
-          (resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 5000,
-              enableHighAccuracy: false,
-            });
-          }
-        );
+  const calendarDays = useMemo(
+    () => eachDayOfInterval({ start: calendarStart, end: calendarEnd }),
+    [calendarStart, calendarEnd],
+  );
 
-        location = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-      } catch (err) {
-        console.log("Location permission denied or unavailable");
-      }
+  const getLocation = async () => {
+    if (!navigator.geolocation) return undefined;
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 5000,
+          enableHighAccuracy: false,
+        });
+      });
+
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    } catch {
+      return undefined;
     }
+  };
 
+  const handleCheckIn = async () => {
+    const location = await getLocation();
     checkInMutation.mutate({ notes: notes || undefined, location });
   };
 
   const handleCheckOut = async () => {
-    // Get location if available
-    let location = undefined;
-
-    if (navigator.geolocation) {
-      try {
-        const position = await new Promise<GeolocationPosition>(
-          (resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 5000,
-              enableHighAccuracy: false,
-            });
-          }
-        );
-
-        location = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-      } catch (err) {
-        console.log("Location permission denied or unavailable");
-      }
-    }
-
+    const location = await getLocation();
     checkOutMutation.mutate({ notes: notes || undefined, location });
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive"> = {
-      present: "default",
-      late: "secondary",
-      absent: "destructive",
-    };
-
+  if (isLoadingToday || isLoadingMonth || isLoadingStats) {
     return (
-      <Badge variant={variants[status] || "default"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
-
-  const getDayStatusBadge = (dayStatus: string) => {
-    const statusConfig: Record<
-      string,
-      { variant: "default" | "secondary" | "destructive"; label: string }
-    > = {
-      PRESENT_ON_TIME: { variant: "default", label: "Present On Time" },
-      PRESENT_LATE: { variant: "secondary", label: "Present Late" },
-      HALF_DAY: { variant: "secondary", label: "Half Day" },
-      ABSENT: { variant: "destructive", label: "Absent" },
-      EXCUSED_ABSENCE: { variant: "default", label: "Excused" },
-      INCOMPLETE: { variant: "secondary", label: "Incomplete" },
-    };
-
-    const config = statusConfig[dayStatus] || {
-      variant: "default" as const,
-      label: dayStatus,
-    };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getPunctualityBadge = (punctuality?: string) => {
-    if (!punctuality) return null;
-    return (
-      <Badge variant={punctuality === "ON_TIME" ? "default" : "secondary"}>
-        {punctuality === "ON_TIME" ? "✓ On Time" : "⏰ Late"}
-      </Badge>
-    );
-  };
-
-  if (isLoadingToday || isLoadingStats) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="rounded-md border border-border bg-card p-6 shadow-sm">
+        <div className="space-y-3 animate-pulse">
+          <div className="h-4 w-40 rounded bg-muted" />
+          <div className="h-10 w-full rounded bg-muted" />
+          <div className="h-40 w-full rounded bg-muted" />
+        </div>
       </div>
     );
   }
 
-  const currentTime = new Date();
-  const isLate = currentTime.getHours() >= 9;
+  const isCheckedIn = !!todayCheckIn;
+  const isCheckedOut = !!todayCheckIn?.checkOutTime;
 
   return (
-    <div className="space-y-6">
-      {/* Check-in Card */}
-      <Card>
-        <CardHeader>
+    <section className="rounded-md border border-border bg-card shadow-sm">
+      <header className="border-b border-border px-5 py-4">
+        <h3 className="text-sm font-semibold text-foreground">Attendance Calendar</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {format(today, "MMMM yyyy")} check-in overview and today&apos;s attendance action.
+        </p>
+      </header>
+
+      <div className="grid gap-4 p-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-md border border-border p-3">
+          <div className="mb-3 grid grid-cols-7 gap-1">
+            {WEEKDAYS.map((day) => (
+              <div
+                key={day}
+                className="py-1 text-center text-[11px] font-medium text-muted-foreground"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((day) => {
+              const dayKey = format(day, "yyyy-MM-dd");
+              const record = attendanceByDay[dayKey];
+              const inMonth = isSameMonth(day, monthStart);
+
+              return (
+                <div
+                  key={dayKey}
+                  className={[
+                    "relative flex h-10 items-center justify-center rounded-md border text-xs",
+                    inMonth
+                      ? "border-border bg-background text-foreground"
+                      : "border-transparent bg-muted/40 text-muted-foreground",
+                    isToday(day) ? "border-primary" : "",
+                  ].join(" ")}
+                >
+                  {format(day, "d")}
+                  {record ? (
+                    <span
+                      className={[
+                        "absolute bottom-1 h-1.5 w-1.5 rounded-full",
+                        record.punctuality === "LATE" ? "bg-amber-500" : "bg-emerald-500",
+                      ].join(" ")}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> On time
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> Late
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-md border border-border p-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                Daily Check-In
-              </CardTitle>
-              <CardDescription>
-                {format(currentTime, "EEEE, MMMM d, yyyy")}
-              </CardDescription>
-            </div>
-            {todayCheckIn && (
-              <div className="text-right">
-                {getStatusBadge(todayCheckIn.status)}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {todayCheckIn ? (
-            // Already checked in
-            <div className="space-y-4">
-              {/* Status badges */}
-              <div className="flex flex-wrap gap-2">
-                {getPunctualityBadge(todayCheckIn.punctuality)}
-                {getDayStatusBadge(todayCheckIn.dayStatus)}
-              </div>
-
-              {/* Check-in info */}
-              <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span>
-                  You checked in{" "}
-                  {formatDistanceToNow(new Date(todayCheckIn.checkInTime))} ago
-                </span>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Check-in Time:</span>
-                  <span>
-                    {format(new Date(todayCheckIn.checkInTime), "h:mm a")}
-                  </span>
-                </div>
-
-                {todayCheckIn.checkOutTime && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Check-out Time:</span>
-                    <span>
-                      {format(new Date(todayCheckIn.checkOutTime), "h:mm a")}
-                    </span>
-                  </div>
-                )}
-
-                {todayCheckIn.hoursWorked !== undefined && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Hours Worked:</span>
-                    <span className="font-bold text-green-600">
-                      {todayCheckIn.hoursWorked.toFixed(1)} hrs
-                    </span>
-                  </div>
-                )}
-
-                {todayCheckIn.location?.address && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Location:</span>
-                    <span className="truncate">
-                      {todayCheckIn.location.address}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {todayCheckIn.notes && (
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <div className="text-sm p-3 bg-muted rounded-md">
-                    {todayCheckIn.notes}
-                  </div>
-                </div>
-              )}
-
-              {/* Check-out button */}
-              {!todayCheckIn.checkOutTime && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="checkoutNotes">
-                      Check-out Notes (Optional)
-                    </Label>
-                    <Textarea
-                      id="checkoutNotes"
-                      placeholder="Add notes about today's work completion..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={2}
-                      maxLength={500}
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleCheckOut}
-                    disabled={checkOutMutation.isPending}
-                    className="w-full"
-                    size="lg"
-                    variant="outline"
-                  >
-                    {checkOutMutation.isPending ? (
-                      <>
-                        <Clock className="mr-2 h-4 w-4 animate-spin" />
-                        Checking out...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Check Out Now
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {todayCheckIn.checkOutTime && (
-                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>
-                    You have completed today&apos;s attendance. See you
-                    tomorrow!
-                  </span>
-                </div>
-              )}
-
-              {todayCheckIn.supervisorComment && (
-                <div className="space-y-2">
-                  <Label>Supervisor Comment</Label>
-                  <div className="text-sm p-3 bg-muted rounded-md border-l-4 border-blue-500">
-                    {todayCheckIn.supervisorComment}
-                  </div>
-                </div>
-              )}
-
-              {todayCheckIn.acknowledgedBy && (
-                <div className="text-sm text-muted-foreground">
-                  <CheckCircle2 className="inline h-4 w-4 mr-1" />
-                  Acknowledged by {
-                    todayCheckIn.acknowledgedBy.user.firstName
-                  }{" "}
-                  {todayCheckIn.acknowledgedBy.user.lastName}
-                </div>
-              )}
-            </div>
-          ) : (
-            // Not checked in yet
-            <div className="space-y-4">
-              {isLate && (
-                <div className="flex items-center gap-2 rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
-                  <Clock className="h-4 w-4" />
-                  <span>
-                    Note: Check-ins after 8:15 AM are marked as LATE. Work
-                    hours: 8:00 AM - 4:00 PM
-                  </span>
-                </div>
-              )}
-              {!isLate && (
-                <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>
-                    Great! Check-in before 8:15 AM to be marked ON TIME
-                  </span>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Add any notes about today's work..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  maxLength={500}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {notes.length}/500 characters
-                </p>
-              </div>
-
-              <Button
-                onClick={handleCheckIn}
-                disabled={checkInMutation.isPending}
-                className="w-full"
-                size="lg"
-              >
-                {checkInMutation.isPending ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4 animate-spin" />
-                    Checking in...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Check In Now
-                  </>
-                )}
-              </Button>
-
-              <p className="text-xs text-center text-muted-foreground">
-                Your location may be recorded for verification
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Today
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {format(today, "EEEE, MMM d")}
               </p>
             </div>
+            {isCheckedIn ? (
+              <Badge variant="secondary" className="capitalize">
+                {todayCheckIn?.status || "present"}
+              </Badge>
+            ) : (
+              <Badge variant="outline">Pending</Badge>
+            )}
+          </div>
+
+          {isCheckedIn ? (
+            <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
+              <p className="flex items-center gap-2 text-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                Checked in at {format(new Date(todayCheckIn!.checkInTime), "h:mm a")}
+              </p>
+              {todayCheckIn?.checkOutTime ? (
+                <p className="flex items-center gap-2 text-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Checked out at {format(new Date(todayCheckIn.checkOutTime), "h:mm a")}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              You have not checked in yet. Check in before 8:15 AM to be marked on time.
+            </p>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Statistics Cards */}
-      {stats && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Days
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Present
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {stats.present}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Late
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {stats.late}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Current Streak
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">{stats.currentStreak}</div>
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Attendance Rate */}
-      {stats && stats.total > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">
-              Attendance Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          {!isCheckedOut ? (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Overall Rate</span>
-                <span className="font-bold">
-                  {stats.attendanceRate.toFixed(1)}%
-                </span>
+              <Label htmlFor="attendance-notes" className="text-xs text-muted-foreground">
+                Notes (optional)
+              </Label>
+              <Textarea
+                id="attendance-notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Add quick context for today"
+              />
+            </div>
+          ) : null}
+
+          {!isCheckedIn ? (
+            <Button onClick={handleCheckIn} disabled={checkInMutation.isPending} className="w-full">
+              {checkInMutation.isPending ? "Checking in..." : "Check In"}
+            </Button>
+          ) : null}
+
+          {isCheckedIn && !isCheckedOut ? (
+            <Button
+              variant="outline"
+              onClick={handleCheckOut}
+              disabled={checkOutMutation.isPending}
+              className="w-full"
+            >
+              {checkOutMutation.isPending ? "Checking out..." : "Check Out"}
+            </Button>
+          ) : null}
+
+          {stats ? (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="rounded-md border border-border p-2">
+                <p className="text-[11px] text-muted-foreground">Attendance Rate</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {Number(stats.attendanceRate ?? 0).toFixed(1)}%
+                </p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full transition-all"
-                  style={{ width: `${stats.attendanceRate}%` }}
-                />
+              <div className="rounded-md border border-border p-2">
+                <p className="text-[11px] text-muted-foreground">Current Streak</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {stats.currentStreak ?? 0} days
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }

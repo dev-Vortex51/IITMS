@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
+import { Briefcase } from "lucide-react";
 import { useCoordinatorDashboard } from "./hooks/useCoordinatorDashboard";
-import { DashboardCharts } from "./components/DashboardCharts";
-import { ActionSidebar } from "./components/ActionSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Clock, CheckCircle, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/design-system";
+import {
+  DashboardDonutChart,
+  DashboardTrendLineChart,
+  DashboardChartCard,
+  DashboardMetricsGrid,
+  DashboardWelcomeBanner,
+  LoadingPage,
+  SectionCard,
+} from "@/components/design-system";
+import { InlineQuickActions } from "./components/InlineQuickActions";
 
 export default function CoordinatorDashboardPage() {
   useEffect(() => {
@@ -16,136 +26,142 @@ export default function CoordinatorDashboardPage() {
     useCoordinatorDashboard();
 
   if (isLoading) {
-    return (
-      <div className="h-96 flex items-center justify-center text-muted-foreground animate-pulse">
-        Loading dashboard...
-      </div>
-    );
+    return <LoadingPage label="Loading dashboard..." />;
   }
 
-  // Define stats array for clean mapping
-  const statCards = [
+  const metrics = [
     {
       label: "Total Students",
       value: stats.totalStudents,
-      icon: Users,
-      color: "text-blue-600",
+      hint: "Department student records",
+      trend: "up" as const,
     },
     {
       label: "Pending Approvals",
       value: stats.pendingPlacements,
-      icon: Clock,
-      color: "text-amber-600",
+      hint: "Placements awaiting review",
+      trend: "up" as const,
     },
     {
       label: "Active Placements",
       value: stats.approvedPlacements,
-      icon: CheckCircle,
-      color: "text-emerald-600",
+      hint: "Approved placement records",
+      trend: "up" as const,
     },
     {
-      label: "Missing Supervisors",
+      label: "Need Supervisors",
       value: stats.studentsWithoutSupervisors,
-      icon: UserCheck,
-      color: "text-rose-600",
+      hint: "Students needing assignment",
+      trend: "neutral" as const,
     },
   ];
 
   return (
-    <div className="space-y-8 pb-10 max-w-7xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Overview of SIWES operations and student statuses.
-        </p>
-      </div>
+    <div className="space-y-4 md:space-y-5">
+      <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
 
-      {/* Top Stats Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, i) => (
-          <Card key={i} className="shadow-sm border-border/50">
-            <CardContent className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  {stat.label}
-                </p>
-                <p className="text-2xl font-bold">{stat.value}</p>
-              </div>
-              <div className={`p-3 bg-muted/50 rounded-full ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <DashboardWelcomeBanner
+        title="Coordinator Workspace"
+        description="Monitor placements, student progress, and supervision coverage for your department."
+        action={
+          <Button asChild className="h-9">
+            <Link href="/coordinator/placements">Review Placements</Link>
+          </Button>
+        }
+      />
 
-      {/* Main Content Grid: 2/3 Left, 1/3 Right */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Left Column: Analytics & Data */}
-        <div className="lg:col-span-2 space-y-8">
-          <DashboardCharts chartData={chartData} />
+      <DashboardMetricsGrid items={metrics} />
 
-          {/* Recent Placements List */}
-          {recentPlacements.length > 0 && (
-            <Card className="shadow-sm border-border/50">
-              <CardHeader>
-                <CardTitle className="text-base font-medium">
-                  Recent Placements
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-0">
-                <div className="divide-y">
-                  {recentPlacements.map((placement: any) => (
-                    <div
-                      key={placement.id}
-                      className="flex items-center justify-between px-6 py-3 hover:bg-muted/30 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {placement.companyName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {typeof placement.student === "object"
-                            ? placement.student.name
-                            : "Student"}
-                        </p>
-                      </div>
-                      <StatusBadge status={placement.status} />
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <DashboardChartCard
+            title="Placement Status"
+            badge="Distribution"
+            controls={
+              <span className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground">
+                Approved/Pending/Rejected
+              </span>
+            }
+          >
+            <DashboardDonutChart
+              data={chartData.placementStatusData}
+              nameKey="name"
+              valueKey="value"
+            />
+          </DashboardChartCard>
+
+          <DashboardChartCard
+            title="Students by Level Trend"
+            badge="Trend"
+            controls={
+              <span className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground">
+                Current records
+              </span>
+            }
+          >
+            <DashboardTrendLineChart
+              data={chartData.levelData}
+              xKey="level"
+              yKey="students"
+            />
+          </DashboardChartCard>
+
+          {recentPlacements.length > 0 ? (
+            <SectionCard title="Recent Placements">
+              <div className="divide-y">
+                {recentPlacements.map((placement: any) => (
+                  <div
+                    key={placement.id}
+                    className="flex items-center justify-between py-3 transition-colors hover:bg-muted/30"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{placement.companyName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {typeof placement.student === "object"
+                          ? placement.student.name
+                          : "Student"}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <StatusBadge status={placement.status} />
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
         </div>
 
-        {/* Right Column: Actions & Alerts */}
         <div className="lg:col-span-1">
-          <ActionSidebar stats={stats} requiresAction={requiresAction} />
+          <div className="space-y-4 lg:sticky lg:top-24">
+            <InlineQuickActions
+              pendingPlacementCount={stats.pendingPlacements}
+            />
+
+            {requiresAction ? (
+              <section className="rounded-md border border-border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground">Action Required</h3>
+                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {stats.pendingPlacements > 0 ? (
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        {stats.pendingPlacements}
+                      </span>{" "}
+                      placement(s) pending review.
+                    </p>
+                  ) : null}
+                  {stats.studentsWithoutSupervisors > 0 ? (
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        {stats.studentsWithoutSupervisors}
+                      </span>{" "}
+                      student(s) need supervisor assignment.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
-  );
-}
-
-// Small helper for consistent styling
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
-    pending: "bg-amber-100 text-amber-800",
-    approved: "bg-emerald-100 text-emerald-800",
-    rejected: "bg-rose-100 text-rose-800",
-    default: "bg-gray-100 text-gray-800",
-  };
-  const badgeStyle = styles[status] || styles.default;
-
-  return (
-    <span
-      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${badgeStyle}`}
-    >
-      {status}
-    </span>
   );
 }

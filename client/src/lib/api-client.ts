@@ -1,35 +1,64 @@
 import axios from "axios";
-import Cookies from "js-cookie";
 
-const API_URL =
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
+
+function normalizeApiUrl(url: string) {
+  const trimmed = url.replace(/\/+$/, "");
+  if (trimmed.endsWith("/api")) {
+    return `${trimmed}/v1`;
+  }
+  return trimmed;
+}
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const cookieValue = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith(`${name}=`))
+    ?.split("=")[1];
+  return cookieValue || null;
+}
+
+const RAW_API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+export const API_URL = normalizeApiUrl(RAW_API_URL);
 
 export const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = Cookies.get("accessToken");
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token =
+      window.localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_KEY);
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  }
+
+  return config;
+});
 
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect on 401 if we're not already on the login page
     if (error.response?.status === 401) {
-      Cookies.remove("accessToken");
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+        window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+        document.cookie =
+          "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
+      }
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.includes("/login")

@@ -244,12 +244,10 @@ const placementValidation = {
  */
 const logbookValidation = {
   createLogbookEntry: Joi.object({
-    weekNumber: Joi.number().integer().min(1).max(52).required(),
-    startDate: Joi.date().required(),
-    endDate: Joi.date().greater(Joi.ref("startDate")).required(),
     tasksPerformed: Joi.string().min(10).max(2000).required(),
     skillsAcquired: Joi.string().min(5).max(1000).optional(),
     challenges: Joi.string().max(1000).optional(),
+    lessonsLearned: Joi.string().max(1000).optional(),
     evidence: Joi.array().items(Joi.string()).optional(), // File paths
   }),
 

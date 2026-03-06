@@ -58,6 +58,7 @@ const dropDB = async () => {
       "invitations",
       "students",
       "supervisors",
+      "industry_partners",
       "_CoordinatorDepartments",
       "departments",
       "faculties",

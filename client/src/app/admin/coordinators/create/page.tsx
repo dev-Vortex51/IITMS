@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import adminService from "@/services/admin.service";
+import { ErrorLocalState, PageHeader } from "@/components/design-system";
 import {
   Card,
   CardContent,
@@ -106,24 +107,19 @@ export default function CreateCoordinatorPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 ">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <Button asChild variant="outline" size="sm" className="w-fit">
-          <Link href="/admin/coordinators">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Back to Coordinators</span>
-            <span className="sm:hidden">Back</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">
-            Create Coordinator
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Add a new department coordinator
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Create Coordinator"
+        description="Add a new department coordinator"
+        actions={
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <Link href="/admin/coordinators">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Back to Coordinators</span>
+              <span className="sm:hidden">Back</span>
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Create Form */}
       <Card>
@@ -139,11 +135,7 @@ export default function CreateCoordinatorPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            {error && (
-              <div className="text-xs sm:text-sm text-destructive bg-destructive/10 p-2 sm:p-3 rounded-md">
-                {error}
-              </div>
-            )}
+            {error ? <ErrorLocalState message={error} /> : null}
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">

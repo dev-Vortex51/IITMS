@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import adminService from "@/services/admin.service";
+import { PageHeader } from "@/components/design-system";
 import {
   Card,
   CardContent,
@@ -87,23 +88,24 @@ export default function CreateAcademicSupervisorPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-3xl">
-      <div className="mb-6">
-        <Link href="/admin/academic-supervisors">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Academic Supervisors
-          </Button>
-        </Link>
-      </div>
+    <div className="container mx-auto max-w-3xl space-y-6 p-6">
+      <PageHeader
+        title="Create Academic Supervisor"
+        description="Add a new academic supervisor who can supervise up to 10 students across different departments"
+        actions={
+          <Link href="/admin/academic-supervisors">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Academic Supervisors
+            </Button>
+          </Link>
+        }
+      />
 
       <Card>
         <CardHeader>
           <CardTitle>Create Academic Supervisor</CardTitle>
-          <CardDescription>
-            Add a new academic supervisor who can supervise up to 10 students
-            across different departments
-          </CardDescription>
+          <CardDescription>Provide supervisor and assignment information.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">

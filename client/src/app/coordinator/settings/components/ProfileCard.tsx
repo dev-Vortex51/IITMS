@@ -1,70 +1,97 @@
 import { useAuth } from "@/components/providers/auth-provider";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { User } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 export function ProfileCard() {
   const { user } = useAuth();
   const fullName =
     user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
-      : null;
+      : user?.name || "N/A";
+  const initials =
+    `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase() ||
+    "CU";
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString()
+    : "N/A";
 
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardHeader className="pb-4">
+    <Card className="border-border shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Profile Information</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-            <User className="h-5 w-5" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Profile Information</CardTitle>
-            <CardDescription>Your personal account details</CardDescription>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-14 w-14 border border-border">
+              <AvatarFallback className="bg-muted text-sm font-semibold text-foreground">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{fullName}</p>
+              <p className="text-xs text-muted-foreground capitalize">
+                {user?.role || "Coordinator"}
+              </p>
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 md:grid-cols-2 bg-muted/30 p-5 rounded-xl border border-border/50">
-          <div className="space-y-1">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Full Name
-            </Label>
-            <p className="font-medium text-foreground">{fullName || "N/A"}</p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Email Address
-            </Label>
-            <p className="font-medium text-foreground">
-              {user?.email || "N/A"}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Role
-            </Label>
-            <p className="font-medium text-foreground capitalize">
-              {user?.role || "N/A"}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Member Since
-            </Label>
-            <p className="font-medium text-foreground">
-              {user?.createdAt
-                ? new Date(user.createdAt).toLocaleDateString()
-                : "N/A"}
-            </p>
-          </div>
+
+        <div className="rounded-md border border-border/60 overflow-hidden">
+          <DetailRow label="Full Name" value={fullName} />
+          <DetailRow
+            label="Email Address"
+            value={user?.email || "N/A"}
+            addon={
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Verified
+              </span>
+            }
+          />
+          <DetailRow label="Username" value={(user?.email || "").split("@")[0] || "N/A"} />
+          <DetailRow
+            label="Role"
+            value={user?.role ? String(user.role).replaceAll("_", " ").toUpperCase() : "N/A"}
+          />
+          <DetailRow
+            label="Profile Summary"
+            value={`Account created on ${memberSince}. This coordinator profile manages department-level SIWES operations.`}
+            multiline
+          />
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  addon,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  addon?: React.ReactNode;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-1 border-b border-border/60 p-3 last:border-b-0 md:grid-cols-[190px_1fr] md:items-start">
+      <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className={`min-w-0 text-sm font-medium text-foreground ${multiline ? "whitespace-pre-wrap" : ""}`}>
+          {value}
+        </p>
+        {addon}
+      </div>
+    </div>
   );
 }

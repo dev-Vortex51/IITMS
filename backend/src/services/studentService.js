@@ -7,6 +7,21 @@ const logger = require("../utils/logger");
 
 const prisma = getPrismaClient();
 
+const mapPlacementCompany = (placement) => {
+  if (!placement) return placement;
+  const partner = placement.industryPartner;
+  if (!partner) return placement;
+  return {
+    ...placement,
+    companyName: partner.name || placement.companyName,
+    companyAddress: partner.address || placement.companyAddress,
+    companyEmail: partner.email || placement.companyEmail,
+    companyPhone: partner.phone || placement.companyPhone,
+    companyWebsite: partner.website || placement.companyWebsite,
+    companySector: partner.sector || placement.companySector,
+  };
+};
+
 /**
  * Get all students (no pagination)
  */
@@ -30,7 +45,21 @@ const getAllStudents = async (filters = {}) => {
           select: { name: true, code: true },
         },
         placements: {
-          select: { companyName: true, companyAddress: true, status: true },
+          select: {
+            companyName: true,
+            companyAddress: true,
+            status: true,
+            industryPartner: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                phone: true,
+                website: true,
+                sector: true,
+              },
+            },
+          },
           orderBy: { createdAt: "desc" },
           take: 1,
         },
@@ -46,7 +75,7 @@ const getAllStudents = async (filters = {}) => {
       department: student.department,
       placement:
         student.placements && student.placements.length > 0
-          ? student.placements[0]
+          ? mapPlacementCompany(student.placements[0])
           : null,
       name: student.user
         ? `${student.user.firstName} ${student.user.lastName}`
@@ -115,6 +144,16 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
             companyName: true,
             companyAddress: true,
             status: true,
+            industryPartner: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                phone: true,
+                website: true,
+                sector: true,
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -137,7 +176,7 @@ const getStudents = async (filters = {}, pagination = {}, user = null) => {
       department: student.department,
       placement:
         student.placements && student.placements.length > 0
-          ? student.placements[0]
+          ? mapPlacementCompany(student.placements[0])
           : null,
       name: student.user
         ? `${student.user.firstName} ${student.user.lastName}`
@@ -185,6 +224,16 @@ const getStudentById = async (studentId) => {
             status: true,
             startDate: true,
             endDate: true,
+            industryPartner: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                phone: true,
+                website: true,
+                sector: true,
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -217,7 +266,7 @@ const getStudentById = async (studentId) => {
 
     // Extract current placement from placements array and add as currentPlacement
     if (student.placements && student.placements.length > 0) {
-      student.currentPlacement = student.placements[0];
+      student.currentPlacement = mapPlacementCompany(student.placements[0]);
     }
 
     // Map supervisor assignments to academicSupervisor and industrialSupervisor
@@ -226,7 +275,9 @@ const getStudentById = async (studentId) => {
       student.supervisorAssignments.length > 0
     ) {
       const academicAssignment = student.supervisorAssignments.find(
-        (sa) => sa.supervisor?.type === "academic",
+        (sa) =>
+          sa.supervisor?.type === "academic" ||
+          sa.supervisor?.type === "departmental",
       );
       const industrialAssignment = student.supervisorAssignments.find(
         (sa) => sa.supervisor?.type === "industrial",
@@ -234,6 +285,8 @@ const getStudentById = async (studentId) => {
 
       if (academicAssignment?.supervisor) {
         student.academicSupervisor = academicAssignment.supervisor;
+        // Backward-compatible alias used by existing frontend pages.
+        student.departmentalSupervisor = academicAssignment.supervisor;
       }
       if (industrialAssignment?.supervisor) {
         student.industrialSupervisor = industrialAssignment.supervisor;
@@ -309,6 +362,16 @@ const getStudentDashboard = async (studentId) => {
             status: true,
             startDate: true,
             endDate: true,
+            industryPartner: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                phone: true,
+                website: true,
+                sector: true,
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -381,7 +444,7 @@ const getStudentDashboard = async (studentId) => {
         trainingProgress,
       },
       recentLogbooks,
-      placements,
+      placements: placements.map(mapPlacementCompany),
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;

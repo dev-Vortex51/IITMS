@@ -1,43 +1,33 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const path = require("path");
 const { logbookController } = require("../controllers");
 const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/authorization");
 const { ROLES } = require("../utils/constants");
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/logbooks/");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname),
-    );
-  },
-});
-
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase(),
-    );
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
 
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error("Only images and documents are allowed"));
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+      return;
     }
+
+    cb(new Error("Only images and documents are allowed"));
   },
 });
 

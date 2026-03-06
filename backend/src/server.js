@@ -3,10 +3,12 @@
  * Starts the Express server and establishes database connection
  */
 
+const http = require("http");
 const app = require("./app");
 const config = require("./config");
 const { connectDB, setupGracefulShutdown } = require("./config/database");
 const logger = require("./utils/logger");
+const { initializeSocket } = require("./realtime/socket");
 
 /**
  * Start server
@@ -17,8 +19,11 @@ const startServer = async () => {
     logger.info("Connecting to PostgreSQL via Prisma...");
     await connectDB();
 
-    // Start Express server
-    const server = app.listen(config.port, () => {
+    // Start HTTP + Express server
+    const httpServer = http.createServer(app);
+    initializeSocket(httpServer);
+
+    const server = httpServer.listen(config.port, () => {
       logger.info(`
 ╔════════════════════════════════════════════════════════════╗
 ║  SIWES Management System API Server                       ║
@@ -29,6 +34,7 @@ const startServer = async () => {
 ║  URL:         http://localhost:${config.port}/api/${config.apiVersion.padEnd(
         19,
       )}║
+║  Realtime:    ws://localhost:${String(config.port).padEnd(42)}║
 ╚════════════════════════════════════════════════════════════╝
       `);
       logger.info("Server is ready to accept connections");

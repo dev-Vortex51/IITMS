@@ -1,33 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { LoadingPage, PageHeader } from "@/components/design-system";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authService } from "@/services/auth.service";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { User, Lock, Mail } from "lucide-react";
-import { LoadingCard } from "@/components/ui/loading";
+import { NotificationPreferencesCard } from "./components/NotificationPreferencesCard";
+import { ProfileSettingsCard } from "./components/ProfileSettingsCard";
+import { SecuritySettingsCard } from "./components/SecuritySettingsCard";
 
 export default function StudentSettingsPage() {
+  useEffect(() => {
+    document.title = "Settings | ITMS";
+  }, []);
+
   const { user, isLoading: authLoading } = useAuth();
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  console.log("Settings page - user:", user);
+  const [notificationSettings, setNotificationSettings] = useState({
+    emailNotifications: true,
+    checkInReminders: true,
+    logbookReminders: true,
+  });
 
   const changePasswordMutation = useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
@@ -40,6 +41,7 @@ export default function StudentSettingsPage() {
         confirmPassword: "",
       });
       setError("");
+      setSecurityDialogOpen(false);
       setTimeout(() => setSuccess(""), 5000);
     },
     onError: (err: any) => {
@@ -48,8 +50,8 @@ export default function StudentSettingsPage() {
     },
   });
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordChange = (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setSuccess("");
 
@@ -70,188 +72,83 @@ export default function StudentSettingsPage() {
   };
 
   if (authLoading) {
-    return <LoadingCard />;
+    return <LoadingPage label="Loading settings..." />;
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your account settings and preferences
-        </p>
+  if (!user) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-destructive">Unable to load user profile. Please refresh the page.</p>
       </div>
+    );
+  }
 
-      {/* Profile Information */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <User className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Your account details</CardDescription>
-            </div>
+  const fullName =
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.name || "N/A";
+  const initials =
+    `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() ||
+    "ST";
+  const accountCreated = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString()
+    : "N/A";
+  const matricNumber = user.profileData?.matricNumber || "N/A";
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-4 md:space-y-5">
+      <PageHeader
+        title="Settings"
+        description="Manage your profile, login security, and student preferences."
+      />
+
+      <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
+        <Tabs defaultValue="profile" className="w-full">
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="h-auto min-w-max bg-muted/70 p-1">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            </TabsList>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">
-                {user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.name || "N/A"}
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Email</Label>
-              <p className="font-medium flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                {user?.email || "N/A"}
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Role</Label>
-              <p className="font-medium capitalize">{user?.role || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Account Created</Label>
-              <p className="font-medium">
-                {user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString()
-                  : "N/A"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent/10">
-              <Lock className="h-6 w-6 text-accent-foreground" />
-            </div>
-            <div>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>Update your account password</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    currentPassword: e.target.value,
-                  })
-                }
-                required
-              />
-            </div>
+          <TabsContent value="profile" className="mt-3">
+            <ProfileSettingsCard
+              fullName={fullName}
+              initials={initials}
+              role={user.role || "Student"}
+              email={user.email || "N/A"}
+              matricNumber={matricNumber}
+              accountCreated={accountCreated}
+            />
+          </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    newPassword: e.target.value,
-                  })
-                }
-                required
-                minLength={8}
-              />
-              <p className="text-sm text-muted-foreground">
-                Must be at least 8 characters long
-              </p>
-            </div>
+          <TabsContent value="security" className="mt-3">
+            <SecuritySettingsCard
+              open={securityDialogOpen}
+              onOpenChange={setSecurityDialogOpen}
+              passwordData={passwordData}
+              onPasswordDataChange={setPasswordData}
+              error={error}
+              success={success}
+              isPending={changePasswordMutation.isPending}
+              onSubmit={handlePasswordChange}
+            />
+          </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    confirmPassword: e.target.value,
-                  })
-                }
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="bg-green-50 text-green-600 text-sm p-3 rounded-md">
-                {success}
-              </div>
-            )}
-
-            <Button type="submit" disabled={changePasswordMutation.isPending}>
-              {changePasswordMutation.isPending
-                ? "Changing Password..."
-                : "Change Password"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* App Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>Customize your experience</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Email Notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive email updates about your training
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Enable
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>SMS Notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Get SMS alerts for important updates
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Enable
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground text-center mt-4">
-              Additional preferences coming soon
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+          <TabsContent value="preferences" className="mt-3">
+            <NotificationPreferencesCard
+              notificationSettings={notificationSettings}
+              onToggle={(key, value) =>
+                setNotificationSettings((prev) => ({
+                  ...prev,
+                  [key]: value,
+                }))
+              }
+            />
+          </TabsContent>
+        </Tabs>
+      </section>
     </div>
   );
 }

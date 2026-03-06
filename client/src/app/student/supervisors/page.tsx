@@ -1,324 +1,256 @@
 "use client";
 
+import { useEffect } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Briefcase, Building2, CalendarDays, Users } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Loading } from "@/components/ui/loading";
-import { studentService } from "@/services/student.service";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  EmptyState,
+  ErrorLocalState,
+  LoadingPage,
+  PageHeader,
+} from "@/components/design-system";
+import { studentService } from "@/services/student.service";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Users, Building2, Briefcase, Mail, Phone, User } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { Supervisor } from "@/types/models";
+import { SupervisorInfoCard } from "./components/SupervisorInfoCard";
 
-// Type guard to check if supervisor is populated object
-const isSupervisorObject = (
-  supervisor: string | Supervisor
-): supervisor is Supervisor => {
+const isSupervisorObject = (supervisor: string | Supervisor): supervisor is Supervisor => {
   return typeof supervisor === "object" && supervisor !== null;
 };
 
 export default function StudentSupervisorsPage() {
-  const { user } = useAuth();
+  useEffect(() => {
+    document.title = "Supervisors | ITMS";
+  }, []);
 
+  const { user } = useAuth();
   const studentId = user?.profileData?.id;
 
-  // Fetch student data with supervisors
-  const { data: studentData, isLoading } = useQuery({
+  const {
+    data: student,
+    isLoading: isStudentLoading,
+    isError: isStudentError,
+    refetch: refetchStudent,
+  } = useQuery({
     queryKey: ["student", studentId],
     queryFn: () => studentService.getStudentById(studentId!),
     enabled: !!studentId,
   });
 
-  const student = studentData;
-
-  // Fetch placement
-  const { data: placement } = useQuery({
+  const {
+    data: placement,
+    isLoading: isPlacementLoading,
+    isError: isPlacementError,
+    refetch: refetchPlacement,
+  } = useQuery({
     queryKey: ["placement", studentId],
     queryFn: () => studentService.getStudentPlacement(studentId!),
     enabled: !!studentId,
     retry: false,
   });
 
+  if (isStudentLoading || isPlacementLoading) {
+    return <LoadingPage label="Loading supervisors..." />;
+  }
+
+  if (isStudentError || isPlacementError) {
+    return (
+      <div className="space-y-4 md:space-y-5 max-w-5xl">
+        <PageHeader
+          title="Supervisors"
+          description="Your assigned training supervisors"
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/student/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          }
+        />
+        <ErrorLocalState
+          message="Supervisors could not be loaded right now."
+          onRetry={() => {
+            refetchStudent();
+            refetchPlacement();
+          }}
+        />
+      </div>
+    );
+  }
+
   if (!placement) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Supervisors</h1>
-          <p className="text-muted-foreground mt-2">
-            Your assigned training supervisors
-          </p>
-        </div>
-
-        <Card>
+      <div className="space-y-4 md:space-y-5 max-w-5xl">
+        <PageHeader
+          title="Supervisors"
+          description="Your assigned training supervisors"
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/student/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          }
+        />
+        <Card className="shadow-sm border-border/50">
+          <CardHeader className="border-b border-border/60">
+            <CardTitle>Supervisor Assignment</CardTitle>
+            <CardDescription>Supervisor assignment depends on placement approval</CardDescription>
+          </CardHeader>
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">
-                  No Supervisors Assigned
-                </h3>
-                <p className="text-muted-foreground mt-1">
-                  Supervisors will be assigned after your placement is approved
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              title="No Supervisors Assigned"
+              description="Supervisors will be assigned after your placement is approved"
+              icon={<Users className="h-6 w-6 text-accent-foreground" />}
+            />
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (isLoading) {
-    return <div>Loading supervisors...</div>;
-  }
-
   if (!student) {
-    return <div>Student data not found</div>;
+    return (
+      <div className="space-y-4 md:space-y-5 max-w-5xl">
+        <PageHeader
+          title="Supervisors"
+          description="Your assigned training supervisors"
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/student/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          }
+        />
+        <ErrorLocalState message="Student data was not found." />
+      </div>
+    );
   }
 
-  const hasSupervisors =
-    student.departmentalSupervisor || student.industrialSupervisor;
+  const academicSupervisor =
+    student.departmentalSupervisor || student.academicSupervisor;
+  const industrialSupervisor = student.industrialSupervisor;
+  const hasSupervisors = academicSupervisor || industrialSupervisor;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Supervisors</h1>
-        <p className="text-muted-foreground mt-2">
-          Your assigned training supervisors
-        </p>
-      </div>
+    <div className="space-y-4 md:space-y-5 max-w-5xl">
+      <PageHeader
+        title="Supervisors"
+        description="Your assigned training supervisors"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/student/dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Link>
+          </Button>
+        }
+      />
+
+      <Card className="shadow-sm border-border/50 overflow-hidden">
+        <CardHeader className="border-b border-border/60 bg-muted/30">
+          <CardTitle className="text-lg">Assignment Snapshot</CardTitle>
+          <CardDescription>Current status of your assigned supervisors</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Assigned
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                {hasSupervisors ? (academicSupervisor && industrialSupervisor ? "2/2" : "1/2") : "0/2"}
+              </p>
+            </div>
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Academic
+              </p>
+              <p className="mt-1 text-sm font-semibold">{academicSupervisor ? "Assigned" : "Pending"}</p>
+            </div>
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5" />
+                Industrial
+              </p>
+              <p className="mt-1 text-sm font-semibold">{industrialSupervisor ? "Assigned" : "Pending"}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {!hasSupervisors ? (
-        <Card>
+        <Card className="shadow-sm border-border/50">
+          <CardHeader className="border-b border-border/60">
+            <CardTitle>Assignment Status</CardTitle>
+            <CardDescription>Supervisor assignment is in progress</CardDescription>
+          </CardHeader>
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Supervisors Pending</h3>
-                <p className="text-muted-foreground mt-1">
-                  Your supervisors will be assigned by the coordinator soon
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              title="Supervisors Pending"
+              description="Your supervisors will be assigned by the coordinator soon"
+              icon={<Users className="h-6 w-6 text-accent-foreground" />}
+            />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Academic Supervisor */}
-          {student.departmentalSupervisor &&
-            isSupervisorObject(student.departmentalSupervisor) && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Building2 className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>Academic Supervisor</CardTitle>
-                      <CardDescription>
-                        Institution-based supervisor
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground">Name</Label>
-                        <p className="font-medium">
-                          {student.departmentalSupervisor.name}
-                        </p>
-                      </div>
-                    </div>
+        <div className="space-y-4 md:space-y-5">
+          {academicSupervisor && isSupervisorObject(academicSupervisor) ? (
+            <SupervisorInfoCard
+              title="Academic Supervisor"
+              description="Institution-based supervisor"
+              icon={Building2}
+              iconClassName="rounded-lg bg-primary/10 p-2 text-primary"
+              supervisor={academicSupervisor}
+              showDepartment
+            />
+          ) : null}
 
-                    {student.departmentalSupervisor.email && (
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">Email</Label>
-                          <p className="font-medium">
-                            <a
-                              href={`mailto:${student.departmentalSupervisor.email}`}
-                              className="text-primary hover:underline"
-                            >
-                              {student.departmentalSupervisor.email}
-                            </a>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.departmentalSupervisor.phone && (
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">Phone</Label>
-                          <p className="font-medium">
-                            <a
-                              href={`tel:${student.departmentalSupervisor.phone}`}
-                              className="text-primary hover:underline"
-                            >
-                              {student.departmentalSupervisor.phone}
-                            </a>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.departmentalSupervisor.department && (
-                      <div className="flex items-start gap-3">
-                        <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">
-                            Department
-                          </Label>
-                          <p className="font-medium">
-                            {typeof student.departmentalSupervisor
-                              .department === "object"
-                              ? student.departmentalSupervisor.department.name
-                              : student.departmentalSupervisor.department}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.departmentalSupervisor.designation && (
-                      <div className="p-3 rounded-lg bg-muted">
-                        <Label className="text-muted-foreground">
-                          Designation
-                        </Label>
-                        <p className="mt-1 font-medium">
-                          {student.departmentalSupervisor.designation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-          {/* Industrial Supervisor */}
-          {student.industrialSupervisor &&
-            isSupervisorObject(student.industrialSupervisor) && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-accent/10">
-                      <Briefcase className="h-6 w-6 text-accent-foreground" />
-                    </div>
-                    <div>
-                      <CardTitle>Industrial Supervisor</CardTitle>
-                      <CardDescription>
-                        Company-based supervisor
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground">Name</Label>
-                        <p className="font-medium">
-                          {student.industrialSupervisor.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    {student.industrialSupervisor.email && (
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">Email</Label>
-                          <p className="font-medium">
-                            <a
-                              href={`mailto:${student.industrialSupervisor.email}`}
-                              className="text-primary hover:underline"
-                            >
-                              {student.industrialSupervisor.email}
-                            </a>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.industrialSupervisor.phone && (
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">Phone</Label>
-                          <p className="font-medium">
-                            <a
-                              href={`tel:${student.industrialSupervisor.phone}`}
-                              className="text-primary hover:underline"
-                            >
-                              {student.industrialSupervisor.phone}
-                            </a>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.industrialSupervisor.company && (
-                      <div className="flex items-start gap-3">
-                        <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <Label className="text-muted-foreground">
-                            Company
-                          </Label>
-                          <p className="font-medium">
-                            {student.industrialSupervisor.company}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {student.industrialSupervisor.designation && (
-                      <div className="p-3 rounded-lg bg-muted">
-                        <Label className="text-muted-foreground">
-                          Designation
-                        </Label>
-                        <p className="mt-1 font-medium">
-                          {student.industrialSupervisor.designation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {industrialSupervisor && isSupervisorObject(industrialSupervisor) ? (
+            <SupervisorInfoCard
+              title="Industrial Supervisor"
+              description="Company-based supervisor"
+              icon={Briefcase}
+              iconClassName="rounded-lg bg-accent/10 p-2 text-accent-foreground"
+              supervisor={industrialSupervisor}
+              showCompany
+            />
+          ) : null}
         </div>
       )}
 
-      {/* Placement Info Card */}
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-border/50">
+        <CardHeader className="border-b border-border/60">
           <CardTitle>Placement Details</CardTitle>
-          <CardDescription>
-            Your current industrial training placement
-          </CardDescription>
+          <CardDescription>Your current industrial training placement</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Company Name</Label>
-              <p className="font-medium">{placement.companyName}</p>
+        <CardContent className="pt-6">
+          <div className="rounded-md border border-border/60 overflow-hidden">
+            <div className="grid grid-cols-1 gap-1 p-3 md:grid-cols-[220px_1fr] md:items-center">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Company Name
+              </Label>
+              <p className="font-medium text-sm">{placement.companyName || "N/A"}</p>
             </div>
-            <div>
-              <Label className="text-muted-foreground">Duration</Label>
-              <p className="font-medium">
+            <Separator />
+            <div className="grid grid-cols-1 gap-1 p-3 md:grid-cols-[220px_1fr] md:items-center">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Duration
+              </Label>
+              <p className="font-medium text-sm">
                 {new Date(placement.startDate).toLocaleDateString()} -{" "}
                 {new Date(placement.endDate).toLocaleDateString()}
               </p>

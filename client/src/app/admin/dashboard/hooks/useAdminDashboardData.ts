@@ -3,22 +3,38 @@ import adminService from "@/services/admin.service";
 import { studentService, placementService } from "@/services/student.service";
 
 export function useAdminDashboardData() {
-  const { data: facultiesData, isLoading: isLoadingFaculties } = useQuery({
+  const {
+    data: facultiesData,
+    isLoading: isLoadingFaculties,
+    error: facultiesError,
+  } = useQuery({
     queryKey: ["faculties"],
     queryFn: () => adminService.facultyService.getAllFaculties(),
   });
 
-  const { data: departmentsData, isLoading: isLoadingDepts } = useQuery({
+  const {
+    data: departmentsData,
+    isLoading: isLoadingDepts,
+    error: departmentsError,
+  } = useQuery({
     queryKey: ["departments"],
     queryFn: () => adminService.departmentService.getAllDepartments(),
   });
 
-  const { data: studentsData, isLoading: isLoadingStudents } = useQuery({
+  const {
+    data: studentsData,
+    isLoading: isLoadingStudents,
+    error: studentsError,
+  } = useQuery({
     queryKey: ["students"],
     queryFn: () => studentService.getStudents(),
   });
 
-  const { data: placementsData, isLoading: isLoadingPlacements } = useQuery({
+  const {
+    data: placementsData,
+    isLoading: isLoadingPlacements,
+    error: placementsError,
+  } = useQuery({
     queryKey: ["placements"],
     queryFn: () => placementService.getAllPlacements({}),
   });
@@ -67,6 +83,8 @@ export function useAdminDashboardData() {
     isLoadingDepts ||
     isLoadingStudents ||
     isLoadingPlacements;
+  const error =
+    facultiesError || departmentsError || studentsError || placementsError;
 
   return {
     faculties,
@@ -77,5 +95,6 @@ export function useAdminDashboardData() {
       placements: placementChartData,
     },
     isLoading,
+    error,
   };
 }

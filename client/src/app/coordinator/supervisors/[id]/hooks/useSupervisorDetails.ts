@@ -18,8 +18,8 @@ export function useSupervisorDetails(id: string) {
   // Mocking metrics that aren't provided by the API yet
   const metrics = {
     students: assignedStudents.length,
-    pendingReviews: 0,
-    completedAssessments: 0,
+    capacity: supervisor?.maxStudents || 0,
+    isActive: supervisor?.isActive !== false,
   };
 
   return {

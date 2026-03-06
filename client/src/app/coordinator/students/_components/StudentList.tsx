@@ -1,9 +1,22 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Group, Text } from "@mantine/core";
+import {
+  ActionMenu,
+  AtlassianTable,
+  type AtlassianTableColumn,
+} from "@/components/design-system";
+import {
+  CheckCircle2,
+  Eye,
+  Flag,
+  GraduationCap,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { placementService } from "@/services/student.service";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { LoadingCard } from "@/components/ui/loading";
-import { Users, Briefcase, UserCheck, Eye } from "lucide-react";
 
 interface StudentListProps {
   students: any[];
@@ -12,135 +25,213 @@ interface StudentListProps {
 }
 
 const getPlacementStatus = (student: any) => {
-  if (!student.placement)
-    return { text: "No Placement", variant: "secondary" as const };
+  if (!student.placement) return { text: "No Placement", color: "gray" };
+
   const status = student.placement.status || "pending";
-  const variants: Record<string, { text: string; variant: any }> = {
-    approved: { text: "Approved", variant: "success" },
-    pending: { text: "Pending", variant: "warning" },
-    rejected: { text: "Rejected", variant: "destructive" },
+  const statusMap: Record<string, { text: string; color: string }> = {
+    approved: { text: "Approved", color: "green" },
+    pending: { text: "Pending", color: "yellow" },
+    rejected: { text: "Rejected", color: "red" },
   };
-  return variants[status] || { text: "Unknown", variant: "secondary" };
+
+  return statusMap[status] || { text: "Unknown", color: "gray" };
 };
 
-export function StudentList({
-  students,
-  isLoading,
-  searchQuery,
-}: StudentListProps) {
-  if (isLoading) return <LoadingCard />;
+const getStatusTone = (statusText: string) => {
+  if (statusText === "Approved") return "bg-emerald-100 text-emerald-800";
+  if (statusText === "Pending") return "bg-amber-100 text-amber-800";
+  if (statusText === "Rejected") return "bg-rose-100 text-rose-800";
+  if (statusText === "No Placement") return "bg-slate-200 text-slate-700";
+  return "bg-slate-200 text-slate-700";
+};
 
-  if (students.length === 0) {
-    return (
-      <Card className="border-dashed shadow-none bg-muted/20">
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Users className="h-6 w-6 text-muted-foreground" />
+export function StudentList({ students, isLoading, searchQuery }: StudentListProps) {
+  const queryClient = useQueryClient();
+
+  const approveMutation = useMutation({
+    mutationFn: ({ placementId }: { placementId: string }) =>
+      placementService.approvePlacement(placementId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast.success("Placement approved");
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to approve placement");
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ placementId, remarks }: { placementId: string; remarks: string }) =>
+      placementService.rejectPlacement(placementId, remarks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast.success("Placement rejected");
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to reject placement");
+    },
+  });
+
+  const columns: AtlassianTableColumn<any>[] = [
+    {
+      id: "student",
+      header: "Student",
+      sortable: true,
+      sortAccessor: (student) => (student.name || "").toLowerCase(),
+      render: (student) => (
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-full bg-muted p-1.5">
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </div>
-          <h3 className="font-semibold text-lg">
-            {searchQuery ? "No Students Found" : "No Students Yet"}
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            {searchQuery
-              ? "Try adjusting your search criteria."
-              : "Students registered to your department will appear here."}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+          <div>
+            <Text fw={600} size="sm">
+              {student.name || "N/A"}
+            </Text>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "matric",
+      header: "Matric No.",
+      width: 160,
+      sortable: true,
+      sortAccessor: (student) => (student.matricNumber || "").toLowerCase(),
+      render: (student) => (
+          <Text ff="monospace" size="xs">
+            {student.matricNumber || "N/A"}
+          </Text>
+      ),
+    },
+    {
+      id: "department",
+      header: "Department",
+      sortable: true,
+      sortAccessor: (student) =>
+        (
+          typeof student.department === "object"
+            ? student.department.name
+            : student.department || ""
+        ).toLowerCase(),
+      render: (student) => {
+        const departmentName =
+          typeof student.department === "object"
+            ? student.department.name
+            : student.department || "-";
+
+        return <Text size="sm">{departmentName}</Text>;
+      },
+    },
+    {
+      id: "placement",
+      header: "Placement",
+      sortable: true,
+      sortAccessor: (student) =>
+        (
+          student.placement && typeof student.placement === "object"
+            ? student.placement.companyName || ""
+            : ""
+        ).toLowerCase(),
+      render: (student) => {
+        const placementName =
+          student.placement && typeof student.placement === "object"
+            ? student.placement.companyName || "Placement"
+            : "-";
+
+        return <Text size="sm">{placementName}</Text>;
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      width: 140,
+      sortable: true,
+      sortAccessor: (student) => getPlacementStatus(student).text,
+      render: (student) => {
+        const status = getPlacementStatus(student);
+
+        return (
+          <Badge variant="secondary" className={getStatusTone(status.text)}>
+            {status.text}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      align: "right",
+      width: 90,
+      render: (student) => {
+        const status = getPlacementStatus(student);
+        const placementId = student.placement?.id;
+        const canReviewPlacement =
+          Boolean(placementId) && status.text !== "Approved" && status.text !== "Rejected";
+
+        return (
+          <Group justify="flex-end">
+            <ActionMenu
+              items={[
+                {
+                  label: "View student",
+                  href: `/coordinator/students/${student.id}`,
+                  icon: <Eye className="h-3.5 w-3.5" />,
+                },
+                {
+                  label: "Accept placement",
+                  icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                  disabled: !canReviewPlacement || approveMutation.isPending,
+                  onClick: () => {
+                    if (!placementId) {
+                      toast.error("No placement to approve");
+                      return;
+                    }
+                    approveMutation.mutate({ placementId });
+                  },
+                },
+                {
+                  label: "Reject placement",
+                  icon: <XCircle className="h-3.5 w-3.5" />,
+                  destructive: true,
+                  disabled: !canReviewPlacement || rejectMutation.isPending,
+                  onClick: () => {
+                    if (!placementId) {
+                      toast.error("No placement to reject");
+                      return;
+                    }
+                    const remarks = window.prompt("Reason for rejection:", "Rejected by coordinator");
+                    if (!remarks) return;
+                    rejectMutation.mutate({ placementId, remarks });
+                  },
+                },
+                {
+                  label: "Flag for follow-up",
+                  icon: <Flag className="h-3.5 w-3.5" />,
+                  onClick: () => toast.info("Flagged for follow-up"),
+                },
+              ]}
+            />
+          </Group>
+        );
+      },
+    },
+  ];
 
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardHeader className="border-b border-border/40 pb-4">
-        <CardTitle className="text-lg">
-          Students List ({students.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-4 p-0 sm:p-6">
-        <div className="space-y-3 px-4 sm:px-0 pb-4 sm:pb-0">
-          {students.map((student) => {
-            const status = getPlacementStatus(student);
-            const hasSupervisors =
-              student.placement?.departmentalSupervisor ||
-              student.placement?.industrialSupervisor;
-
-            return (
-              <div
-                key={student.id}
-                className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 border rounded-xl hover:bg-accent/5 transition-colors"
-              >
-                {/* User Info */}
-                <div className="flex items-start gap-4">
-                  <div className="p-2.5 rounded-full bg-primary/10 shrink-0">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">
-                      {student.name || "N/A"}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-sm text-muted-foreground">
-                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                        {student.matricNumber || "N/A"}
-                      </span>
-                      {student.department && (
-                        <>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="truncate max-w-[200px]">
-                            {typeof student.department === "object"
-                              ? student.department.name
-                              : student.department}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Badges & Actions */}
-                <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 w-full lg:w-auto lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 mt-1 lg:mt-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {student.placement && (
-                      <Badge
-                        variant="outline"
-                        className="gap-1.5 bg-background"
-                      >
-                        <Briefcase className="h-3 w-3 text-muted-foreground" />
-                        <span className="truncate max-w-[120px]">
-                          {typeof student.placement === "object"
-                            ? student.placement.companyName
-                            : "Placement"}
-                        </span>
-                      </Badge>
-                    )}
-                    {hasSupervisors && (
-                      <Badge
-                        variant="outline"
-                        className="gap-1.5 bg-background"
-                      >
-                        <UserCheck className="h-3 w-3 text-blue-500" />{" "}
-                        Supervisors
-                      </Badge>
-                    )}
-                    <Badge variant={status.variant as any}>{status.text}</Badge>
-                  </div>
-
-                  <Button
-                    asChild
-                    variant="secondary"
-                    size="sm"
-                    className="ml-auto lg:ml-0 shrink-0"
-                  >
-                    <Link href={`/coordinator/students/${student.id}`}>
-                      <Eye className="h-4 w-4 mr-2" /> View
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <AtlassianTable
+      title="Students List"
+      subtitle="Track student records, placement progress, and review actions."
+      data={students}
+      columns={columns}
+      rowKey={(student) => student.id}
+      loading={isLoading}
+      emptyTitle={searchQuery ? "No Students Found" : "No Students Yet"}
+      emptyDescription={
+        searchQuery
+          ? "Try adjusting your search criteria."
+          : "Students registered to your department will appear here."
+      }
+      emptyIcon={<Users className="h-10 w-10 text-muted-foreground/50" />}
+    />
   );
 }

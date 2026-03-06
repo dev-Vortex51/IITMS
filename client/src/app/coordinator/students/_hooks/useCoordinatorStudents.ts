@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useUrlSearchState } from "@/hooks/useUrlSearchState";
 import { studentService } from "@/services/student.service";
 
 export function useCoordinatorStudents() {
   const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { searchQuery, setSearchQuery } = useUrlSearchState();
+  const [placementFilter, setPlacementFilter] = useState("all");
 
   // Safely extract department ID
   const departmentId =
@@ -20,19 +22,28 @@ export function useCoordinatorStudents() {
     enabled: !!departmentId,
   });
 
-  const students = studentsData?.data || [];
+  const students = useMemo(() => studentsData?.data || [], [studentsData]);
 
   // Memoize filtered students for performance
   const filteredStudents = useMemo(() => {
-    if (!searchQuery) return students;
+    const statusMatches = (student: any) => {
+      const placementStatus = student.placement?.status;
+      if (placementFilter === "all") return true;
+      if (placementFilter === "no-placement") return !student.placement;
+      return placementStatus === placementFilter;
+    };
+
     const searchLower = searchQuery.toLowerCase();
+
     return students.filter(
       (student: any) =>
-        student.name?.toLowerCase().includes(searchLower) ||
-        student.matricNumber?.toLowerCase().includes(searchLower) ||
-        student.email?.toLowerCase().includes(searchLower),
+        statusMatches(student) &&
+        (!searchLower ||
+          student.name?.toLowerCase().includes(searchLower) ||
+          student.matricNumber?.toLowerCase().includes(searchLower) ||
+          student.email?.toLowerCase().includes(searchLower)),
     );
-  }, [students, searchQuery]);
+  }, [students, searchQuery, placementFilter]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -51,6 +62,8 @@ export function useCoordinatorStudents() {
   return {
     searchQuery,
     setSearchQuery,
+    placementFilter,
+    setPlacementFilter,
     filteredStudents,
     stats,
     isLoading,

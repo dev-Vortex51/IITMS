@@ -1,33 +1,66 @@
 "use client";
 
 import { useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/design-system";
+import { useAuth } from "@/components/providers/auth-provider";
 import { ProfileCard } from "./components/ProfileCard";
 import { SecurityCard } from "./components/SecurityCard";
 import { SystemPreferencesCard } from "./components/SystemPreferencesCard";
 
 export default function CoordinatorSettingsPage() {
+  const { user, isLoading } = useAuth();
+
   useEffect(() => {
     document.title = "Settings | ITMS";
   }, []);
 
-  return (
-    <div className="space-y-8 max-w-[1200px] mx-auto pb-10">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Account Settings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your profile, security preferences, and system workflow.
-        </p>
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-muted-foreground">Loading settings...</p>
       </div>
+    );
+  }
 
-      {/* Grid Layout for Settings Sections */}
-      <div className="grid gap-8">
-        <ProfileCard />
-        <SecurityCard />
-        <SystemPreferencesCard />
+  if (!user) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-destructive">Unable to load user profile. Please refresh the page.</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-4 md:space-y-5">
+      <PageHeader
+        title="Settings"
+        description="Manage your profile, security preferences, and coordinator workflow."
+      />
+
+      <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
+        <Tabs defaultValue="profile" className="w-full">
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="h-auto min-w-max bg-muted/70 p-1">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="profile" className="mt-3">
+            <ProfileCard />
+          </TabsContent>
+
+          <TabsContent value="security" className="mt-3">
+            <SecurityCard />
+          </TabsContent>
+
+          <TabsContent value="preferences" className="mt-3">
+            <SystemPreferencesCard />
+          </TabsContent>
+        </Tabs>
+      </section>
     </div>
   );
 }

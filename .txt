@@ -1,0 +1,160 @@
+🧩 AI-Driven Product Design & Implementation Workflow (Reusable Blueprint)
+Phase 0 — Foundational Token Definition (Optional Pre-Wireframe)
+
+Purpose: Give the team a starting scaffold for early wireframes or prototypes.
+
+AI Role: Generate initial foundational tokens based on brand guidelines or vision.
+
+Inputs:
+
+Brand colors
+
+Typography preferences
+
+Base spacing/grid units
+
+Outputs:
+
+JSON token file:
+
+{
+  "color": {"primary": "#HEX", "secondary": "#HEX", "neutral": {"100":"#HEX","200":"#HEX"}},
+  "typography": {"h1": {"size":26,"weight":600}, "body":{"size":16,"weight":400}},
+  "spacing": {"xs":4,"sm":8,"md":16,"lg":24,"xl":32}
+}
+
+AI Tools: GPT-4/5, Figma Tokens plugin
+
+Usage: Wireframes can already reference these tokens for colors, fonts, and spacing.
+
+Phase 1 — Product Design & Strategy
+
+Purpose: Define users, pain points, and high-level features.
+
+AI Role: Generate personas, pain points, and prioritized features.
+
+Inputs:
+
+Target audience
+
+Product type and goals
+
+Competitor landscape
+
+Outputs:
+
+Personas
+
+Pain points
+
+Feature priorities (JSON structured for next phase)
+
+AI Tools: GPT-4/5, Notion AI, Airtable AI
+
+Phase 2 — User Flows
+
+Purpose: Convert strategy into actionable flows.
+
+AI Role: Generate step-by-step user flows, triggers, screens, and decision points.
+
+Inputs: Phase 1 output JSON (personas + features)
+
+Outputs: Structured user flows (JSON)
+
+AI Tools: Miro AI, Whimsical AI, Figma AI
+
+Phase 3 — Wireframes
+
+Purpose: Layout structure, hierarchy, and basic screen flow.
+
+AI Role: Convert flows into low-fidelity wireframes; suggest component placement and placeholder microcopy.
+
+Inputs: Phase 2 user flow JSON + foundational tokens (Phase 0)
+
+Outputs: Low-fidelity wireframes (JSON/Figma-ready)
+
+AI Tools: Uizard, Figma AI, Penpot AI
+
+Phase 4 — High-Fidelity UI
+
+Purpose: Apply full visual styling, icons, imagery, and microcopy.
+
+AI Role: Apply brand styling using tokens, suggest illustrations/icons, generate microcopy.
+
+Inputs: Phase 3 wireframes + foundational tokens + style guide references
+
+Outputs: High-fidelity UI screens (JSON or Figma-ready)
+
+AI Tools: Figma AI, Adobe Firefly, Runway Design
+
+Phase 5 — Design Token Extraction (Full Tokens)
+
+Purpose: Generate complete token set from high-fidelity UI.
+
+AI Role: Detect repeated patterns, extract semantic tokens, and structure them for multi-platform use.
+
+Inputs: Phase 4 high-fidelity UI screens
+
+Outputs: Full design token JSON, including:
+
+Colors (brand, semantic, neutral)
+
+Typography (all sizes, weights, line-heights)
+
+Spacing units
+
+Component-specific tokens (buttons, cards, banners)
+
+Motion durations
+
+AI Tools: Figma Tokens plugin, GPT-4/5, OpenAI Vision API, TeleportHQ
+
+Phase 6 — Design System Extraction & Application
+
+Purpose: Build a component library & enforce consistency across screens.
+
+AI Role:
+
+Detect reusable components
+
+Map tokens to components
+
+Identify inconsistencies and accessibility gaps
+
+Inputs:
+
+Phase 5 full tokens
+
+Phase 4 high-fidelity UI
+
+Outputs:
+
+Component library (JSON + documentation)
+
+Corrected screens following token rules
+
+AI Tools: Figma AI, Zeplin AI, Storybook AI plugins
+
+Phase 7 — Engineering Implementation
+
+Purpose: Convert design system and screens into production-ready code.
+
+AI Role:
+
+Generate React/React Native/Flutter components
+
+Scaffold Storybook stories
+
+Generate unit tests
+
+Ensure token usage is consistent
+
+Inputs:
+
+Phase 5 full tokens
+
+Phase 6 corrected components/screens
+
+Outputs: Production-ready, tokenized codebase
+
+AI Tools: GitHub Copilot, OpenAI Codex, Tabnine, Sketch2Code

@@ -17,16 +17,13 @@ export function useStudentDetails(studentId: string) {
   const isLoading = isStudentLoading || isPlacementLoading;
 
   const placementStatus = () => {
-    if (!placement)
-      return { text: "No Placement", variant: "secondary" as const };
+    if (!placement) return { text: "No Placement" };
     const status = placement.status;
-    if (status === "approved")
-      return { text: "Approved", variant: "success" as const };
-    if (status === "pending")
-      return { text: "Pending", variant: "warning" as const };
-    if (status === "rejected")
-      return { text: "Rejected", variant: "destructive" as const };
-    return { text: "Unknown", variant: "secondary" as const };
+    if (status === "approved") return { text: "Approved" };
+    if (status === "pending") return { text: "Pending" };
+    if (status === "rejected") return { text: "Rejected" };
+    if (status === "withdrawn") return { text: "Withdrawn" };
+    return { text: "Unknown" };
   };
 
   return {

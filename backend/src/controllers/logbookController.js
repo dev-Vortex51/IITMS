@@ -19,6 +19,8 @@ const createLogbookEntry = catchAsync(async (req, res) => {
 });
 
 const getLogbooks = catchAsync(async (req, res) => {
+  const { USER_ROLES } = require("../utils/constants");
+
   const filters = {
     student: req.query.student,
     status: req.query.status,
@@ -26,8 +28,12 @@ const getLogbooks = catchAsync(async (req, res) => {
     department: req.query.department,
   };
 
+  // Scope student users to their own logbooks regardless of query params
+  if (req.user.role === USER_ROLES.STUDENT) {
+    filters.student = req.user.studentProfile;
+  }
+
   // If coordinator, filter by their department
-  const { USER_ROLES } = require("../utils/constants");
   if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
     filters.department = req.user.department;
   }
@@ -37,7 +43,7 @@ const getLogbooks = catchAsync(async (req, res) => {
     limit: req.query.limit,
   };
 
-  const result = await logbookService.getLogbooks(filters, pagination);
+  const result = await logbookService.getLogbooks(filters, pagination, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -87,14 +93,6 @@ const submitLogbookEntry = catchAsync(async (req, res) => {
 const reviewLogbook = catchAsync(async (req, res) => {
   const supervisorId = req.user.supervisorProfile;
   const supervisorType = req.user.supervisorType; // From auth middleware
-
-  console.log("Review logbook - User:", {
-    userId: req.user.id,
-    email: req.user.email,
-    role: req.user.role,
-    supervisorProfile: req.user.supervisorProfile,
-    supervisorType: req.user.supervisorType,
-  });
 
   const logbook = await logbookService.reviewLogbook(
     req.params.id,

@@ -1,329 +1,180 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, type FormEvent } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { authService } from "@/services/auth.service";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PageHeader } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import {
-  User,
-  Lock,
-  Bell,
-  Building2,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
-} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompanyInfoCard } from "./components/CompanyInfoCard";
+import { NotificationPreferencesCard } from "./components/NotificationPreferencesCard";
+import { ProfileInfoCard } from "./components/ProfileInfoCard";
+import { useIndustrySupervisorSettings } from "./hooks/useIndustrySupervisorSettings";
 
 export default function ISupervisorSettingsPage() {
   const { user } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const {
+    currentPassword,
+    setCurrentPassword,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    error,
+    success,
+    isChangingPassword,
+    handlePasswordChange,
+  } = useIndustrySupervisorSettings();
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
 
-  // Change password mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: (data: { oldPassword: string; newPassword: string }) =>
-      authService.changePassword(data.oldPassword, data.newPassword),
-    onSuccess: () => {
-      setSuccess("Password changed successfully");
-      setError("");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setTimeout(() => setSuccess(""), 5000);
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to change password");
-      setSuccess("");
-    },
-  });
-
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    // Validation
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("All fields are required");
-      return;
+  const onSubmitPassword = (event: FormEvent) => {
+    handlePasswordChange(event);
+    if (!error) {
+      setSecurityDialogOpen(false);
     }
-
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters long");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match");
-      return;
-    }
-
-    changePasswordMutation.mutate({
-      oldPassword: currentPassword,
-      newPassword,
-    });
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-4 md:space-y-5">
+      <PageHeader
+        title="Settings"
+        description="Manage your profile, security, and supervisor preferences."
+      />
 
-      {/* Profile Information */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <User className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Your supervisor account details</CardDescription>
-            </div>
+      <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
+        <Tabs defaultValue="profile" className="w-full">
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="h-auto min-w-max bg-muted/70 p-1">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            </TabsList>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">{user?.name || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                Email
-              </Label>
-              <p className="font-medium">{user?.email || "N/A"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Role</Label>
-              <p className="font-medium capitalize">Industrial Supervisor</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Account Created</Label>
-              <p className="font-medium">
-                {user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString()
-                  : "N/A"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Company Information */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent/10">
-              <Building2 className="h-6 w-6 text-accent-foreground" />
-            </div>
-            <div>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>Your organization details</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                Company Name
-              </Label>
-              <p className="font-medium">--</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contact admin to update
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Briefcase className="h-4 w-4" />
-                Position/Title
-              </Label>
-              <p className="font-medium">--</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contact admin to update
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <Phone className="h-4 w-4" />
-                Phone Number
-              </Label>
-              <p className="font-medium">--</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contact admin to update
-              </p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Company Sector</Label>
-              <p className="font-medium">--</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contact admin to update
-              </p>
-            </div>
-            <div className="md:col-span-2">
-              <Label className="text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                Company Address
-              </Label>
-              <p className="font-medium">--</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contact admin to update
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <TabsContent value="profile" className="mt-3 space-y-4">
+            <ProfileInfoCard user={user} />
+            <CompanyInfoCard user={user} />
+          </TabsContent>
 
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>Update your account password</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handlePasswordChange} className="space-y-4">
-            {success && (
-              <div className="bg-green-50 text-green-600 text-sm p-3 rounded-md">
-                {success}
+          <TabsContent value="security" className="mt-3">
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div className="overflow-hidden rounded-md border border-border/60">
+                <div className="grid grid-cols-1 gap-3 border-b border-border/60 p-3 md:grid-cols-[190px_1fr_auto] md:items-center">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Password</Label>
+                  <p className="text-sm font-medium text-foreground">
+                    Update your account password in a secure dialog.
+                  </p>
+                  <Dialog open={securityDialogOpen} onOpenChange={setSecurityDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full md:w-auto">Update Password</Button>
+                    </DialogTrigger>
+                    <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[85vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                        <DialogDescription>
+                          Enter your current password and choose a new secure password.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <form onSubmit={onSubmitPassword} className="space-y-4">
+                        {success ? (
+                          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                            {success}
+                          </div>
+                        ) : null}
+                        {error ? (
+                          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                            {error}
+                          </div>
+                        ) : null}
+
+                        <FieldInput
+                          id="i-supervisor-current-password"
+                          label="Current Password"
+                          value={currentPassword}
+                          onChange={setCurrentPassword}
+                        />
+                        <FieldInput
+                          id="i-supervisor-new-password"
+                          label="New Password"
+                          value={newPassword}
+                          helper="Must be at least 8 characters long"
+                          onChange={setNewPassword}
+                        />
+                        <FieldInput
+                          id="i-supervisor-confirm-password"
+                          label="Confirm Password"
+                          value={confirmPassword}
+                          onChange={setConfirmPassword}
+                        />
+
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setSecurityDialogOpen(false)}
+                            className="w-full sm:w-auto"
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit" disabled={isChangingPassword} className="w-full sm:w-auto">
+                            {isChangingPassword ? "Updating Password..." : "Update Password"}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <div className="grid grid-cols-1 gap-1 p-3 md:grid-cols-[190px_1fr] md:items-center">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Password Rules</Label>
+                  <p className="text-sm font-medium text-foreground">Minimum 8 characters, confirmation required.</p>
+                </div>
               </div>
-            )}
+            </div>
+          </TabsContent>
 
-            {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-                {error}
-              </div>
-            )}
+          <TabsContent value="preferences" className="mt-3">
+            <NotificationPreferencesCard />
+          </TabsContent>
+        </Tabs>
+      </section>
+    </div>
+  );
+}
 
-            <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password (min. 8 characters)"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={changePasswordMutation.isPending}
-              className="w-full md:w-auto"
-            >
-              {changePasswordMutation.isPending
-                ? "Changing..."
-                : "Change Password"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Notification Preferences */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Bell className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>
-                Manage how you receive notifications
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Email notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive email updates about student progress
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Student assignment alerts</Label>
-                <p className="text-sm text-muted-foreground">
-                  Get notified when students are assigned to you
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Assessment reminders</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive reminders for pending assessments
-                </p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+function FieldInput({
+  id,
+  label,
+  value,
+  onChange,
+  helper,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  helper?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+      />
+      {helper ? <p className="text-sm text-muted-foreground">{helper}</p> : null}
     </div>
   );
 }

@@ -28,14 +28,14 @@ export function PlacementReviewAction({
   isPending,
 }: Props) {
   return (
-    <Card className="shadow-sm border-primary/20 bg-primary/5">
-      <CardHeader>
+    <Card className="shadow-sm border-border/50 overflow-hidden">
+      <CardHeader className="border-b border-border/60 bg-muted/30">
         <CardTitle>Review Placement</CardTitle>
         <CardDescription>
           Approve or reject this placement application
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="space-y-2">
           <Label htmlFor="remarks" className="font-semibold">
             Remarks{" "}
@@ -51,6 +51,9 @@ export function PlacementReviewAction({
             rows={4}
             className="bg-background"
           />
+          <p className="text-xs text-muted-foreground">
+            Rejection requires remarks. Approval remarks are optional.
+          </p>
         </div>
 
         {error && (
@@ -63,6 +66,7 @@ export function PlacementReviewAction({
           <Button
             onClick={handleApprove}
             disabled={isPending}
+            variant="secondary"
             className="flex-1"
           >
             <CheckCircle className="h-4 w-4 mr-2" />

@@ -57,7 +57,6 @@ export function useDepartmentDetails(id: string) {
         )
         .map((r) => r.value.data);
 
-      console.log("Fetched coordinators:", fetchedCoordinators);
       return fetchedCoordinators;
     },
     enabled: !!department?.id,

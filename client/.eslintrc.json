@@ -1,3 +1,14 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "max-lines": [
+      "error",
+      { "max": 300, "skipBlankLines": true, "skipComments": true }
+    ]
+  },
+  "parserOptions": {
+    "babelOptions": {
+      "presets": ["next/babel"]
+    }
+  }
 }

@@ -18,7 +18,7 @@ export function SupervisorCard({
     : "bg-indigo-50 text-indigo-600";
 
   const entityName = isAcademic
-    ? typeof supervisor.department === "object"
+    ? supervisor.department && typeof supervisor.department === "object"
       ? supervisor.department.name
       : supervisor.department || "Cross-department"
     : supervisor.companyName || "N/A";

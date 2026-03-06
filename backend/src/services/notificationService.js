@@ -6,6 +6,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/helpers");
 const logger = require("../utils/logger");
 const nodemailer = require("nodemailer");
 const config = require("../config");
+const { emitToUser } = require("../realtime/socket");
 
 const prisma = getPrismaClient();
 
@@ -63,6 +64,12 @@ const createNotification = async (notificationData) => {
 
     logger.info(`Notification created for user: ${notification.recipientId}`);
 
+    emitToUser(notification.recipientId, "notification:new", notification);
+    const unreadCount = await getUnreadCount(notification.recipientId);
+    emitToUser(notification.recipientId, "notification:unread_count", {
+      count: unreadCount,
+    });
+
     return notification;
   } catch (error) {
     logger.error(`Error creating notification: ${error.message}`);
@@ -75,23 +82,47 @@ const createNotification = async (notificationData) => {
  */
 const createBulkNotifications = async (recipients, notificationData) => {
   try {
-    const notifications = await prisma.notification.createMany({
-      data: recipients.map((recipientId) => ({
-        recipientId,
-        type: notificationData.type,
-        title: notificationData.title,
-        message: notificationData.message,
-        priority: notificationData.priority || "medium",
-        relatedModel: notificationData.relatedModel,
-        relatedId: notificationData.relatedId,
-        actionLink: notificationData.actionLink,
-        actionText: notificationData.actionText,
-        createdById: notificationData.createdById,
-      })),
-    });
+    const notifications = await Promise.all(
+      recipients.map((recipientId) =>
+        prisma.notification.create({
+          data: {
+            recipientId,
+            type: notificationData.type,
+            title: notificationData.title,
+            message: notificationData.message,
+            priority: notificationData.priority || "medium",
+            relatedModel: notificationData.relatedModel,
+            relatedId: notificationData.relatedId,
+            actionLink: notificationData.actionLink,
+            actionText: notificationData.actionText,
+            createdById: notificationData.createdById,
+          },
+          include: {
+            recipient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ),
+    );
+
+    await Promise.all(
+      notifications.map(async (notification) => {
+        emitToUser(notification.recipientId, "notification:new", notification);
+        const unreadCount = await getUnreadCount(notification.recipientId);
+        emitToUser(notification.recipientId, "notification:unread_count", {
+          count: unreadCount,
+        });
+      }),
+    );
 
     logger.info(
-      `Bulk notifications created for ${recipients.length} users: ${notifications.count} records`,
+      `Bulk notifications created for ${recipients.length} users: ${notifications.length} records`,
     );
 
     return notifications;
@@ -237,6 +268,11 @@ const markAsRead = async (notificationId) => {
       },
     });
 
+    const unreadCount = await getUnreadCount(updated.recipientId);
+    emitToUser(updated.recipientId, "notification:unread_count", {
+      count: unreadCount,
+    });
+
     return updated;
   } catch (error) {
     logger.error(`Error marking notification as read: ${error.message}`);
@@ -259,6 +295,8 @@ const markAllAsRead = async (userId) => {
         readAt: new Date(),
       },
     });
+
+    emitToUser(userId, "notification:unread_count", { count: 0 });
 
     return { modifiedCount: result.count };
   } catch (error) {
@@ -301,6 +339,11 @@ const deleteNotification = async (notificationId) => {
       where: { id: notificationId },
     });
 
+    const unreadCount = await getUnreadCount(notification.recipientId);
+    emitToUser(notification.recipientId, "notification:unread_count", {
+      count: unreadCount,
+    });
+
     return deleted;
   } catch (error) {
     logger.error(`Error deleting notification: ${error.message}`);
@@ -308,9 +351,59 @@ const deleteNotification = async (notificationId) => {
   }
 };
 
+const createDeadlineReminder = async ({
+  recipientId,
+  title,
+  message,
+  relatedModel,
+  relatedId,
+  actionLink,
+  actionText,
+  createdById,
+  priority = "medium",
+}) =>
+  createNotification({
+    recipientId,
+    type: NOTIFICATION_TYPES.DEADLINE_REMINDER,
+    title,
+    message,
+    relatedModel,
+    relatedId,
+    actionLink,
+    actionText,
+    createdById,
+    priority,
+  });
+
+const createBroadcastAnnouncement = async ({
+  recipientIds = [],
+  title,
+  message,
+  actionLink,
+  actionText,
+  createdById,
+  priority = "medium",
+}) => {
+  if (!Array.isArray(recipientIds) || recipientIds.length === 0) {
+    return [];
+  }
+
+  return createBulkNotifications(recipientIds, {
+    type: NOTIFICATION_TYPES.BROADCAST_ANNOUNCEMENT,
+    title,
+    message,
+    actionLink,
+    actionText,
+    createdById,
+    priority,
+  });
+};
+
 module.exports = {
   createNotification,
   createBulkNotifications,
+  createDeadlineReminder,
+  createBroadcastAnnouncement,
   sendEmailNotification,
   getUserNotifications,
   markAsRead,

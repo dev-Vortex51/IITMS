@@ -1,34 +1,47 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { StatRingCard } from "@/components/design-system";
 
 export function InvitationMetrics({ stats }: { stats: any }) {
-  const metrics = [
-    { label: "Total Sent", value: stats.total, color: "text-foreground" },
-    { label: "Pending", value: stats.pending, color: "text-amber-600" },
-    { label: "Accepted", value: stats.accepted, color: "text-emerald-600" },
-    { label: "Expired", value: stats.expired, color: "text-rose-600" },
+  const toProgress = (value: number) => {
+    if (!stats?.total || stats.total <= 0) return 0;
+    return Math.round((value / stats.total) * 100);
+  };
+
+  const cards = [
     {
-      label: "Cancelled",
-      value: stats.cancelled,
-      color: "text-muted-foreground",
+      label: "Total",
+      value: stats.total,
+      progress: stats.total > 0 ? 100 : 0,
+      color: "teal",
+      trend: "up" as const,
+    },
+    {
+      label: "Pending",
+      value: stats.pending,
+      progress: toProgress(stats.pending),
+      color: "yellow",
+      trend: "up" as const,
+    },
+    {
+      label: "Accepted",
+      value: stats.accepted,
+      progress: toProgress(stats.accepted),
+      color: "green",
+      trend: "up" as const,
     },
   ];
 
   return (
-    <Card className="shadow-sm border-border/50 overflow-hidden">
-      <CardContent className="p-0 flex flex-wrap md:flex-nowrap divide-y md:divide-y-0 md:divide-x divide-border/50">
-        {metrics.map((metric, i) => (
-          <div key={i} className="flex-1 p-5 bg-card/50">
-            <p className="text-sm font-medium text-muted-foreground mb-1">
-              {metric.label}
-            </p>
-            <p
-              className={`text-2xl font-semibold tracking-tight ${metric.color}`}
-            >
-              {metric.value}
-            </p>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {cards.map((card) => (
+        <StatRingCard
+          key={card.label}
+          label={card.label}
+          value={card.value}
+          progress={card.progress}
+          color={card.color}
+          trend={card.trend}
+        />
+      ))}
+    </div>
   );
 }

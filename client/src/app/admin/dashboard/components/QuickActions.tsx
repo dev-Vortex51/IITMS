@@ -1,78 +1,79 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { School, Building, UserCog, Plus } from "lucide-react";
 import Link from "next/link";
+import { ArrowUpRight, Building, Plus, School, UserCog } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState, SectionCard } from "@/components/design-system";
 
 export function QuickActions() {
+  const actions = [
+    {
+      title: "Create Faculty",
+      description: "Add new faculty",
+      href: "/admin/faculties",
+      actionLabel: "New Faculty",
+      icon: School,
+    },
+    {
+      title: "Create Department",
+      description: "Add new department",
+      href: "/admin/departments",
+      actionLabel: "New Department",
+      icon: Building,
+    },
+    {
+      title: "Manage Coordinators",
+      description: "Assign roles and access",
+      href: "/admin/coordinators",
+      actionLabel: "View Coordinators",
+      icon: UserCog,
+    },
+  ];
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold tracking-tight">Quick Actions</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="hover:shadow-md transition-all border-border/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                <School className="h-5 w-5" />
+    <SectionCard
+      title="Quick Navigation"
+      description="Fast access to high-frequency admin tasks."
+    >
+      {actions.length ? (
+        <div className="space-y-2">
+          {actions.map((action, index) => (
+            <div
+              key={action.href}
+              className="rounded-lg border bg-background p-3 transition-colors hover:bg-muted/20"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md border p-2">
+                    <action.icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{action.title}</p>
+                    <p className="text-xs text-muted-foreground">{action.description}</p>
+                  </div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div>
-                <CardTitle className="text-base">Create Faculty</CardTitle>
-                <p className="text-sm text-muted-foreground">Add new faculty</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <Link href="/admin/faculties">
-                <Plus className="h-4 w-4 mr-2" /> New Faculty
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-all border-border/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
-                <Building className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Create Department</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Add new department
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <Link href="/admin/departments">
-                <Plus className="h-4 w-4 mr-2" /> New Department
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-all border-border/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
-                <UserCog className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Manage Coordinators</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Assign roles & access
-                </p>
+           <div className="mt-3">
+                <Button
+                  asChild
+                  className="w-full"
+                  // FIX: Only the first action gets the primary "default" style.
+                  variant={index === 0 ? "default" : "outline"}
+                >
+                  <Link href={action.href}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {action.actionLabel}
+                  </Link>
+                </Button>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/admin/coordinators">View All Coordinators</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No quick actions"
+          description="Actions will appear here when available."
+        />
+      )}
+    </SectionCard>
   );
 }

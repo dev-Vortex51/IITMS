@@ -1,14 +1,12 @@
 "use client";
 
 import { DashboardShell } from "@/components/layouts/dashboard-shell";
-import { NotificationProvider } from "../../components/notifications/NotificationProvider";
-import { NotificationsDropdown } from "../../components/notifications/NotificationsDropdown";
+import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import {
   LayoutDashboard,
   Briefcase,
   BookOpen,
   Users,
-  FileText,
   Settings,
   Calendar,
 } from "lucide-react";
@@ -30,9 +28,6 @@ export default function StudentLayout({
   return (
     <NotificationProvider>
       <DashboardShell navItems={navItems} title="Student Dashboard">
-        <div className="flex justify-end mb-2">
-          <NotificationsDropdown />
-        </div>
         {children}
       </DashboardShell>
     </NotificationProvider>

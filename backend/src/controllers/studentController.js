@@ -3,14 +3,26 @@ const userService = require("../services/userService");
 const { HTTP_STATUS, USER_ROLES } = require("../utils/constants");
 const { catchAsync } = require("../utils/helpers");
 
+const resolveDepartmentId = (user) => {
+  if (!user) return null;
+  if (user.departmentId) return user.departmentId;
+  if (user.department && typeof user.department === "object") {
+    return user.department.id || null;
+  }
+  return user.department || null;
+};
+
 const getAllStudents = catchAsync(async (req, res) => {
   const logger = require("../utils/logger");
   logger.info(`getAllStudents called by ${req.user?.email || "unknown"}`);
 
   // Filter by coordinator department if applicable
   const filter = {};
-  if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
-    filter.department = req.user.department;
+  if (req.user.role === USER_ROLES.COORDINATOR) {
+    const departmentId = resolveDepartmentId(req.user);
+    if (departmentId) {
+      filter.department = departmentId;
+    }
   }
 
   const result = await studentService.getAllStudents(filter);
@@ -31,8 +43,11 @@ const getStudents = catchAsync(async (req, res) => {
   const filters = {};
 
   // If coordinator, only show students from their department
-  if (req.user.role === USER_ROLES.COORDINATOR && req.user.department) {
-    filters.department = req.user.department;
+  if (req.user.role === USER_ROLES.COORDINATOR) {
+    const departmentId = resolveDepartmentId(req.user);
+    if (departmentId) {
+      filters.department = departmentId;
+    }
   } else if (req.query.department) {
     filters.department = req.query.department;
   }
@@ -135,7 +150,10 @@ const createStudent = catchAsync(async (req, res) => {
 
   // If coordinator, use their department
   if (req.user.role === USER_ROLES.COORDINATOR) {
-    studentData.department = req.user.department;
+    const departmentId = resolveDepartmentId(req.user);
+    if (departmentId) {
+      studentData.department = departmentId;
+    }
   }
 
   const result = await userService.createUser(studentData, req.user);

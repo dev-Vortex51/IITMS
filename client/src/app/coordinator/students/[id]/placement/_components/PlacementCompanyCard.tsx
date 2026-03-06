@@ -6,40 +6,51 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { FileText } from "lucide-react";
+import { Calendar, FileText, MapPin, Building2, BriefcaseBusiness } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export function PlacementCompanyCard({ placement }: { placement: any }) {
   return (
     <Card className="shadow-sm border-border/50">
-      <CardHeader>
+      <CardHeader className="border-b border-border/60">
         <CardTitle>Placement Information</CardTitle>
         <CardDescription>Company and training details</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-          <InfoField label="Company Name" value={placement.companyName} />
-          <InfoField
+      <CardContent className="pt-6">
+        <div className="space-y-1 rounded-md border border-border/60 overflow-hidden">
+          <InfoRow
+            icon={<Building2 className="h-3.5 w-3.5" />}
+            label="Company Name"
+            value={placement.companyName || "N/A"}
+          />
+          <Separator />
+          <InfoRow
+            icon={<BriefcaseBusiness className="h-3.5 w-3.5" />}
             label="Company Sector"
             value={placement.companySector || "N/A"}
           />
-          <div className="md:col-span-2">
-            <InfoField
-              label="Company Address"
-              value={placement.companyAddress}
-            />
-          </div>
-          <InfoField
+          <Separator />
+          <InfoRow
+            icon={<MapPin className="h-3.5 w-3.5" />}
+            label="Company Address"
+            value={placement.companyAddress || "N/A"}
+          />
+          <Separator />
+          <InfoRow
+            icon={<Calendar className="h-3.5 w-3.5" />}
             label="Start Date"
             value={new Date(placement.startDate).toLocaleDateString()}
           />
-          <InfoField
+          <Separator />
+          <InfoRow
+            icon={<Calendar className="h-3.5 w-3.5" />}
             label="End Date"
             value={new Date(placement.endDate).toLocaleDateString()}
           />
         </div>
 
         {placement.acceptanceLetter && (
-          <div className="p-4 border rounded-lg bg-muted/30">
+          <div className="p-4 border rounded-lg bg-muted/30 mt-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded border shadow-sm">
                 <FileText className="h-5 w-5 text-muted-foreground" />
@@ -58,13 +69,22 @@ export function PlacementCompanyCard({ placement }: { placement: any }) {
   );
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
   return (
-    <div className="space-y-1">
-      <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+    <div className="grid grid-cols-1 gap-1 p-3 md:grid-cols-[220px_1fr] md:items-center">
+      <Label className="text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+        {icon}
         {label}
       </Label>
-      <p className="font-medium">{value}</p>
+      <p className="font-medium text-sm">{value}</p>
     </div>
   );
 }

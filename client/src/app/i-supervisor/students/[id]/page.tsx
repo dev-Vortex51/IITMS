@@ -1,57 +1,70 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { studentService } from "@/services/student.service";
-import { Loading } from "@/components/ui/loading";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  Users,
   ArrowLeft,
   Briefcase,
   Building2,
-  Mail,
-  Phone,
-  ClipboardCheck,
   Calendar,
+  ClipboardCheck,
+  Mail,
   MapPin,
+  Phone,
+  Users,
 } from "lucide-react";
-import Link from "next/link";
+import { studentService } from "@/services/student.service";
+import {
+  EmptyState,
+  ErrorGlobalState,
+  LoadingPage,
+  PageHeader,
+} from "@/components/design-system";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 export default function StudentDetailsPage({
   params,
 }: {
   params: { id: string };
 }) {
-  // Fetch student details
-  const { data: studentData, isLoading } = useQuery({
+  const studentQuery = useQuery({
     queryKey: ["student", params.id],
     queryFn: () => studentService.getStudentById(params.id),
     enabled: !!params.id,
   });
 
-  const student = studentData;
+  const student = studentQuery.data;
   const placement = student?.currentPlacement;
 
-  if (isLoading) {
-    return <Loading />;
+  if (studentQuery.isLoading) {
+    return <LoadingPage label="Loading student details..." />;
+  }
+
+  if (studentQuery.isError) {
+    return (
+      <ErrorGlobalState
+        title="Unable to load student details"
+        message={(studentQuery.error as Error)?.message || "Please try again."}
+        onRetry={() => void studentQuery.refetch()}
+      />
+    );
   }
 
   if (!student) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold">Student Not Found</h2>
-        <Button asChild className="mt-4">
-          <Link href="/i-supervisor/students">Back to Students</Link>
-        </Button>
+      <div className="space-y-6">
+        <PageHeader
+          title="Student Not Found"
+          description="The requested student record could not be located."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/i-supervisor/students">Back to Students</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -59,41 +72,36 @@ export default function StudentDetailsPage({
   const getPlacementStatusBadge = () => {
     if (!placement) return <Badge variant="secondary">No Placement</Badge>;
     const status = placement.status;
-    if (status === "approved") return <Badge variant="success">Approved</Badge>;
-    if (status === "pending") return <Badge variant="warning">Pending</Badge>;
-    if (status === "rejected")
-      return <Badge variant="destructive">Rejected</Badge>;
+    if (status === "approved") return <Badge variant="default">Approved</Badge>;
+    if (status === "pending") return <Badge variant="outline">Pending</Badge>;
+    if (status === "rejected") return <Badge variant="destructive">Rejected</Badge>;
     return <Badge variant="secondary">Unknown</Badge>;
   };
 
+  const studentName =
+    typeof student.user === "object" && student.user?.firstName && student.user?.lastName
+      ? `${student.user.firstName} ${student.user.lastName}`
+      : "Student";
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/i-supervisor/students">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-primary">
-            {typeof student.user === "object" &&
-            student.user?.firstName &&
-            student.user?.lastName
-              ? `${student.user.firstName} ${student.user.lastName}`
-              : "Student"}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {student.matricNumber || "N/A"}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={studentName}
+        description={student.matricNumber || "N/A"}
+        actions={
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/i-supervisor/students">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* Student Information */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
+            <div className="rounded-lg bg-primary/10 p-2">
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
@@ -106,38 +114,30 @@ export default function StudentDetailsPage({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label className="text-muted-foreground">Full Name</Label>
-              <p className="font-medium">
-                {typeof student.user === "object" &&
-                student.user?.firstName &&
-                student.user?.lastName
-                  ? `${student.user.firstName} ${student.user.lastName}`
-                  : "N/A"}
-              </p>
+              <p className="font-medium">{studentName}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Matric Number</Label>
               <p className="font-medium">{student.matricNumber || "N/A"}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
+              <Label className="flex items-center gap-1 text-muted-foreground">
                 <Mail className="h-4 w-4" />
                 Email
               </Label>
               <p className="font-medium">
-                {typeof student.user === "object" && student.user
-                  ? student.user.email
-                  : "N/A"}
+                {typeof student.user === "object" && student.user ? student.user.email : "N/A"}
               </p>
             </div>
             <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
+              <Label className="flex items-center gap-1 text-muted-foreground">
                 <Phone className="h-4 w-4" />
                 Phone Number
               </Label>
               <p className="font-medium">{student.phoneNumber || "N/A"}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground flex items-center gap-1">
+              <Label className="flex items-center gap-1 text-muted-foreground">
                 <Building2 className="h-4 w-4" />
                 Department
               </Label>
@@ -155,12 +155,11 @@ export default function StudentDetailsPage({
         </CardContent>
       </Card>
 
-      {/* Placement Details */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent/10">
+              <div className="rounded-lg bg-accent/10 p-2">
                 <Briefcase className="h-6 w-6 text-accent-foreground" />
               </div>
               <div>
@@ -176,66 +175,53 @@ export default function StudentDetailsPage({
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
+                  <Label className="flex items-center gap-1 text-muted-foreground">
                     <Building2 className="h-4 w-4" />
                     Company Name
                   </Label>
-                  <p className="font-medium">
-                    {placement.companyName || "N/A"}
-                  </p>
+                  <p className="font-medium">{placement.companyName || "N/A"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">
-                    Company Sector
-                  </Label>
-                  <p className="font-medium">
-                    {placement.companySector || "N/A"}
-                  </p>
+                  <Label className="text-muted-foreground">Company Sector</Label>
+                  <p className="font-medium">{placement.companySector || "N/A"}</p>
                 </div>
                 <div className="md:col-span-2">
-                  <Label className="text-muted-foreground flex items-center gap-1">
+                  <Label className="flex items-center gap-1 text-muted-foreground">
                     <MapPin className="h-4 w-4" />
                     Company Address
                   </Label>
-                  <p className="font-medium">
-                    {placement.companyAddress || "N/A"}
-                  </p>
+                  <p className="font-medium">{placement.companyAddress || "N/A"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
+                  <Label className="flex items-center gap-1 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     Start Date
                   </Label>
                   <p className="font-medium">
-                    {placement.startDate
-                      ? new Date(placement.startDate).toLocaleDateString()
-                      : "N/A"}
+                    {placement.startDate ? new Date(placement.startDate).toLocaleDateString() : "N/A"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
+                  <Label className="flex items-center gap-1 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     End Date
                   </Label>
                   <p className="font-medium">
-                    {placement.endDate
-                      ? new Date(placement.endDate).toLocaleDateString()
-                      : "N/A"}
+                    {placement.endDate ? new Date(placement.endDate).toLocaleDateString() : "N/A"}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                No placement information available
-              </p>
-            </div>
+            <EmptyState
+              title="No placement information"
+              description="Placement details for this student are not available yet."
+              icon={<Briefcase className="h-12 w-12 text-muted-foreground/50" />}
+            />
           )}
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
@@ -244,7 +230,7 @@ export default function StudentDetailsPage({
           <div className="flex gap-3">
             <Button asChild>
               <Link href="/i-supervisor/logbooks">
-                <ClipboardCheck className="h-4 w-4 mr-2" />
+                <ClipboardCheck className="mr-2 h-4 w-4" />
                 Review Logbooks
               </Link>
             </Button>
