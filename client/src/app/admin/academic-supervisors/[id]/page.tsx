@@ -84,7 +84,7 @@ export default function AcademicSupervisorDetailsPage({
             <span>
               Department:{" "}
               {typeof supervisor.department === "object"
-                ? supervisor.department?.code || "N/A"
+                ? supervisor.department?.name || "N/A"
                 : "N/A"}
             </span>
           </div>
