@@ -13,7 +13,7 @@ export function CompanyInfoCard({ user }: CompanyInfoCardProps) {
   const profile = user?.profileData as any;
   const companyName = profile?.companyName || profile?.industryPartner?.name || "--";
   const position = profile?.position || "--";
-  const phone = profile?.phone || user?.phone || "--";
+  const phone = profile?.phone || "--";
   const companySector = profile?.industryPartner?.sector || "--";
   const companyAddress = profile?.companyAddress || profile?.industryPartner?.address || "--";
 

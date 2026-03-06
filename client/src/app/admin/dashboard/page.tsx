@@ -70,7 +70,7 @@ export default function AdminDashboardPage() {
 
   const lineData =
     chartData.departments.length > 0
-      ? chartData.departments.map((dept) => ({
+      ? chartData.departments.map((dept: { name: string; students: number }) => ({
           name: dept.name,
           value: dept.students,
         }))

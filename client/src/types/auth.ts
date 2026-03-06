@@ -9,6 +9,11 @@ export interface ProfileData {
   id: string;
   user?: string;
   department?: any;
+  matricNumber?: string;
+  phone?: string;
+  companyName?: string;
+  position?: string;
+  companyAddress?: string;
   // Student-specific fields
   currentPlacement?: any;
   academicSupervisor?: any;

@@ -8,8 +8,7 @@ export function useSupervisorDetails(id: string) {
     enabled: !!id,
   });
 
-  // Depending on your API, data might be nested (e.g., data.data)
-  const supervisor = data?.data || data;
+  const supervisor = data;
 
   const assignedStudents = supervisor?.students || [];
   const isDepartmental =

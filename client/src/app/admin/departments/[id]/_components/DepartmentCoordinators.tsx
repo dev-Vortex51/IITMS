@@ -12,7 +12,7 @@ export default function DepartmentCoordinators({
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <LoadingSectionSkeleton rows={2} />
+        <LoadingSectionSkeleton />
       ) : coordinators.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {coordinators.map((coord: any) => (

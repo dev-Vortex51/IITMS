@@ -10,7 +10,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  type TooltipProps,
 } from "recharts";
 
 type ChartDatum = Record<string, any>;
@@ -38,13 +37,20 @@ function formatPercent(value: number, total: number) {
 function DonutTooltip({
   active,
   payload,
-}: TooltipProps<number, string>) {
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string }>;
+}) {
   if (!active || !payload?.length) return null;
 
   const item = payload[0];
   const name = item.name || "Segment";
   const value = Number(item.value || 0);
-  const total = Number(payload.reduce((sum, entry) => sum + Number(entry.value || 0), 0));
+  const total = Number(
+    payload.reduce((sum: number, entry: { value?: number | string }) => {
+      return sum + Number(entry.value || 0);
+    }, 0),
+  );
   const percent = formatPercent(value, total);
 
   return (

@@ -180,7 +180,12 @@ export const useStudentLogbook = () => {
     });
 
     if (editingEntry) {
-      updateMutation.mutate({ id: editingEntry.id, data: formDataToSend });
+      const entryId = editingEntry.id || editingEntry._id;
+      if (!entryId) {
+        setError("Unable to update this logbook entry. Missing entry ID.");
+        return;
+      }
+      updateMutation.mutate({ id: entryId, data: formDataToSend });
     } else {
       createMutation.mutate(formDataToSend);
     }

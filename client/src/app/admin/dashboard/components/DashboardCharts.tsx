@@ -11,10 +11,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Sector,
 } from "recharts";
 import { EmptyState, SectionCard } from "@/components/design-system";
-import { useState } from "react";
 
 interface DashboardChartsProps {
   departmentsData: any[];
@@ -53,39 +51,10 @@ const ModernTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// 2. Custom Active Shape for Donut Chart (Hover Effect)
-const renderActiveShape = (props: any) => {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
-  return (
-    <g>
-      <Sector
-        cx={cx}
-        cy={cy}
-        innerRadius={innerRadius - 4}
-        outerRadius={outerRadius + 4}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        fill={fill}
-        cornerRadius={8}
-      />
-    </g>
-  );
-};
-
 export function DashboardCharts({
   departmentsData,
   placementsData,
 }: DashboardChartsProps) {
-  const [activeIndex, setActiveIndex] = useState(-1);
-
-  const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
-  };
-
-  const onPieLeave = () => {
-    setActiveIndex(-1);
-  };
-
   return (
     <div className="grid gap-4 md:gap-6 md:grid-cols-2">
       
@@ -152,10 +121,6 @@ export function DashboardCharts({
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  activeIndex={activeIndex}
-                  activeShape={renderActiveShape}
-                  onMouseEnter={onPieEnter}
-                  onMouseLeave={onPieLeave}
                   data={placementsData}
                   cx="50%"
                   cy="50%"

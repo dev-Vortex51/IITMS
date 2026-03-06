@@ -16,6 +16,7 @@ import {
   ScrollArea,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   ChevronDown,
@@ -35,7 +36,7 @@ import classes from "./NavbarSimple.module.css";
 interface NavItem {
   title: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
 }
 
 interface DashboardShellProps {
@@ -44,7 +45,7 @@ interface DashboardShellProps {
   title: string;
 }
 
-function getUserLabel(user: any) {
+function getUserLabel(user: any): string {
   if (!user) return "User";
   return (
     user.name ||
@@ -54,12 +55,12 @@ function getUserLabel(user: any) {
   );
 }
 
-function getUserInitials(user: any) {
+function getUserInitials(user: any): string {
   const label = getUserLabel(user);
   return label
     .split(" ")
     .filter(Boolean)
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();

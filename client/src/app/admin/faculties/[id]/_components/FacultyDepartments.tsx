@@ -12,7 +12,7 @@ export default function FacultyDepartments({
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <LoadingSectionSkeleton rows={4} />
+        <LoadingSectionSkeleton />
       ) : departments.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {departments.map((dept: any) => (

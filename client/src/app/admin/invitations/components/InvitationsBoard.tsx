@@ -47,7 +47,7 @@ export function InvitationsBoard({
     <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       {boardColumns.map((column) => {
         const columnInvitations = invitations.filter((invitation) =>
-          column.statuses.includes(invitation.status as (typeof column.statuses)[number]),
+          (column.statuses as readonly string[]).includes(invitation.status),
         );
 
         return (

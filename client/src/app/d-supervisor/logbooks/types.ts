@@ -25,6 +25,7 @@ export interface ReviewStatus {
 }
 
 export interface LogbookReview {
+  status?: string;
   supervisorType?: string;
   rating?: number;
   comment?: string;
@@ -37,6 +38,7 @@ export interface LogbookEvidence {
 
 export interface Logbook {
   id: string;
+  createdAt?: string;
   weekNumber: number;
   startDate: string;
   endDate: string;

@@ -1,10 +1,10 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 interface DashboardMetricItem {
   label: string;
   value: string | number;
   hint?: string;
-  trend?: "up" | "neutral";
+  trend?: "up" | "down" | "neutral";
 }
 
 interface DashboardMetricsGridProps {
@@ -27,6 +27,8 @@ export function DashboardMetricsGrid({ items }: DashboardMetricsGridProps) {
             <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
               {item.trend === "up" ? (
                 <ArrowUp className="h-3.5 w-3.5 text-primary" />
+              ) : item.trend === "down" ? (
+                <ArrowDown className="h-3.5 w-3.5 text-destructive" />
               ) : null}
               {item.hint}
             </p>

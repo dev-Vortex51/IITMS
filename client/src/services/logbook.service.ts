@@ -53,7 +53,7 @@ export const logbookService = {
 
   // Create logbook entry
   createLogbookEntry: async (
-    data: CreateLogbookData
+    data: CreateLogbookData | FormData
   ): Promise<LogbookEntry> => {
     const response = await apiClient.post("/logbooks", data);
     return response.data.data;
@@ -62,7 +62,7 @@ export const logbookService = {
   // Update logbook entry (draft only)
   updateLogbookEntry: async (
     id: string,
-    data: Partial<CreateLogbookData>
+    data: Partial<CreateLogbookData> | FormData
   ): Promise<LogbookEntry> => {
     const response = await apiClient.put(`/logbooks/${id}`, data);
     return response.data.data;
