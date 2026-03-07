@@ -104,14 +104,24 @@ GET /api/v1/health
 - `/reports`
 - `/settings`
 
-## Email Configuration
+## Email Configuration (Gmail SMTP Recommended)
 
-Current codebase uses two env naming groups in different modules:
+Set Gmail SMTP credentials in environment:
 
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`
-- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`
+- `EMAIL_PROVIDER=smtp`
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=465`
+- `SMTP_SECURE=true`
+- `SMTP_USER=<your-gmail-address>`
+- `SMTP_PASS=<gmail-app-password>`
+- `EMAIL_FROM=IITMS <your-gmail-address>`
 
-Set both groups for compatibility unless you standardize the code.
+Optional:
+
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` are alias keys.
+- Use Resend only if you set `EMAIL_PROVIDER=resend` and provide:
+  - `RESEND_API_KEY`
+  - `RESEND_FROM`
 
 ## File Uploads
 

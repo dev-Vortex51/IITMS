@@ -7,8 +7,6 @@ import "@mantine/core/styles.css";
 import {
   ColorSchemeScript,
   MantineProvider,
-  createTheme,
-  MantineColorsTuple,
 } from "@mantine/core";
 
 import { QueryProvider } from "@/components/providers/query-provider";

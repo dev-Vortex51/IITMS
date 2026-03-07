@@ -18,7 +18,9 @@ class EmailService {
     if (this.initialized) return;
 
     try {
-      if (config.resend?.apiKey) {
+      const preferredProvider = config.email.provider;
+
+      if (preferredProvider === "resend" && config.resend?.apiKey) {
         this.provider = "resend";
         this.initialized = true;
         logger.info("Email service initialized with Resend API");

@@ -38,6 +38,7 @@ const config = {
 
   // Email
   email: {
+    provider: (process.env.EMAIL_PROVIDER || "smtp").toLowerCase(),
     host: process.env.SMTP_HOST || process.env.EMAIL_HOST || "smtp.gmail.com",
     port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || "587", 10),
     secure:
