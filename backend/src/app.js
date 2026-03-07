@@ -17,6 +17,7 @@ const {
   notFound,
 } = require("./middleware");
 const logger = require("./utils/logger");
+const { httpMetricsMiddleware, metricsHandler } = require("./observability/metrics");
 
 /**
  * Create Express application
@@ -55,6 +56,7 @@ if (config.isDevelopment) {
   app.use(morgan("combined", { stream: logger.stream })); // Production logging
 }
 app.use(requestLogger); // Custom request logger
+app.use(httpMetricsMiddleware); // Request latency metrics
 
 /**
  * Rate Limiting
@@ -78,6 +80,8 @@ app.get("/", (req, res) => {
     status: "operational",
   });
 });
+
+app.get("/metrics", metricsHandler);
 
 /**
  * 404 Handler

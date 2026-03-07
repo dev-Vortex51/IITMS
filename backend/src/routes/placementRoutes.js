@@ -3,6 +3,8 @@ const router = express.Router();
 const { placementController } = require("../controllers");
 const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/authorization");
+const { cacheResponse } = require("../middleware/cache");
+const config = require("../config");
 const { ROLES } = require("../utils/constants");
 
 // All routes require authentication
@@ -22,6 +24,7 @@ router.get(
     ROLES.ACADEMIC_SUPERVISOR,
     ROLES.INDUSTRIAL_SUPERVISOR,
   ),
+  cacheResponse(config.cache.dashboardTtl),
   placementController.getPlacements,
 );
 

@@ -6,17 +6,14 @@ const logger = require("../utils/logger");
 const emailService = require("../utils/emailService");
 const crypto = require("crypto");
 const notificationService = require("./notificationService");
+const { enqueueEmailJob } = require("../jobs/emailQueue");
 
 const prisma = getPrismaClient();
 
 const queueInvitationEmail = (payload, isResend = false) => {
   setImmediate(async () => {
     try {
-      if (isResend) {
-        await emailService.resendInvitation(payload);
-      } else {
-        await emailService.sendInvitation(payload);
-      }
+      await enqueueEmailJob(isResend ? "resend-invitation" : "invitation", payload);
     } catch (emailError) {
       logger.error(
         `${isResend ? "Failed to resend" : "Failed to send"} invitation email: ${emailError.message}`,
@@ -589,7 +586,7 @@ const completeSetup = async (token, userData) => {
 
     // 4. Send welcome email (Non-blocking)
     try {
-      await emailService.sendWelcome({
+      await enqueueEmailJob("welcome", {
         email: user.email,
         firstName: user.firstName,
         role: user.role,

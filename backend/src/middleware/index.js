@@ -3,6 +3,7 @@ const authorization = require("./authorization");
 const validation = require("./validation");
 const errorHandler = require("./errorHandler");
 const security = require("./security");
+const cache = require("./cache");
 
 module.exports = {
   // Authentication
@@ -19,4 +20,7 @@ module.exports = {
 
   // Security
   ...security,
+
+  // Cache
+  ...cache,
 };

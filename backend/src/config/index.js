@@ -91,6 +91,20 @@ const config = {
     defaultPageSize: parseInt(process.env.DEFAULT_PAGE_SIZE, 10) || 20,
     maxPageSize: parseInt(process.env.MAX_PAGE_SIZE, 10) || 100,
   },
+
+  redis: {
+    enabled: Boolean(process.env.REDIS_URL),
+    url: process.env.REDIS_URL || "",
+  },
+
+  queue: {
+    emailConcurrency: parseInt(process.env.QUEUE_EMAIL_CONCURRENCY, 10) || 5,
+  },
+
+  cache: {
+    dashboardTtl: parseInt(process.env.CACHE_TTL_DASHBOARD, 10) || 60,
+    reportsTtl: parseInt(process.env.CACHE_TTL_REPORTS, 10) || 120,
+  },
 };
 
 const validateConfig = () => {

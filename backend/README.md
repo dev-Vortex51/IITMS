@@ -49,6 +49,7 @@ JWT_REFRESH_SECRET=<strong-refresh-secret>
 
 ALLOWED_ORIGINS=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
+REDIS_URL=redis://localhost:6379
 ```
 
 ### 3. Database migration
@@ -86,6 +87,12 @@ GET /api/v1/health
 - Emitted events:
   - `notification:new`
   - `notification:unread_count`
+
+## Queue + Cache + Metrics
+
+- Email jobs are processed with BullMQ using Redis
+- Report and placement GET routes are Redis-cached (short TTL)
+- Prometheus metrics endpoint: `GET /metrics`
 
 ## Main Route Groups
 

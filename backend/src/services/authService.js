@@ -14,6 +14,7 @@ const { handlePrismaError } = require("../utils/prismaErrors");
 const { hashPassword, comparePassword } = require("../utils/helpers");
 const emailService = require("../utils/emailService");
 const notificationService = require("./notificationService");
+const { enqueueEmailJob } = require("../jobs/emailQueue");
 
 const login = async (email, password) => {
   try {
@@ -394,9 +395,14 @@ const forgotPassword = async (email) => {
     });
 
     // Send password reset email (non-blocking)
-    await emailService.sendPasswordReset({
+    await enqueueEmailJob("password-reset", {
       email: user.email,
       token,
+    }).catch(async () => {
+      await emailService.sendPasswordReset({
+        email: user.email,
+        token,
+      });
     });
 
     try {
