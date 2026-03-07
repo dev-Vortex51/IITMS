@@ -38,6 +38,7 @@ export interface LogbookEvidence {
 
 export interface Logbook {
   id: string;
+  studentId: string;
   createdAt?: string;
   weekNumber: number;
   startDate: string;
