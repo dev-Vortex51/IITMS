@@ -16,6 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const ACCESS_TOKEN_COOKIE = "accessToken";
+const USER_CACHE_KEY = "itms:userCache";
 
 function getCookie(name: string) {
   if (typeof document === "undefined") return null;
@@ -31,12 +32,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [isMounted, setIsMounted] = useState(false);
   const [hasAuthToken, setHasAuthToken] = useState(false);
+  const [cachedUser, setCachedUser] = useState<User | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  const readCachedUser = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const raw = window.localStorage.getItem(USER_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw) as User;
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
+
+    setIsOnline(window.navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     const token =
       window.localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_COOKIE);
+
+    setCachedUser(readCachedUser());
     setHasAuthToken(Boolean(token));
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const {
@@ -69,8 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (refreshToken) {
             window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
           }
+          window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
           document.cookie = `accessToken=${accessToken}; Path=/; Max-Age=604800; SameSite=Lax`;
           setHasAuthToken(true);
+          setCachedUser(user);
         }
 
         queryClient.setQueryData(["user"], user);
@@ -99,8 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ACCESS_TOKEN_KEY);
       window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+      window.localStorage.removeItem(USER_CACHE_KEY);
       document.cookie = "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
       setHasAuthToken(false);
+      setCachedUser(null);
     }
     queryClient.clear();
     router.push("/login");
@@ -110,11 +149,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetch();
   };
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !user) {
+      return;
+    }
+
+    window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+    setCachedUser(user);
+  }, [user]);
+
+  const resolvedUser = user ?? (hasAuthToken && !isOnline ? cachedUser : null);
+  const resolvedLoading = !isMounted || (hasAuthToken && isLoading && !resolvedUser);
+
   return (
     <AuthContext.Provider
       value={{
-        user: user ?? null,
-        isLoading: !isMounted || (hasAuthToken && isLoading),
+        user: resolvedUser,
+        isLoading: resolvedLoading,
         login,
         logout,
         refetchUser,

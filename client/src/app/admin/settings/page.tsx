@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/providers/auth-provider";
 import { SettingsLoadingState } from "./components/SettingsLoadingState";
@@ -12,6 +13,9 @@ import { useAdminSettings } from "./hooks/useAdminSettings";
 
 export default function AdminSettingsPage() {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     passwordData,
     setPasswordData,
@@ -24,6 +28,21 @@ export default function AdminSettingsPage() {
     handlePasswordChange,
     isChangingPassword,
   } = useAdminSettings(user?.role === "admin");
+
+  const requestedTab = searchParams.get("tab");
+  const activeTab =
+    requestedTab === "security" ||
+    requestedTab === "preferences" ||
+    requestedTab === "system"
+      ? requestedTab
+      : "profile";
+
+  const handleTabChange = (nextTab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
 
   if (isLoading) {
     return <SettingsLoadingState />;
@@ -42,7 +61,7 @@ export default function AdminSettingsPage() {
       <SettingsHeader />
 
       <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto pb-2">
             <TabsList className="h-auto min-w-max bg-muted/70 p-1">
               <TabsTrigger value="profile">Profile</TabsTrigger>

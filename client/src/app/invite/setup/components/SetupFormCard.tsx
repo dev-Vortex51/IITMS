@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { AlertInline } from "@/components/design-system/alert-inline";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { InvitationData, SetupFormData } from "../types";
@@ -20,6 +21,10 @@ interface SetupFormCardProps {
   onToggleShowConfirmPassword: () => void;
   onSubmit: (event: FormEvent) => void;
   isSubmitting: boolean;
+  isOnline: boolean;
+  hasQueuedSetup: boolean;
+  isSyncingQueuedSetup: boolean;
+  onSyncQueuedSetup: () => void;
 }
 
 export function SetupFormCard({
@@ -32,6 +37,10 @@ export function SetupFormCard({
   onToggleShowConfirmPassword,
   onSubmit,
   isSubmitting,
+  isOnline,
+  hasQueuedSetup,
+  isSyncingQueuedSetup,
+  onSyncQueuedSetup,
 }: SetupFormCardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
@@ -101,6 +110,30 @@ export function SetupFormCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!isOnline ? (
+          <AlertInline
+            tone="warning"
+            message="You are offline. Account setup submission will be queued locally."
+          />
+        ) : null}
+
+        {isOnline && hasQueuedSetup ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <AlertInline
+              tone="info"
+              message={`A queued setup submission is pending sync.${isSyncingQueuedSetup ? " Syncing now..." : ""}`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSyncQueuedSetup}
+              disabled={isSyncingQueuedSetup}
+            >
+              {isSyncingQueuedSetup ? "Syncing..." : "Sync Setup"}
+            </Button>
+          </div>
+        ) : null}
+
         <div className="space-y-3">
           <div className="sm:hidden">
             <div className="flex items-center justify-between">

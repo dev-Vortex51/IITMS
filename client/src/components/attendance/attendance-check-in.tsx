@@ -1,6 +1,7 @@
+/* eslint-disable max-lines */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -20,14 +21,45 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertInline } from "@/components/design-system/alert-inline";
 import { CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const OFFLINE_QUEUE_KEY = "itms:attendance:offline-actions";
+
+interface AttendanceOfflineAction {
+  id: string;
+  type: "check-in" | "check-out";
+  payload: {
+    notes?: string;
+    location?: any;
+  };
+  createdAt: string;
+}
+
+const readOfflineQueue = (): AttendanceOfflineAction[] => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const raw = window.localStorage.getItem(OFFLINE_QUEUE_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    return JSON.parse(raw) as AttendanceOfflineAction[];
+  } catch {
+    return [];
+  }
+};
 
 export function AttendanceCheckIn() {
   const [notes, setNotes] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<AttendanceOfflineAction[]>([]);
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const queryClient = useQueryClient();
+  const syncInFlight = useRef(false);
 
   const today = new Date();
   const monthStart = startOfMonth(today);
@@ -81,6 +113,31 @@ export function AttendanceCheckIn() {
     },
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    setIsOnline(window.navigator.onLine);
+    setOfflineQueue(readOfflineQueue());
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+  }, [offlineQueue]);
+
   const attendanceByDay = useMemo(() => {
     const records = monthAttendance || [];
     return records.reduce<Record<string, AttendanceRecord>>((acc, record) => {
@@ -115,14 +172,90 @@ export function AttendanceCheckIn() {
     }
   };
 
+  const syncOfflineActions = useCallback(async () => {
+    if (!isOnline || syncInFlight.current || offlineQueue.length === 0) {
+      return;
+    }
+
+    syncInFlight.current = true;
+    setIsSyncingOffline(true);
+    const remaining: AttendanceOfflineAction[] = [];
+    let processed = 0;
+
+    for (const action of offlineQueue) {
+      try {
+        if (action.type === "check-in") {
+          await attendanceService.checkIn(action.payload);
+        } else {
+          await attendanceService.checkOut(action.payload);
+        }
+        processed += 1;
+      } catch {
+        remaining.push(action);
+      }
+    }
+
+    setOfflineQueue(remaining);
+    if (processed > 0) {
+      toast.success("Offline attendance actions synced.");
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    }
+    if (remaining.length > 0) {
+      toast.error("Some attendance actions could not sync yet.");
+    }
+
+    setIsSyncingOffline(false);
+    syncInFlight.current = false;
+  }, [isOnline, offlineQueue, queryClient]);
+
+  useEffect(() => {
+    if (isOnline && offlineQueue.length > 0) {
+      void syncOfflineActions();
+    }
+  }, [isOnline, offlineQueue.length, syncOfflineActions]);
+
   const handleCheckIn = async () => {
     const location = await getLocation();
-    checkInMutation.mutate({ notes: notes || undefined, location });
+    const payload = { notes: notes || undefined, location };
+
+    if (!isOnline) {
+      setOfflineQueue((prev) => [
+        ...prev,
+        {
+          id: `attendance-offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "check-in",
+          payload,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setNotes("");
+      toast.info("Check-in saved offline. It will sync when internet is available.");
+      return;
+    }
+
+    checkInMutation.mutate(payload);
   };
 
   const handleCheckOut = async () => {
     const location = await getLocation();
-    checkOutMutation.mutate({ notes: notes || undefined, location });
+    const payload = { notes: notes || undefined, location };
+
+    if (!isOnline) {
+      setOfflineQueue((prev) => [
+        ...prev,
+        {
+          id: `attendance-offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "check-out",
+          payload,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setNotes("");
+      toast.info("Check-out saved offline. It will sync when internet is available.");
+      return;
+    }
+
+    checkOutMutation.mutate(payload);
   };
 
   if (isLoadingToday || isLoadingMonth || isLoadingStats) {
@@ -148,6 +281,24 @@ export function AttendanceCheckIn() {
           {format(today, "MMMM yyyy")} check-in overview and today&apos;s attendance action.
         </p>
       </header>
+
+      {!isOnline ? (
+        <div className="px-4 pt-4">
+          <AlertInline
+            tone="warning"
+            message={`Offline mode: attendance actions will queue locally (${offlineQueue.length} pending).`}
+          />
+        </div>
+      ) : null}
+
+      {isOnline && offlineQueue.length > 0 ? (
+        <div className="px-4 pt-4">
+          <AlertInline
+            tone="info"
+            message={`${offlineQueue.length} queued attendance action(s) pending sync.${isSyncingOffline ? " Syncing now..." : ""}`}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 p-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-md border border-border p-3">

@@ -2,6 +2,7 @@
 
 import { ChevronLeft } from "lucide-react";
 import {
+  AlertInline,
   DashboardMetricsGrid,
   ErrorGlobalState,
   FilterFieldSearch,
@@ -40,6 +41,10 @@ export default function ISupervisorLogbooksPage() {
     error,
     retry,
     isSubmittingReview,
+    isOnline,
+    pendingOfflineReviews,
+    isSyncingOfflineReviews,
+    syncOfflineReviews,
   } = useIndustrySupervisorLogbooks();
 
   if (isLoading) {
@@ -78,6 +83,32 @@ export default function ISupervisorLogbooksPage() {
           )
         }
       />
+
+      {!isOnline ? (
+        <AlertInline
+          tone="warning"
+          message={`Offline mode: review actions are queued locally (${pendingOfflineReviews} pending).`}
+        />
+      ) : null}
+
+      {isOnline && pendingOfflineReviews > 0 ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <AlertInline
+            tone="info"
+            message={`${pendingOfflineReviews} queued review(s) pending sync.${isSyncingOfflineReviews ? " Syncing now..." : ""}`}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void syncOfflineReviews();
+            }}
+            disabled={isSyncingOfflineReviews}
+          >
+            {isSyncingOfflineReviews ? "Syncing..." : "Sync Reviews"}
+          </Button>
+        </div>
+      ) : null}
 
       <DashboardMetricsGrid
         items={

@@ -19,6 +19,10 @@ export default function SetupAccountPage() {
     setShowConfirmPassword,
     handleSubmit,
     isSubmitting,
+    isOnline,
+    hasQueuedSetup,
+    isSyncingQueuedSetup,
+    syncQueuedSetup,
   } = useSetupAccount();
 
   if (!token) {
@@ -63,6 +67,10 @@ export default function SetupAccountPage() {
         onToggleShowConfirmPassword={() => setShowConfirmPassword((prev) => !prev)}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        isOnline={isOnline}
+        hasQueuedSetup={hasQueuedSetup}
+        isSyncingQueuedSetup={isSyncingQueuedSetup}
+        onSyncQueuedSetup={syncQueuedSetup}
       />
     </InvitePageShell>
   );

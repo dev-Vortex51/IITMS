@@ -1,10 +1,22 @@
-import { useMemo, useState } from "react";
+/* eslint-disable max-lines */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useUrlSearchState } from "@/hooks/useUrlSearchState";
 import { apiClient } from "@/lib/api-client";
 import type { Logbook, Student } from "../types";
+
+const OFFLINE_REVIEWS_KEY = "itms:i-supervisor:offline-logbook-reviews";
+const STUDENTS_CACHE_KEY_PREFIX = "itms:i-supervisor:students:";
+
+interface OfflineReviewAction {
+  id: string;
+  supervisorId: string;
+  logbookId: string;
+  status: "reviewed" | "rejected";
+  createdAt: string;
+}
 
 const getIndustrialReview = (logbook: Logbook) =>
   logbook.industrialReview ||
@@ -34,12 +46,65 @@ export function useIndustrySupervisorLogbooks() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const supervisorId = user?.profileData?.id;
+  const studentsCacheKey = supervisorId ? `${STUDENTS_CACHE_KEY_PREFIX}${supervisorId}` : "";
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [selectedLogbook, setSelectedLogbook] = useState<Logbook | null>(null);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isOnline, setIsOnline] = useState(true);
+  const [cachedStudents, setCachedStudents] = useState<Student[]>([]);
+  const [offlineReviewQueue, setOfflineReviewQueue] = useState<OfflineReviewAction[]>([]);
+  const [isSyncingOfflineReviews, setIsSyncingOfflineReviews] = useState(false);
+  const syncInFlight = useRef(false);
   const { searchQuery, setSearchQuery } = useUrlSearchState();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    setIsOnline(window.navigator.onLine);
+
+    const rawQueue = window.localStorage.getItem(OFFLINE_REVIEWS_KEY);
+    if (rawQueue) {
+      try {
+        setOfflineReviewQueue(JSON.parse(rawQueue) as OfflineReviewAction[]);
+      } catch {
+        setOfflineReviewQueue([]);
+      }
+    }
+
+    if (studentsCacheKey) {
+      const rawStudents = window.localStorage.getItem(studentsCacheKey);
+      if (rawStudents) {
+        try {
+          setCachedStudents(JSON.parse(rawStudents) as Student[]);
+        } catch {
+          setCachedStudents([]);
+        }
+      }
+    }
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [studentsCacheKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      OFFLINE_REVIEWS_KEY,
+      JSON.stringify(offlineReviewQueue),
+    );
+  }, [offlineReviewQueue]);
 
   const studentsQuery = useQuery({
     queryKey: ["supervisor-students", supervisorId],
@@ -90,7 +155,16 @@ export function useIndustrySupervisorLogbooks() {
       });
     },
     enabled: !!supervisorId,
+    retry: false,
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !studentsCacheKey || !studentsQuery.data) {
+      return;
+    }
+    setCachedStudents(studentsQuery.data);
+    window.localStorage.setItem(studentsCacheKey, JSON.stringify(studentsQuery.data));
+  }, [studentsCacheKey, studentsQuery.data]);
 
   const reviewMutation = useMutation({
     mutationFn: async (data: {
@@ -120,7 +194,108 @@ export function useIndustrySupervisorLogbooks() {
     },
   });
 
-  const students = useMemo<Student[]>(() => studentsQuery.data || [], [studentsQuery.data]);
+  const syncOfflineReviews = useCallback(async () => {
+    if (!isOnline || !supervisorId || syncInFlight.current) {
+      return;
+    }
+
+    const pending = offlineReviewQueue.filter((item) => item.supervisorId === supervisorId);
+    if (pending.length === 0) {
+      return;
+    }
+
+    syncInFlight.current = true;
+    setIsSyncingOfflineReviews(true);
+    const remaining: OfflineReviewAction[] = [];
+    let synced = 0;
+
+    for (const review of pending) {
+      try {
+        await apiClient.post(`/logbooks/${review.logbookId}/industrial-review`, {
+          status: review.status,
+        });
+        synced += 1;
+      } catch {
+        remaining.push(review);
+      }
+    }
+
+    setOfflineReviewQueue((prev) => [
+      ...prev.filter((item) => item.supervisorId !== supervisorId),
+      ...remaining,
+    ]);
+
+    if (synced > 0) {
+      toast.success("Queued logbook reviews synced.");
+      queryClient.invalidateQueries({ queryKey: ["supervisor-students", supervisorId] });
+      queryClient.invalidateQueries({ queryKey: ["supervisor-dashboard", supervisorId] });
+    }
+    if (remaining.length > 0) {
+      toast.error("Some queued reviews could not sync yet.");
+    }
+
+    setIsSyncingOfflineReviews(false);
+    syncInFlight.current = false;
+  }, [isOnline, supervisorId, offlineReviewQueue, queryClient]);
+
+  useEffect(() => {
+    if (isOnline) {
+      void syncOfflineReviews();
+    }
+  }, [isOnline, syncOfflineReviews]);
+
+  const students = useMemo<Student[]>(() => {
+    const baseStudents = (studentsQuery.data || (!isOnline ? cachedStudents : [])) as Student[];
+    if (!supervisorId) {
+      return baseStudents;
+    }
+
+    const queuedByLogbookId = new Map<string, OfflineReviewAction>();
+    offlineReviewQueue
+      .filter((item) => item.supervisorId === supervisorId)
+      .forEach((item) => queuedByLogbookId.set(item.logbookId, item));
+
+    return baseStudents.map((student) => {
+      const studentLogbooks = (student.logbooks || []).map((logbook) => {
+        const queued = queuedByLogbookId.get(logbook.id);
+        if (!queued) {
+          return logbook;
+        }
+        return {
+          ...logbook,
+          industrialReviewStatus: queued.status,
+          industrialReview: {
+            ...(logbook.industrialReview || {}),
+            supervisorType: "industrial",
+            status: queued.status,
+            comment:
+              logbook.industrialReview?.comment ||
+              "Queued offline review, pending sync.",
+            reviewedAt: queued.createdAt,
+          },
+        };
+      });
+
+      let pendingReview = 0;
+      let reviewed = 0;
+      for (const logbook of studentLogbooks) {
+        const status = getIndustrialStatus(logbook);
+        if (status === "submitted") {
+          pendingReview += 1;
+        } else if (status === "reviewed" || status === "approved" || status === "rejected") {
+          reviewed += 1;
+        }
+      }
+
+      return {
+        ...student,
+        logbooks: studentLogbooks,
+        totalLogbooks: studentLogbooks.length,
+        pendingReview,
+        reviewed,
+      };
+    });
+  }, [studentsQuery.data, isOnline, cachedStudents, supervisorId, offlineReviewQueue]);
   const selectedStudent = useMemo(() => {
     if (!selectedStudentId) return null;
     return (
@@ -217,11 +392,44 @@ export function useIndustrySupervisorLogbooks() {
   const submitReview = (status: "reviewed" | "rejected") => {
     if (!selectedLogbook) return;
 
+    if (!isOnline) {
+      if (!supervisorId) {
+        toast.error("Unable to queue review. Missing supervisor profile.");
+        return;
+      }
+      setOfflineReviewQueue((prev) => [
+        ...prev.filter(
+          (item) =>
+            !(
+              item.supervisorId === supervisorId &&
+              item.logbookId === selectedLogbook.id
+            ),
+        ),
+        {
+          id: `offline-review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          supervisorId,
+          logbookId: selectedLogbook.id,
+          status,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      toast.info("Review queued offline. It will sync automatically when online.");
+      closeReviewDialog();
+      return;
+    }
+
     reviewMutation.mutate({
       logbookId: selectedLogbook.id,
       status,
     });
   };
+
+  const pendingOfflineReviews = useMemo(() => {
+    if (!supervisorId) {
+      return 0;
+    }
+    return offlineReviewQueue.filter((item) => item.supervisorId === supervisorId).length;
+  }, [offlineReviewQueue, supervisorId]);
 
   return {
     selectedStudent,
@@ -246,5 +454,9 @@ export function useIndustrySupervisorLogbooks() {
     error: studentsQuery.error,
     retry: studentsQuery.refetch,
     isSubmittingReview: reviewMutation.isPending,
+    isOnline,
+    pendingOfflineReviews,
+    isSyncingOfflineReviews,
+    syncOfflineReviews,
   };
 }

@@ -49,6 +49,10 @@ export default function StudentLogbookPage() {
     createMutation,
     updateMutation,
     submitMutation,
+    isOnline,
+    pendingSyncCount,
+    isSyncingOffline,
+    syncOfflineChanges,
   } = useStudentLogbook();
 
   if (isLoadingPlacement) {
@@ -138,6 +142,20 @@ export default function StudentLogbookPage() {
         <AlertInline tone="success" message={success} />
       ) : null}
 
+      {!isOnline ? (
+        <AlertInline
+          tone="warning"
+          message={`You are offline. Drafts and submissions will be queued locally (${pendingSyncCount} pending).`}
+        />
+      ) : null}
+
+      {isOnline && pendingSyncCount > 0 ? (
+        <AlertInline
+          tone="info"
+          message={`${pendingSyncCount} offline change(s) pending sync.${isSyncingOffline ? " Syncing now..." : ""}`}
+        />
+      ) : null}
+
       <LogbookFormDialog
         open={showForm}
         onOpenChange={setShowForm}
@@ -156,6 +174,19 @@ export default function StudentLogbookPage() {
       <SectionCard
         title="Entries"
         description="Review, edit, and submit your weekly logbook records."
+        actions={
+          isOnline && pendingSyncCount > 0 ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                void syncOfflineChanges();
+              }}
+              disabled={isSyncingOffline}
+            >
+              {isSyncingOffline ? "Syncing..." : "Sync Offline Changes"}
+            </Button>
+          ) : null
+        }
       >
         {isLoadingLogbooks ? (
           <LoadingTableSkeleton />

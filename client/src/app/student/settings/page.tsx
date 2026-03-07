@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { LoadingPage, PageHeader } from "@/components/design-system";
@@ -16,6 +17,9 @@ export default function StudentSettingsPage() {
   }, []);
 
   const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -94,6 +98,18 @@ export default function StudentSettingsPage() {
     ? new Date(user.createdAt).toLocaleDateString()
     : "N/A";
   const matricNumber = user.profileData?.matricNumber || "N/A";
+  const requestedTab = searchParams.get("tab");
+  const activeTab =
+    requestedTab === "security" || requestedTab === "preferences"
+      ? requestedTab
+      : "profile";
+
+  const handleTabChange = (nextTab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 md:space-y-5">
@@ -103,7 +119,7 @@ export default function StudentSettingsPage() {
       />
 
       <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto pb-2">
             <TabsList className="h-auto min-w-max bg-muted/70 p-1">
               <TabsTrigger value="profile">Profile</TabsTrigger>

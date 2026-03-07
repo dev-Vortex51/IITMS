@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { PageHeader } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ import { useIndustrySupervisorSettings } from "./hooks/useIndustrySupervisorSett
 
 export default function ISupervisorSettingsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     currentPassword,
     setCurrentPassword,
@@ -43,6 +47,19 @@ export default function ISupervisorSettingsPage() {
     }
   };
 
+  const requestedTab = searchParams.get("tab");
+  const activeTab =
+    requestedTab === "security" || requestedTab === "preferences"
+      ? requestedTab
+      : "profile";
+
+  const handleTabChange = (nextTab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 md:space-y-5">
       <PageHeader
@@ -51,7 +68,7 @@ export default function ISupervisorSettingsPage() {
       />
 
       <section className="rounded-lg border border-border bg-card p-3 shadow-sm md:p-4">
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto pb-2">
             <TabsList className="h-auto min-w-max bg-muted/70 p-1">
               <TabsTrigger value="profile">Profile</TabsTrigger>
