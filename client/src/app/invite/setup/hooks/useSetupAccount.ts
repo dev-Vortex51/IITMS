@@ -114,15 +114,19 @@ export function useSetupAccount() {
     }
 
     if (invitation?.role === "industrial_supervisor") {
-      if (!formData.companyName) {
-        toast.error("Please enter company name");
+      const companyName = invitation.companyName || formData.companyName;
+      if (!companyName?.trim()) {
+        toast.error("Company name is missing. Contact your coordinator.");
         return;
       }
 
-      setupData.companyName = formData.companyName;
-      setupData.companyAddress = formData.companyAddress;
-      setupData.position = formData.position;
-      setupData.yearsOfExperience = formData.yearsOfExperience
+      setupData.companyName = companyName;
+      setupData.companyAddress =
+        invitation.companyAddress || formData.companyAddress;
+      setupData.position = invitation.position || formData.position;
+      setupData.yearsOfExperience = invitation.yearsOfExperience
+        ? Number(invitation.yearsOfExperience)
+        : formData.yearsOfExperience
         ? parseInt(formData.yearsOfExperience, 10)
         : undefined;
     }

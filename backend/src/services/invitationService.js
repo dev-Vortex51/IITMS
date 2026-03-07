@@ -487,6 +487,53 @@ const completeSetup = async (token, userData) => {
     }
 
     const userService = require("./userService");
+    let industrialDetails = null;
+
+    if (invitation.role === USER_ROLES.INDUSTRIAL_SUPERVISOR) {
+      let placementDetails = null;
+      if (invitation.placementId) {
+        placementDetails = await prisma.placement.findUnique({
+          where: { id: invitation.placementId },
+          select: {
+            companyName: true,
+            companyAddress: true,
+            position: true,
+            yearsOfExperience: true,
+          },
+        });
+      }
+
+      industrialDetails = {
+        companyName:
+          invitation.companyName ||
+          placementDetails?.companyName ||
+          additionalData.companyName ||
+          "",
+        companyAddress:
+          invitation.companyAddress ||
+          placementDetails?.companyAddress ||
+          additionalData.companyAddress ||
+          "",
+        position:
+          invitation.position ||
+          placementDetails?.position ||
+          additionalData.position ||
+          "",
+        yearsOfExperience:
+          invitation.yearsOfExperience ||
+          placementDetails?.yearsOfExperience ||
+          additionalData.yearsOfExperience ||
+          0,
+      };
+
+      if (!industrialDetails.companyName) {
+        throw new ApiError(
+          400,
+          "Industrial supervisor company details are missing from this invitation. Contact your coordinator.",
+        );
+      }
+    }
+
     const userPayload = {
       email: invitation.email,
       firstName,
@@ -496,13 +543,10 @@ const completeSetup = async (token, userData) => {
       role: invitation.role,
       department: invitation.departmentId, // userService expects 'department' not 'departmentId'
       // Pass company data for industrial supervisors so createUser validation passes
-      companyName:
-        additionalData.companyName || invitation.companyName || "Not Specified",
-      companyAddress:
-        additionalData.companyAddress || invitation.companyAddress || "",
-      position: additionalData.position || invitation.position || "",
-      yearsOfExperience:
-        additionalData.yearsOfExperience || invitation.yearsOfExperience || 0,
+      companyName: industrialDetails?.companyName,
+      companyAddress: industrialDetails?.companyAddress,
+      position: industrialDetails?.position,
+      yearsOfExperience: industrialDetails?.yearsOfExperience,
       specialization: additionalData.specialization || "",
     };
 

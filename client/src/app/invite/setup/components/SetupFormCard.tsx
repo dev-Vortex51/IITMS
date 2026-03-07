@@ -69,7 +69,8 @@ export function SetupFormCard({
       }
 
       if (invitation.role === "industrial_supervisor") {
-        if (!formData.companyName.trim()) {
+        const companyName = invitation.companyName?.trim() || formData.companyName.trim();
+        if (!companyName) {
           toast.error("Company name is required");
           return false;
         }
@@ -166,6 +167,7 @@ export function SetupFormCard({
                 ) : null}
                 <SupervisorFields
                   role={invitation.role}
+                  invitation={invitation}
                   formData={formData}
                   onFieldChange={onFieldChange}
                 />
