@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
-  DashboardDonutChart,
-  DashboardTrendLineChart,
   LoadingPage,
   ErrorLocalState,
   DashboardChartCard,
@@ -17,6 +16,21 @@ import {
 } from "@/components/design-system";
 import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { InlineQuickActions } from "./components/InlineQuickActions";
+
+const DashboardDonutChart = dynamic(
+  () =>
+    import("@/components/design-system/dashboard-visual-charts").then(
+      (mod) => mod.DashboardDonutChart,
+    ),
+  { ssr: false },
+);
+const DashboardTrendLineChart = dynamic(
+  () =>
+    import("@/components/design-system/dashboard-visual-charts").then(
+      (mod) => mod.DashboardTrendLineChart,
+    ),
+  { ssr: false },
+);
 
 const number = new Intl.NumberFormat("en-US");
 

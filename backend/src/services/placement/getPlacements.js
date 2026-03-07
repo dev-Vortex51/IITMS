@@ -18,11 +18,9 @@ const getPlacements = async (filters = {}, pagination = {}) => {
         typeof filters.department === "object"
           ? filters.department.id
           : filters.department;
-      const students = await prisma.student.findMany({
-        where: { departmentId },
-        select: { id: true },
-      });
-      where.studentId = { in: students.map((s) => s.id) };
+      where.student = {
+        departmentId,
+      };
     }
 
     const baseInclude = {

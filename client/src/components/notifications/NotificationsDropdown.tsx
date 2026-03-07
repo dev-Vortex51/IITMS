@@ -52,7 +52,7 @@ const headerControlClass =
 
 export const NotificationsDropdown: React.FC = () => {
   const pathname = usePathname();
-  const { recent, unreadCount, refetch } = useNotifications();
+  const { recent, unreadCount } = useNotifications();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,19 +86,23 @@ export const NotificationsDropdown: React.FC = () => {
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationService.markAllAsRead(),
-    onSuccess: async () => {
+    onSuccess: () => {
       applyMarkAllAsReadToCache(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      refetch();
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "all"],
+        exact: true,
+      });
     },
   });
 
   const markOneMutation = useMutation({
     mutationFn: (id: string) => notificationService.markAsRead(id),
-    onSuccess: async (_, id) => {
+    onSuccess: (_, id) => {
       applyMarkAsReadToCache(queryClient, id);
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      refetch();
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "all"],
+        exact: true,
+      });
     },
   });
 

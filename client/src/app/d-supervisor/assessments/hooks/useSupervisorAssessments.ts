@@ -117,9 +117,14 @@ export function useSupervisorAssessments() {
     createAssessmentMutation.mutate(assessmentData);
   };
 
-  const assessments: Assessment[] = assessmentsQuery.data || [];
-  const students: Student[] =
-    dashboardQuery.data?.supervisor?.assignedStudents || [];
+  const assessments = useMemo<Assessment[]>(
+    () => assessmentsQuery.data || [],
+    [assessmentsQuery.data],
+  );
+  const students = useMemo<Student[]>(
+    () => dashboardQuery.data?.supervisor?.assignedStudents || [],
+    [dashboardQuery.data],
+  );
 
   const pendingAssessments = useMemo(
     () => assessments.filter((a) => a.status === "pending"),

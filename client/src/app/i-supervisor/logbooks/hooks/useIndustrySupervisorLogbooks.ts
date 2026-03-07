@@ -44,47 +44,50 @@ export function useIndustrySupervisorLogbooks() {
   const studentsQuery = useQuery({
     queryKey: ["supervisor-students", supervisorId],
     queryFn: async () => {
-      const dashboardResponse = await apiClient.get(
-        `/supervisors/${supervisorId}/dashboard`,
-      );
+      const [dashboardResponse, logbooksResponse] = await Promise.all([
+        apiClient.get(`/supervisors/${supervisorId}/dashboard`),
+        apiClient.get("/logbooks"),
+      ]);
       const assignedStudents =
         dashboardResponse.data.data?.supervisor?.assignedStudents || [];
-
-      const studentsWithLogbooks = await Promise.all(
-        assignedStudents.map(async (student: any) => {
-          try {
-            const logbooksResponse = await apiClient.get(
-              `/logbooks?student=${student.id}`,
-            );
-            const logbooks: Logbook[] = logbooksResponse.data.data || [];
-
-            return {
-              ...student,
-              logbooks,
-              totalLogbooks: logbooks.length,
-              pendingReview: logbooks.filter(
-                (logbook) => getIndustrialStatus(logbook) === "submitted",
-              ).length,
-              reviewed: logbooks.filter(
-                (logbook) =>
-                  getIndustrialStatus(logbook) === "reviewed" ||
-                  getIndustrialStatus(logbook) === "approved" ||
-                  getIndustrialStatus(logbook) === "rejected",
-              ).length,
-            } satisfies Student;
-          } catch {
-            return {
-              ...student,
-              logbooks: [],
-              totalLogbooks: 0,
-              pendingReview: 0,
-              reviewed: 0,
-            } satisfies Student;
+      const allLogbooks: Logbook[] = logbooksResponse.data.data || [];
+      const logbooksByStudent = allLogbooks.reduce(
+        (acc, logbook) => {
+          if (!acc[logbook.studentId]) {
+            acc[logbook.studentId] = [];
           }
-        }),
+          acc[logbook.studentId].push(logbook);
+          return acc;
+        },
+        {} as Record<string, Logbook[]>,
       );
 
-      return studentsWithLogbooks;
+      return assignedStudents.map((student: any) => {
+        const logbooks = logbooksByStudent[student.id] || [];
+        let pendingReview = 0;
+        let reviewed = 0;
+
+        for (const logbook of logbooks) {
+          const status = getIndustrialStatus(logbook);
+          if (status === "submitted") {
+            pendingReview += 1;
+          } else if (
+            status === "reviewed" ||
+            status === "approved" ||
+            status === "rejected"
+          ) {
+            reviewed += 1;
+          }
+        }
+
+        return {
+          ...student,
+          logbooks,
+          totalLogbooks: logbooks.length,
+          pendingReview,
+          reviewed,
+        } satisfies Student;
+      });
     },
     enabled: !!supervisorId,
   });

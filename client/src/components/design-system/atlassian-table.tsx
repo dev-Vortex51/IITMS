@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { Group, Text } from "@mantine/core";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { EmptyState } from "./empty-state";
@@ -56,11 +62,13 @@ export function AtlassianTable<T>({
   });
   const [selectedRecords, setSelectedRecords] = useState<T[]>([]);
 
+  const deferredData = useDeferredValue(data);
+
   const sortedData = useMemo(() => {
     const column = columns.find((col) => col.id === sortStatus.columnAccessor);
-    if (!column?.sortable || !column.sortAccessor) return data;
+    if (!column?.sortable || !column.sortAccessor) return deferredData;
 
-    const sorted = [...data].sort((a, b) => {
+    const sorted = [...deferredData].sort((a, b) => {
       const aValue = column.sortAccessor!(a);
       const bValue = column.sortAccessor!(b);
       if (aValue === bValue) return 0;
@@ -68,7 +76,7 @@ export function AtlassianTable<T>({
     });
 
     return sortStatus.direction === "asc" ? sorted : sorted.reverse();
-  }, [columns, data, sortStatus.columnAccessor, sortStatus.direction]);
+  }, [columns, deferredData, sortStatus.columnAccessor, sortStatus.direction]);
 
   const totalRows = sortedData.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -88,14 +96,18 @@ export function AtlassianTable<T>({
     onSelectionChange?.(selectedRecords.map((record) => rowKey(record)));
   }, [onSelectionChange, rowKey, selectedRecords]);
 
-  const dataTableColumns = columns.map((column) => ({
-    accessor: column.id,
-    title: column.header,
-    sortable: column.sortable,
-    width: column.width,
-    textAlign: column.align,
-    render: (record: T) => column.render(record),
-  }));
+  const dataTableColumns = useMemo(
+    () =>
+      columns.map((column) => ({
+        accessor: column.id,
+        title: column.header,
+        sortable: column.sortable,
+        width: column.width,
+        textAlign: column.align,
+        render: (record: T) => column.render(record),
+      })),
+    [columns],
+  );
 
   return (
     <div className={cn("overflow-hidden rounded-lg border border-border bg-card shadow-sm", className)}>

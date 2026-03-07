@@ -54,6 +54,10 @@ export function NotificationsPageContent() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["notifications", "all"],
     queryFn: () => notificationService.getNotifications({ limit: 100 }),
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
   });
 
   const notifications = useMemo(() => data?.notifications || [], [data]);
@@ -65,19 +69,31 @@ export function NotificationsPageContent() {
 
   const markOneMutation = useMutation({
     mutationFn: (id: string) => notificationService.markAsRead(id),
-    onSuccess: async (_, id) => {
+    onSuccess: (_, id) => {
       applyMarkAsReadToCache(queryClient, id);
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      refetch();
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "recent"],
+        exact: true,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "unread-count"],
+        exact: true,
+      });
     },
   });
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationService.markAllAsRead(),
-    onSuccess: async () => {
+    onSuccess: () => {
       applyMarkAllAsReadToCache(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      refetch();
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "recent"],
+        exact: true,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "unread-count"],
+        exact: true,
+      });
     },
   });
 

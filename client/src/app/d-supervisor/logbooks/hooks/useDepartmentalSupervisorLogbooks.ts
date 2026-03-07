@@ -37,48 +37,46 @@ export function useDepartmentalSupervisorLogbooks() {
   const studentsQuery = useQuery({
     queryKey: ["supervisor-students", supervisorId],
     queryFn: async () => {
-      const dashboardResponse = await apiClient.get(
-        `/supervisors/${supervisorId}/dashboard`,
-      );
+      const [dashboardResponse, logbooksResponse] = await Promise.all([
+        apiClient.get(`/supervisors/${supervisorId}/dashboard`),
+        apiClient.get("/logbooks"),
+      ]);
       const assignedStudents =
         dashboardResponse.data.data?.supervisor?.assignedStudents || [];
-
-      const studentsWithLogbooks = await Promise.all(
-        assignedStudents.map(async (student: any) => {
-          try {
-            const logbooksResponse = await apiClient.get(
-              `/logbooks?student=${student.id}`,
-            );
-            const logbooks: Logbook[] = logbooksResponse.data.data || [];
-
-            return {
-              ...student,
-              logbooks,
-              totalLogbooks: logbooks.length,
-              pendingReview: logbooks.filter(
-                (logbook) => getDepartmentalStatus(logbook) === "reviewed",
-              ).length,
-              approved: logbooks.filter(
-                (logbook) => getDepartmentalStatus(logbook) === "approved",
-              ).length,
-              rejected: logbooks.filter(
-                (logbook) => getDepartmentalStatus(logbook) === "rejected",
-              ).length,
-            } satisfies Student;
-          } catch {
-            return {
-              ...student,
-              logbooks: [],
-              totalLogbooks: 0,
-              pendingReview: 0,
-              approved: 0,
-              rejected: 0,
-            } satisfies Student;
+      const allLogbooks: Logbook[] = logbooksResponse.data.data || [];
+      const logbooksByStudent = allLogbooks.reduce(
+        (acc, logbook) => {
+          if (!acc[logbook.studentId]) {
+            acc[logbook.studentId] = [];
           }
-        }),
+          acc[logbook.studentId].push(logbook);
+          return acc;
+        },
+        {} as Record<string, Logbook[]>,
       );
 
-      return studentsWithLogbooks;
+      return assignedStudents.map((student: any) => {
+        const logbooks = logbooksByStudent[student.id] || [];
+        let pendingReview = 0;
+        let approved = 0;
+        let rejected = 0;
+
+        for (const logbook of logbooks) {
+          const status = getDepartmentalStatus(logbook);
+          if (status === "reviewed") pendingReview += 1;
+          if (status === "approved") approved += 1;
+          if (status === "rejected") rejected += 1;
+        }
+
+        return {
+          ...student,
+          logbooks,
+          totalLogbooks: logbooks.length,
+          pendingReview,
+          approved,
+          rejected,
+        } satisfies Student;
+      });
     },
     enabled: !!supervisorId,
   });

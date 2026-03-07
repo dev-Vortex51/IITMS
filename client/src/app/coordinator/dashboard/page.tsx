@@ -2,13 +2,12 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Briefcase } from "lucide-react";
 import { useCoordinatorDashboard } from "./hooks/useCoordinatorDashboard";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/design-system";
 import {
-  DashboardDonutChart,
-  DashboardTrendLineChart,
   DashboardChartCard,
   DashboardMetricsGrid,
   DashboardWelcomeBanner,
@@ -16,6 +15,21 @@ import {
   SectionCard,
 } from "@/components/design-system";
 import { InlineQuickActions } from "./components/InlineQuickActions";
+
+const DashboardDonutChart = dynamic(
+  () =>
+    import("@/components/design-system/dashboard-visual-charts").then(
+      (mod) => mod.DashboardDonutChart,
+    ),
+  { ssr: false },
+);
+const DashboardTrendLineChart = dynamic(
+  () =>
+    import("@/components/design-system/dashboard-visual-charts").then(
+      (mod) => mod.DashboardTrendLineChart,
+    ),
+  { ssr: false },
+);
 
 export default function CoordinatorDashboardPage() {
   useEffect(() => {

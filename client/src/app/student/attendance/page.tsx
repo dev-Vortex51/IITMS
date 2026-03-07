@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Calendar, FileText, BarChart3, AlertCircle } from "lucide-react";
 import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
 import { AttendanceHistory } from "@/components/attendance/attendance-history";
 import { AbsenceRequestForm } from "@/components/attendance/absence-request-form";
-import { AttendanceSummaryCard } from "@/components/attendance/attendance-summary";
 import { useAuth } from "@/components/providers/auth-provider";
 import { SectionCard, PageHeader } from "@/components/design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const AttendanceSummaryCard = dynamic(
+  () =>
+    import("@/components/attendance/attendance-summary").then(
+      (mod) => mod.AttendanceSummaryCard,
+    ),
+  { ssr: false },
+);
 
 export default function StudentAttendancePage() {
   useEffect(() => {

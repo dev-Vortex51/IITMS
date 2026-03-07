@@ -103,21 +103,10 @@ const suggestSupervisors = async (studentId, type, user) => {
     }
 
     if (type === "industrial") {
-      let placement =
+      const placement =
         student.placements && student.placements.length > 0
           ? student.placements[0]
           : null;
-      if (!placement && studentId) {
-        placement = await prisma.placement.findFirst({
-          where: { studentId },
-          orderBy: { createdAt: "desc" },
-          include: {
-            industryPartner: {
-              select: { name: true },
-            },
-          },
-        });
-      }
 
       const companyName =
         placement?.industryPartner?.name || placement?.companyName;

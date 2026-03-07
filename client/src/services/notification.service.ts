@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, dedupedGet } from "@/lib/api-client";
 
 export type Notification = {
   id: string;
@@ -22,18 +22,30 @@ export const notificationService = {
     type?: string;
     priority?: string;
   }): Promise<{ notifications: Notification[]; pagination?: any }> => {
-    const res = await apiClient.get("/notifications", { params });
+    const res = await dedupedGet(
+      "/notifications",
+      { params },
+      `notifications:list:${JSON.stringify(params || {})}`,
+    );
     return {
       notifications: res.data?.data ?? [],
       pagination: res.data?.pagination,
     };
   },
   getUnreadCount: async (): Promise<number> => {
-    const res = await apiClient.get("/notifications/unread-count");
+    const res = await dedupedGet(
+      "/notifications/unread-count",
+      {},
+      "notifications:unread-count",
+    );
     return res.data?.data?.count ?? 0;
   },
   getRecent: async (limit = 10): Promise<Notification[]> => {
-    const res = await apiClient.get(`/notifications?limit=${limit}`);
+    const res = await dedupedGet(
+      "/notifications",
+      { params: { limit } },
+      `notifications:recent:${limit}`,
+    );
     return res.data?.data ?? [];
   },
   markAsRead: async (id: string): Promise<void> => {

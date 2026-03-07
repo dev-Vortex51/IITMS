@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import adminService from "@/services/admin.service";
 import { studentService, placementService } from "@/services/student.service";
@@ -39,44 +40,50 @@ export function useAdminDashboardData() {
     queryFn: () => placementService.getAllPlacements({}),
   });
 
-  const faculties = facultiesData?.data || [];
-  const departments = departmentsData?.data || [];
-  const students = studentsData?.data || [];
-  const placements = placementsData?.data || [];
+  const faculties = useMemo(() => facultiesData?.data || [], [facultiesData]);
+  const departments = useMemo(
+    () => departmentsData?.data || [],
+    [departmentsData],
+  );
+  const students = useMemo(() => studentsData?.data || [], [studentsData]);
+  const placements = useMemo(
+    () => placementsData?.data || [],
+    [placementsData],
+  );
 
-  // Computed Stats
-  const stats = {
-    totalFaculties: faculties.length,
-    totalDepartments: departments.length,
-    totalStudents: students.length,
-    activePlacements: placements.filter((p: any) => p.status === "approved")
-      .length,
-  };
+  const { stats, departmentChartData, placementChartData } = useMemo(() => {
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
 
-  // Chart Data Preparation
-  const departmentChartData = departments.slice(0, 6).map((dept: any) => ({
-    name:
-      dept.name.length > 15 ? dept.name.substring(0, 15) + "..." : dept.name,
-    students: dept.studentCount || 0,
-  }));
+    for (const placement of placements) {
+      const status = placement?.status;
+      if (status === "approved") approvedCount += 1;
+      else if (status === "pending") pendingCount += 1;
+      else if (status === "rejected") rejectedCount += 1;
+    }
 
-  const placementChartData = [
-    {
-      name: "Approved",
-      value: placements.filter((p: any) => p.status === "approved").length,
-      color: "#22c55e",
-    },
-    {
-      name: "Pending",
-      value: placements.filter((p: any) => p.status === "pending").length,
-      color: "#eab308",
-    },
-    {
-      name: "Rejected",
-      value: placements.filter((p: any) => p.status === "rejected").length,
-      color: "#ef4444",
-    },
-  ];
+    const departmentChart = departments.slice(0, 6).map((dept: any) => ({
+      name:
+        dept.name.length > 15 ? `${dept.name.substring(0, 15)}...` : dept.name,
+      students: dept.studentCount || 0,
+    }));
+
+    return {
+      stats: {
+        totalFaculties: faculties.length,
+        totalDepartments: departments.length,
+        totalStudents: students.length,
+        activePlacements: approvedCount,
+      },
+      departmentChartData: departmentChart,
+      placementChartData: [
+        { name: "Approved", value: approvedCount, color: "#22c55e" },
+        { name: "Pending", value: pendingCount, color: "#eab308" },
+        { name: "Rejected", value: rejectedCount, color: "#ef4444" },
+      ],
+    };
+  }, [departments, faculties.length, placements, students.length]);
 
   const isLoading =
     isLoadingFaculties ||

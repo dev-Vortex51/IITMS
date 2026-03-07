@@ -41,6 +41,16 @@ export function useUrlSearchState(options: UseUrlSearchStateOptions = {}) {
     [paramKey, pathname, router, searchParams],
   );
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (searchQuery !== urlValue) {
+        updateUrl(searchQuery);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery, updateUrl, urlValue]);
+
   const setSearchQuery = useCallback(
     (nextValue: SetStateAction<string>) => {
       setSearchQueryState((prevValue) => {
@@ -49,11 +59,10 @@ export function useUrlSearchState(options: UseUrlSearchStateOptions = {}) {
             ? (nextValue as (value: string) => string)(prevValue)
             : nextValue;
 
-        updateUrl(resolvedValue);
         return resolvedValue;
       });
     },
-    [updateUrl],
+    [],
   );
 
   const applySearch = useCallback(

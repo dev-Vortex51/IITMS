@@ -34,34 +34,41 @@ export function useCoordinatorDashboard() {
     const students = studentsResponse?.data || [];
     const placements = placementsResponse?.data || [];
 
-    const studentsNeedingSupervisors = students.filter((student: any) => {
-      const hasApprovedPlacement = placements.some(
-        (p: any) => p.student?.id === student.id && p.status === "approved",
-      );
-      return (
+    const approvedStudentIds = new Set<string>();
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+
+    for (const placement of placements) {
+      const status = placement?.status;
+      if (status === "approved") {
+        approvedCount += 1;
+        if (placement?.student?.id) {
+          approvedStudentIds.add(placement.student.id);
+        }
+      } else if (status === "pending") {
+        pendingCount += 1;
+      } else if (status === "rejected") {
+        rejectedCount += 1;
+      }
+    }
+
+    let studentsNeedingSupervisors = 0;
+    for (const student of students) {
+      const hasApprovedPlacement = approvedStudentIds.has(student.id);
+      if (
         hasApprovedPlacement &&
         (!student.departmentalSupervisor || !student.industrialSupervisor)
-      );
-    }).length;
+      ) {
+        studentsNeedingSupervisors += 1;
+      }
+    }
 
-    const pendingPlacements = placements.filter(
-      (p: any) => p.status === "pending",
-    );
-
-    // Transform data for charts
     const placementStatusData = [
-      {
-        name: "Approved",
-        value: placements.filter((p: any) => p.status === "approved").length,
-        color: "#10b981",
-      }, // Emerald
-      { name: "Pending", value: pendingPlacements.length, color: "#f59e0b" }, // Amber
-      {
-        name: "Rejected",
-        value: placements.filter((p: any) => p.status === "rejected").length,
-        color: "#ef4444",
-      }, // Rose
-    ].filter((item) => item.value > 0); // Only show non-zero segments
+      { name: "Approved", value: approvedCount, color: "#10b981" },
+      { name: "Pending", value: pendingCount, color: "#f59e0b" },
+      { name: "Rejected", value: rejectedCount, color: "#ef4444" },
+    ].filter((item) => item.value > 0);
 
     const levelDistribution = students.reduce((acc: any, student: any) => {
       const level = student.level || "Unknown";
@@ -80,16 +87,14 @@ export function useCoordinatorDashboard() {
       isLoading: isLoadingStudents || isLoadingPlacements,
       stats: {
         totalStudents: students.length,
-        pendingPlacements: pendingPlacements.length,
-        approvedPlacements: placements.filter(
-          (p: any) => p.status === "approved",
-        ).length,
+        pendingPlacements: pendingCount,
+        approvedPlacements: approvedCount,
         studentsWithoutSupervisors: studentsNeedingSupervisors,
       },
       chartData: { placementStatusData, levelData },
       recentPlacements: placements.slice(0, 5),
       requiresAction:
-        pendingPlacements.length > 0 || studentsNeedingSupervisors > 0,
+        pendingCount > 0 || studentsNeedingSupervisors > 0,
     };
   }, [
     studentsResponse,

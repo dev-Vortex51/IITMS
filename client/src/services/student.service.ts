@@ -1,15 +1,19 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, dedupedGet } from "@/lib/api-client";
 import { Student, Placement, LogbookEntry, Assessment } from "@/types/models";
 
 export const studentService = {
   // Students
   getAllStudents: async () => {
-    const response = await apiClient.get("/students/all");
+    const response = await dedupedGet("/students/all", {}, "students:all");
     return response.data;
   },
 
   getStudents: async (params?: any) => {
-    const response = await apiClient.get("/students", { params });
+    const response = await dedupedGet(
+      "/students",
+      { params },
+      `students:list:${JSON.stringify(params || {})}`,
+    );
     return response.data;
   },
 
@@ -36,7 +40,11 @@ export const studentService = {
   // Student Placements
   getStudentPlacement: async (studentId: string): Promise<Placement | null> => {
     try {
-      const response = await apiClient.get(`/students/${studentId}/placement`);
+      const response = await dedupedGet(
+        `/students/${studentId}/placement`,
+        {},
+        `students:placement:${studentId}`,
+      );
       return response.data.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -60,7 +68,11 @@ export const studentService = {
 
 export const placementService = {
   getAllPlacements: async (params?: any) => {
-    const response = await apiClient.get("/placements", { params });
+    const response = await dedupedGet(
+      "/placements",
+      { params },
+      `placements:list:${JSON.stringify(params || {})}`,
+    );
     return response.data;
   },
 
@@ -105,14 +117,18 @@ export const placementService = {
 
   // Placements assigned to the current supervisor (academic/industrial)
   getMyPlacements: async () => {
-    const response = await apiClient.get(`/placements`);
+    const response = await dedupedGet("/placements", {}, "placements:mine");
     return response.data?.data || [];
   },
 };
 
 export const logbookService = {
   getAllLogbooks: async (params?: any) => {
-    const response = await apiClient.get("/logbooks", { params });
+    const response = await dedupedGet(
+      "/logbooks",
+      { params },
+      `logbooks:list:${JSON.stringify(params || {})}`,
+    );
     return response.data;
   },
 
@@ -150,7 +166,11 @@ export const logbookService = {
 
 export const assessmentService = {
   getAllAssessments: async (params?: any) => {
-    const response = await apiClient.get("/assessments", { params });
+    const response = await dedupedGet(
+      "/assessments",
+      { params },
+      `assessments:list:${JSON.stringify(params || {})}`,
+    );
     return response.data;
   },
 

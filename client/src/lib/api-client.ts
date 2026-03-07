@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
@@ -33,7 +33,38 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true,
+  timeout: 20_000,
 });
+
+const pendingGetRequests = new Map<string, AbortController>();
+
+export async function dedupedGet<T = any>(
+  url: string,
+  config: AxiosRequestConfig = {},
+  dedupeKey?: string,
+) {
+  const key = dedupeKey || `${url}:${JSON.stringify(config.params || {})}`;
+
+  const previousController = pendingGetRequests.get(key);
+  if (previousController) {
+    previousController.abort();
+  }
+
+  const controller = new AbortController();
+  pendingGetRequests.set(key, controller);
+
+  try {
+    const response = await apiClient.get<T>(url, {
+      ...config,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    if (pendingGetRequests.get(key) === controller) {
+      pendingGetRequests.delete(key);
+    }
+  }
+}
 
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {

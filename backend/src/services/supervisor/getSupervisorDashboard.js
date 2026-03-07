@@ -80,27 +80,28 @@ const getSupervisorDashboard = async (supervisorId) => {
         ? { studentId: { in: studentIds }, status: "reviewed" }
         : { studentId: { in: studentIds }, status: "submitted" };
 
-    const pendingLogbooks = await prisma.logbook.findMany({
-      where: logbookWhere,
-      take: 5,
-      orderBy: { createdAt: "desc" },
-    });
-
     const assessmentWhere = {
       studentId: { in: studentIds },
       status: "pending",
       supervisorId,
     };
 
-    const pendingAssessments = await prisma.assessment.findMany({
-      where: assessmentWhere,
-      take: 5,
-      orderBy: { createdAt: "desc" },
-    });
-
-    const totalLogbooks = await prisma.logbook.count({
-      where: { studentId: { in: studentIds } },
-    });
+    const [pendingLogbooks, pendingAssessments, totalLogbooks] =
+      await Promise.all([
+        prisma.logbook.findMany({
+          where: logbookWhere,
+          take: 5,
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.assessment.findMany({
+          where: assessmentWhere,
+          take: 5,
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.logbook.count({
+          where: { studentId: { in: studentIds } },
+        }),
+      ]);
 
     return {
       supervisor,

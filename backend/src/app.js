@@ -10,6 +10,7 @@ const {
   suspiciousActivityCheck,
   ipFilter,
   requestLogger,
+  invalidateCacheOnWrite,
   preventParameterPollution,
   sanitize,
   preventNoSQLInjection,
@@ -62,6 +63,7 @@ app.use(httpMetricsMiddleware); // Request latency metrics
  * Rate Limiting
  */
 app.use(generalLimiter);
+app.use(invalidateCacheOnWrite());
 
 /**
  * API Routes

@@ -397,29 +397,32 @@ const getStudentDashboard = async (studentId) => {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
     }
 
-    // Get statistics
-    const logbookCount = await prisma.logbook.count({
-      where: { studentId },
-    });
-    const approvedLogbooks = await prisma.logbook.count({
-      where: { studentId, status: "approved" },
-    });
-    const assessmentCount = await prisma.assessment.count({
-      where: { studentId },
-    });
-
-    // Get recent logbooks
-    const recentLogbooks = await prisma.logbook.findMany({
-      where: { studentId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
-
-    // Get placements
-    const placements = await prisma.placement.findMany({
-      where: { studentId },
-      orderBy: { createdAt: "desc" },
-    });
+    const [
+      logbookCount,
+      approvedLogbooks,
+      assessmentCount,
+      recentLogbooks,
+      placements,
+    ] = await Promise.all([
+      prisma.logbook.count({
+        where: { studentId },
+      }),
+      prisma.logbook.count({
+        where: { studentId, status: "approved" },
+      }),
+      prisma.assessment.count({
+        where: { studentId },
+      }),
+      prisma.logbook.findMany({
+        where: { studentId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      prisma.placement.findMany({
+        where: { studentId },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
     // Calculate training progress
     let trainingProgress = 0;

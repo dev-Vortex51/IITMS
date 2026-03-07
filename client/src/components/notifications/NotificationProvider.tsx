@@ -12,7 +12,7 @@ import { API_URL } from "@/lib/api-client";
 type NotificationContextType = {
   unreadCount: number;
   recent: Notification[];
-  refetch: () => void;
+  refetch: () => Promise<void>;
 };
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -38,6 +38,9 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({
     queryKey: ["notifications", "unread-count"],
     queryFn: notificationService.getUnreadCount,
     staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     enabled: !!user,
   });
 
@@ -45,12 +48,14 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({
     queryKey: ["notifications", "recent"],
     queryFn: () => notificationService.getRecent(10),
     staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     enabled: !!user,
   });
 
-  const refetch = () => {
-    refetchUnread();
-    refetchRecent();
+  const refetch = async () => {
+    await Promise.all([refetchUnread(), refetchRecent()]);
   };
 
   useEffect(() => {

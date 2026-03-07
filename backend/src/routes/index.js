@@ -15,6 +15,7 @@ const reportRoutes = require("./reportRoutes");
 const settingsRoutes = require("./settingsRoutes");
 const invitationRoutes = require("./invitationRoutes");
 const attendanceRoutes = require("./attendanceRoutes");
+const queueRoutes = require("./queueRoutes");
 
 /**
  * Health check endpoint
@@ -57,5 +58,6 @@ router.use("/reports", reportRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/invitations", invitationRoutes);
 router.use("/attendance", attendanceRoutes);
+router.use("/queues", queueRoutes);
 
 module.exports = router;

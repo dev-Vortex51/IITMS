@@ -99,6 +99,12 @@ const config = {
 
   queue: {
     emailConcurrency: parseInt(process.env.QUEUE_EMAIL_CONCURRENCY, 10) || 5,
+    failureAlertThreshold:
+      parseInt(process.env.QUEUE_FAILURE_ALERT_THRESHOLD, 10) || 10,
+    failureAlertWindowMs:
+      parseInt(process.env.QUEUE_FAILURE_ALERT_WINDOW_MS, 10) || 60_000,
+    dashboardPath:
+      process.env.QUEUE_DASHBOARD_PATH || `/api/${process.env.API_VERSION || "v1"}/queues/dashboard`,
   },
 
   cache: {
