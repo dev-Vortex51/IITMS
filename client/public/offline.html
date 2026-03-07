@@ -5,49 +5,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Offline | ITMS</title>
     <style>
+      :root {
+        --background: #f8fafc;
+        --foreground: #0f172a;
+        --card: #ffffff;
+        --muted-foreground: #475569;
+        --border: #e2e8f0;
+        --primary: #001f4d;
+        --primary-hover: #003280;
+        --ring: rgba(0, 31, 77, 0.22);
+        --radius: 12px;
+        --shadow-md: 0 6px 14px -6px rgba(15, 23, 42, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
-        font-family: Rubik, system-ui, -apple-system, Segoe UI, sans-serif;
-        background: #f8fafc;
-        color: #0f172a;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 0% 0%, #f1f5f9 0%, var(--background) 55%);
+        color: var(--foreground);
         min-height: 100vh;
         display: grid;
         place-items: center;
         padding: 24px;
       }
+
       .card {
         width: 100%;
         max-width: 460px;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        background: #ffffff;
-        padding: 24px;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--card);
+        padding: 24px 24px 22px;
+        box-shadow: var(--shadow-md);
       }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #ffffff;
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted-foreground);
+      }
+
+      .badge::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ef4444;
+      }
+
       .title {
         margin: 0;
-        font-size: 1.1rem;
-        font-weight: 700;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
+
       .text {
         margin: 10px 0 0;
-        color: #475569;
+        color: var(--muted-foreground);
         line-height: 1.5;
       }
+
       .btn {
         margin-top: 18px;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
-        background: #4f62c7;
+        background: var(--primary);
         color: #fff;
         border-radius: 10px;
-        padding: 10px 14px;
+        border: 1px solid transparent;
+        min-height: 40px;
+        padding: 0 14px;
         font-weight: 600;
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      .btn:hover {
+        background: var(--primary-hover);
+      }
+
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 4px var(--ring);
       }
     </style>
   </head>
   <body>
     <section class="card">
+      <p class="badge">Connection lost</p>
       <h1 class="title">You are offline</h1>
       <p class="text">
         ITMS cannot reach the internet right now. Reconnect and retry to sync your latest data.
