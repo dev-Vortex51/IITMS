@@ -2,6 +2,7 @@ const VERSION = "v2";
 const SHELL_CACHE = `itms-shell-${VERSION}`;
 const RUNTIME_CACHE = `itms-runtime-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
+const RUNTIME_MAX_ENTRIES = 120;
 
 const PRECACHE_URLS = [
   "/",
@@ -31,11 +32,26 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+const pruneRuntimeCache = async () => {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const keys = await cache.keys();
+  if (keys.length <= RUNTIME_MAX_ENTRIES) {
+    return;
+  }
+
+  const overflow = keys.length - RUNTIME_MAX_ENTRIES;
+  await Promise.all(keys.slice(0, overflow).map((key) => cache.delete(key)));
+};
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const requestUrl = new URL(request.url);
 
   if (request.method !== "GET") {
+    return;
+  }
+
+  if (requestUrl.origin !== self.location.origin) {
     return;
   }
 
@@ -49,8 +65,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const cloned = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, cloned));
+          if (response.ok) {
+            const cloned = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, cloned).then(() => pruneRuntimeCache());
+            });
+          }
           return response;
         })
         .catch(async () => {
@@ -62,12 +82,22 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Static assets: stale-while-revalidate.
+  const destination = request.destination;
+  const cacheableDestinations = new Set(["script", "style", "image", "font"]);
+  if (!cacheableDestinations.has(destination)) {
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
-          const cloned = networkResponse.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, cloned));
+          if (networkResponse.ok) {
+            const cloned = networkResponse.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, cloned).then(() => pruneRuntimeCache());
+            });
+          }
           return networkResponse;
         })
         .catch(() => cached);

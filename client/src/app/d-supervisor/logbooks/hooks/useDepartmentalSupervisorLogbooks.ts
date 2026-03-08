@@ -37,46 +37,41 @@ export function useDepartmentalSupervisorLogbooks() {
   const studentsQuery = useQuery({
     queryKey: ["supervisor-students", supervisorId],
     queryFn: async () => {
-      const [dashboardResponse, logbooksResponse] = await Promise.all([
-        apiClient.get(`/supervisors/${supervisorId}/dashboard`),
-        apiClient.get("/logbooks"),
-      ]);
+      const dashboardResponse = await apiClient.get(`/supervisors/${supervisorId}/dashboard`);
       const assignedStudents =
         dashboardResponse.data.data?.supervisor?.assignedStudents || [];
-      const allLogbooks: Logbook[] = logbooksResponse.data.data || [];
-      const logbooksByStudent = allLogbooks.reduce(
-        (acc, logbook) => {
-          if (!acc[logbook.studentId]) {
-            acc[logbook.studentId] = [];
+
+      const studentsWithLogbooks = await Promise.all(
+        assignedStudents.map(async (student: any) => {
+          const studentId = student.id || student._id;
+          const response = await apiClient.get("/logbooks", {
+            params: { student: studentId, limit: 100 },
+          });
+          const logbooks = (response.data.data || []) as Logbook[];
+
+          let pendingReview = 0;
+          let approved = 0;
+          let rejected = 0;
+
+          for (const logbook of logbooks) {
+            const status = getDepartmentalStatus(logbook);
+            if (status === "reviewed") pendingReview += 1;
+            if (status === "approved") approved += 1;
+            if (status === "rejected") rejected += 1;
           }
-          acc[logbook.studentId].push(logbook);
-          return acc;
-        },
-        {} as Record<string, Logbook[]>,
+
+          return {
+            ...student,
+            logbooks,
+            totalLogbooks: logbooks.length,
+            pendingReview,
+            approved,
+            rejected,
+          } satisfies Student;
+        }),
       );
 
-      return assignedStudents.map((student: any) => {
-        const logbooks = logbooksByStudent[student.id] || [];
-        let pendingReview = 0;
-        let approved = 0;
-        let rejected = 0;
-
-        for (const logbook of logbooks) {
-          const status = getDepartmentalStatus(logbook);
-          if (status === "reviewed") pendingReview += 1;
-          if (status === "approved") approved += 1;
-          if (status === "rejected") rejected += 1;
-        }
-
-        return {
-          ...student,
-          logbooks,
-          totalLogbooks: logbooks.length,
-          pendingReview,
-          approved,
-          rejected,
-        } satisfies Student;
-      });
+      return studentsWithLogbooks;
     },
     enabled: !!supervisorId,
   });

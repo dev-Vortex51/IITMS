@@ -18,6 +18,7 @@ export function useUrlSearchState(options: UseUrlSearchStateOptions = {}) {
     () => searchParams.get(paramKey) ?? defaultValue,
     [defaultValue, paramKey, searchParams],
   );
+  const normalizedUrlValue = useMemo(() => urlValue.trim(), [urlValue]);
   const [searchQuery, setSearchQueryState] = useState(urlValue);
 
   useEffect(() => {
@@ -43,13 +44,13 @@ export function useUrlSearchState(options: UseUrlSearchStateOptions = {}) {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (searchQuery !== urlValue) {
+      if (searchQuery.trim() !== normalizedUrlValue) {
         updateUrl(searchQuery);
       }
-    }, 250);
+    }, 450);
 
     return () => window.clearTimeout(timeoutId);
-  }, [searchQuery, updateUrl, urlValue]);
+  }, [normalizedUrlValue, searchQuery, updateUrl]);
 
   const setSearchQuery = useCallback(
     (nextValue: SetStateAction<string>) => {

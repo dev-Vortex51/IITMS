@@ -86,6 +86,8 @@ export const useStudentLogbook = () => {
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const successTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncInFlight = useRef(false);
+  const draftPersistTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionPersistTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const placementCacheKey = studentId ? `itms:student:placement:${studentId}` : "";
   const logbooksCacheKey = studentId ? `itms:student:logbooks:${studentId}` : "";
@@ -96,6 +98,12 @@ export const useStudentLogbook = () => {
     return () => {
       if (successTimeout.current) {
         clearTimeout(successTimeout.current);
+      }
+      if (draftPersistTimeout.current) {
+        clearTimeout(draftPersistTimeout.current);
+      }
+      if (actionPersistTimeout.current) {
+        clearTimeout(actionPersistTimeout.current);
       }
     };
   }, []);
@@ -145,14 +153,40 @@ export const useStudentLogbook = () => {
     if (typeof window === "undefined" || !studentId) {
       return;
     }
-    window.localStorage.setItem(offlineDraftsKey, JSON.stringify(offlineDrafts));
+    if (draftPersistTimeout.current) {
+      clearTimeout(draftPersistTimeout.current);
+    }
+    draftPersistTimeout.current = setTimeout(() => {
+      window.localStorage.setItem(offlineDraftsKey, JSON.stringify(offlineDrafts));
+      draftPersistTimeout.current = null;
+    }, 300);
+
+    return () => {
+      if (draftPersistTimeout.current) {
+        clearTimeout(draftPersistTimeout.current);
+        draftPersistTimeout.current = null;
+      }
+    };
   }, [offlineDrafts, offlineDraftsKey, studentId]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !studentId) {
       return;
     }
-    window.localStorage.setItem(offlineActionsKey, JSON.stringify(offlineActions));
+    if (actionPersistTimeout.current) {
+      clearTimeout(actionPersistTimeout.current);
+    }
+    actionPersistTimeout.current = setTimeout(() => {
+      window.localStorage.setItem(offlineActionsKey, JSON.stringify(offlineActions));
+      actionPersistTimeout.current = null;
+    }, 300);
+
+    return () => {
+      if (actionPersistTimeout.current) {
+        clearTimeout(actionPersistTimeout.current);
+        actionPersistTimeout.current = null;
+      }
+    };
   }, [offlineActions, offlineActionsKey, studentId]);
 
   const {

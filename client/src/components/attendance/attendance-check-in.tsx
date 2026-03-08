@@ -60,6 +60,7 @@ export function AttendanceCheckIn() {
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const queryClient = useQueryClient();
   const syncInFlight = useRef(false);
+  const queuePersistTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const today = new Date();
   const monthStart = startOfMonth(today);
@@ -135,7 +136,20 @@ export function AttendanceCheckIn() {
     if (typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+    if (queuePersistTimeout.current) {
+      clearTimeout(queuePersistTimeout.current);
+    }
+    queuePersistTimeout.current = setTimeout(() => {
+      window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+      queuePersistTimeout.current = null;
+    }, 300);
+
+    return () => {
+      if (queuePersistTimeout.current) {
+        clearTimeout(queuePersistTimeout.current);
+        queuePersistTimeout.current = null;
+      }
+    };
   }, [offlineQueue]);
 
   const attendanceByDay = useMemo(() => {

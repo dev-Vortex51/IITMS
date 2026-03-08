@@ -56,6 +56,7 @@ export function useSetupAccount() {
   const [hasQueuedSetup, setHasQueuedSetup] = useState(false);
   const [isSyncingQueuedSetup, setIsSyncingQueuedSetup] = useState(false);
   const syncInFlight = useRef(false);
+  const draftPersistTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -124,7 +125,20 @@ export function useSetupAccount() {
     if (typeof window === "undefined" || !draftCacheKey) {
       return;
     }
-    window.localStorage.setItem(draftCacheKey, JSON.stringify(formData));
+    if (draftPersistTimeout.current) {
+      clearTimeout(draftPersistTimeout.current);
+    }
+    draftPersistTimeout.current = setTimeout(() => {
+      window.localStorage.setItem(draftCacheKey, JSON.stringify(formData));
+      draftPersistTimeout.current = null;
+    }, 400);
+
+    return () => {
+      if (draftPersistTimeout.current) {
+        clearTimeout(draftPersistTimeout.current);
+        draftPersistTimeout.current = null;
+      }
+    };
   }, [formData, draftCacheKey]);
 
   const setupMutation = useMutation({

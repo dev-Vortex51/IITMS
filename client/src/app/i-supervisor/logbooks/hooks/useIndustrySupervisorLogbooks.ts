@@ -57,6 +57,7 @@ export function useIndustrySupervisorLogbooks() {
   const [offlineReviewQueue, setOfflineReviewQueue] = useState<OfflineReviewAction[]>([]);
   const [isSyncingOfflineReviews, setIsSyncingOfflineReviews] = useState(false);
   const syncInFlight = useRef(false);
+  const queuePersistTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { searchQuery, setSearchQuery } = useUrlSearchState();
 
   useEffect(() => {
@@ -100,59 +101,67 @@ export function useIndustrySupervisorLogbooks() {
     if (typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem(
-      OFFLINE_REVIEWS_KEY,
-      JSON.stringify(offlineReviewQueue),
-    );
+    if (queuePersistTimeout.current) {
+      clearTimeout(queuePersistTimeout.current);
+    }
+    queuePersistTimeout.current = setTimeout(() => {
+      window.localStorage.setItem(
+        OFFLINE_REVIEWS_KEY,
+        JSON.stringify(offlineReviewQueue),
+      );
+      queuePersistTimeout.current = null;
+    }, 300);
+
+    return () => {
+      if (queuePersistTimeout.current) {
+        clearTimeout(queuePersistTimeout.current);
+        queuePersistTimeout.current = null;
+      }
+    };
   }, [offlineReviewQueue]);
 
   const studentsQuery = useQuery({
     queryKey: ["supervisor-students", supervisorId],
     queryFn: async () => {
-      const [dashboardResponse, logbooksResponse] = await Promise.all([
-        apiClient.get(`/supervisors/${supervisorId}/dashboard`),
-        apiClient.get("/logbooks"),
-      ]);
+      const dashboardResponse = await apiClient.get(`/supervisors/${supervisorId}/dashboard`);
       const assignedStudents =
         dashboardResponse.data.data?.supervisor?.assignedStudents || [];
-      const allLogbooks: Logbook[] = logbooksResponse.data.data || [];
-      const logbooksByStudent = allLogbooks.reduce(
-        (acc, logbook) => {
-          if (!acc[logbook.studentId]) {
-            acc[logbook.studentId] = [];
+
+      const studentsWithLogbooks = await Promise.all(
+        assignedStudents.map(async (student: any) => {
+          const studentId = student.id || student._id;
+          const response = await apiClient.get("/logbooks", {
+            params: { student: studentId, limit: 100 },
+          });
+          const logbooks = (response.data.data || []) as Logbook[];
+
+          let pendingReview = 0;
+          let reviewed = 0;
+
+          for (const logbook of logbooks) {
+            const status = getIndustrialStatus(logbook);
+            if (status === "submitted") {
+              pendingReview += 1;
+            } else if (
+              status === "reviewed" ||
+              status === "approved" ||
+              status === "rejected"
+            ) {
+              reviewed += 1;
+            }
           }
-          acc[logbook.studentId].push(logbook);
-          return acc;
-        },
-        {} as Record<string, Logbook[]>,
+
+          return {
+            ...student,
+            logbooks,
+            totalLogbooks: logbooks.length,
+            pendingReview,
+            reviewed,
+          } satisfies Student;
+        }),
       );
 
-      return assignedStudents.map((student: any) => {
-        const logbooks = logbooksByStudent[student.id] || [];
-        let pendingReview = 0;
-        let reviewed = 0;
-
-        for (const logbook of logbooks) {
-          const status = getIndustrialStatus(logbook);
-          if (status === "submitted") {
-            pendingReview += 1;
-          } else if (
-            status === "reviewed" ||
-            status === "approved" ||
-            status === "rejected"
-          ) {
-            reviewed += 1;
-          }
-        }
-
-        return {
-          ...student,
-          logbooks,
-          totalLogbooks: logbooks.length,
-          pendingReview,
-          reviewed,
-        } satisfies Student;
-      });
+      return studentsWithLogbooks;
     },
     enabled: !!supervisorId,
     retry: false,
