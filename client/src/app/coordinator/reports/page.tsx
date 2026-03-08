@@ -173,7 +173,7 @@ export default function CoordinatorReportsPage() {
         </CardContent>
       </Card>
 
-      <ReportsExportOptions />
+      <ReportsExportOptions selectedDepartment={selectedDepartment} />
 
       <DepartmentBreakdownCard departmentStats={filteredDepartmentStats} />
     </div>

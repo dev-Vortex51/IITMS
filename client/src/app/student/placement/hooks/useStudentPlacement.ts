@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { studentService, placementService } from "@/services/student.service";
@@ -18,6 +18,10 @@ const defaultFormData: PlacementFormData = {
   supervisorEmail: "",
   supervisorPhone: "",
   supervisorPosition: "",
+  acceptanceLetterFile: null,
+  acceptanceLetterName: "",
+  acceptanceLetterPath: "",
+  removeAcceptanceLetter: false,
 };
 
 export function useStudentPlacement() {
@@ -119,6 +123,10 @@ export function useStudentPlacement() {
       supervisorEmail: placement.supervisorEmail || "",
       supervisorPhone: placement.supervisorPhone || "",
       supervisorPosition: placement.supervisorPosition || "",
+      acceptanceLetterFile: null,
+      acceptanceLetterName: placement.acceptanceLetter || "",
+      acceptanceLetterPath: placement.acceptanceLetterPath || "",
+      removeAcceptanceLetter: false,
     });
     setIsDialogOpen(true);
   };
@@ -128,41 +136,30 @@ export function useStudentPlacement() {
     setIsDialogOpen(true);
   };
 
-  const createPayload = useMemo(() => {
-    if (!student?.id) return null;
-    return {
-      student: student.id,
-      companyName: formData.companyName,
-      companyAddress: formData.companyAddress,
-      companySector: formData.companySector,
-      companyEmail: formData.companyEmail,
-      companyPhone: formData.companyPhone,
-      position: formData.position,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      supervisorName: formData.supervisorName,
-      supervisorEmail: formData.supervisorEmail,
-      supervisorPhone: formData.supervisorPhone,
-      supervisorPosition: formData.supervisorPosition,
-    };
-  }, [formData, student?.id]);
-
-  const updatePayload = useMemo(() => {
-    return {
-      companyName: formData.companyName,
-      companyAddress: formData.companyAddress,
-      companySector: formData.companySector,
-      companyEmail: formData.companyEmail,
-      companyPhone: formData.companyPhone,
-      position: formData.position,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      supervisorName: formData.supervisorName,
-      supervisorEmail: formData.supervisorEmail,
-      supervisorPhone: formData.supervisorPhone,
-      supervisorPosition: formData.supervisorPosition,
-    };
-  }, [formData]);
+  const buildPayload = (includeStudent = false) => {
+    const payload = new FormData();
+    if (includeStudent && student?.id) {
+      payload.append("student", student.id);
+    }
+    payload.append("companyName", formData.companyName);
+    payload.append("companyAddress", formData.companyAddress);
+    payload.append("companySector", formData.companySector);
+    payload.append("companyEmail", formData.companyEmail);
+    payload.append("companyPhone", formData.companyPhone);
+    payload.append("position", formData.position);
+    payload.append("startDate", formData.startDate);
+    payload.append("endDate", formData.endDate);
+    payload.append("supervisorName", formData.supervisorName);
+    payload.append("supervisorEmail", formData.supervisorEmail);
+    payload.append("supervisorPhone", formData.supervisorPhone);
+    payload.append("supervisorPosition", formData.supervisorPosition);
+    if (formData.acceptanceLetterFile) {
+      payload.append("acceptanceLetter", formData.acceptanceLetterFile);
+    } else if (formData.removeAcceptanceLetter) {
+      payload.append("removeAcceptanceLetter", "true");
+    }
+    return payload;
+  };
 
   return {
     student,
@@ -176,8 +173,11 @@ export function useStudentPlacement() {
     createMutation,
     updateMutation,
     withdrawMutation,
-    createPayload,
-    updatePayload,
+    buildCreatePayload: () => {
+      if (!student?.id) return null;
+      return buildPayload(true);
+    },
+    buildUpdatePayload: () => buildPayload(false),
     isLoadingStudent: studentQuery.isLoading,
     isLoadingPlacement: placementQuery.isLoading,
     isErrorStudent: studentQuery.isError,

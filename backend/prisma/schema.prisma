@@ -68,6 +68,52 @@ enum Recommendation {
   poor
 }
 
+enum EvaluationType {
+  midterm
+  final
+}
+
+enum EvaluationStatus {
+  draft
+  submitted
+  completed
+}
+
+enum VisitType {
+  physical
+  virtual
+}
+
+enum VisitStatus {
+  scheduled
+  completed
+  cancelled
+}
+
+enum ComplianceFormType {
+  acceptance_letter
+  introduction_letter
+  monthly_clearance
+  indemnity_form
+  itf_form_8
+  school_form
+  final_clearance
+}
+
+enum ComplianceFormStatus {
+  draft
+  submitted
+  approved
+  rejected
+}
+
+enum TechnicalReportStatus {
+  draft
+  submitted
+  approved
+  rejected
+}
+
 enum SupervisorType {
   academic
   departmental
@@ -203,6 +249,8 @@ model User {
   notifications          Notification[]
   notificationPreference NotificationPreference?
   createdNotifications   Notification[]          @relation("CreatedBy")
+  reviewedComplianceForms ComplianceForm[]       @relation("ComplianceReviewedBy")
+  reviewedTechnicalReports TechnicalReport[]     @relation("TechnicalReportReviewedBy")
   
   @@index([email])
   @@index([role])
@@ -334,8 +382,12 @@ model Student {
   placements            Placement[]
   logbooks              Logbook[]
   assessments           Assessment[]
+  evaluations           Evaluation[]
+  visits                Visit[]
   attendances           Attendance[]
   supervisorAssignments SupervisorAssignment[]
+  complianceForms       ComplianceForm[]
+  technicalReports      TechnicalReport[]
   
   @@index([userId])
   @@index([matricNumber])
@@ -390,6 +442,8 @@ model Supervisor {
   placements            Placement[]
   logbookReviews        LogbookReview[]
   assessments           Assessment[]
+  evaluations           Evaluation[]
+  visits                Visit[]
   attendanceReviews     Attendance[]
   
   @@index([userId])
@@ -461,8 +515,12 @@ model Placement {
   
   // Relations
   assessments           Assessment[]
+  evaluations           Evaluation[]
+  visits                Visit[]
   attendances           Attendance[]
   supervisorAssignments SupervisorAssignment[]
+  complianceForms       ComplianceForm[]
+  technicalReports      TechnicalReport[]
   
   @@index([studentId])
   @@index([status])
@@ -594,6 +652,134 @@ model Assessment {
   @@index([status])
   @@index([studentId, type])
   @@map("assessments")
+}
+
+model Evaluation {
+  id           String            @id @default(uuid())
+  studentId    String
+  student      Student           @relation(fields: [studentId], references: [id])
+  supervisorId String
+  supervisor   Supervisor        @relation(fields: [supervisorId], references: [id])
+  placementId  String?
+  placement    Placement?        @relation(fields: [placementId], references: [id])
+  type         EvaluationType    @default(midterm)
+  status       EvaluationStatus  @default(draft)
+
+  // Scores (0-100)
+  technicalSkill  Int
+  communication   Int
+  professionalism Int
+  punctuality     Int
+  problemSolving  Int
+  workAttitude    Int?
+  initiative      Int?
+
+  // Computed summary
+  totalScore Float?
+  grade      String?
+
+  // Qualitative feedback
+  strengths           String?
+  areasForImprovement String?
+  comment             String?
+
+  submittedAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, supervisorId, type])
+  @@index([studentId])
+  @@index([supervisorId])
+  @@index([type])
+  @@index([status])
+  @@map("evaluations")
+}
+
+model Visit {
+  id           String      @id @default(uuid())
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id])
+  supervisorId String
+  supervisor   Supervisor  @relation(fields: [supervisorId], references: [id])
+  placementId  String?
+  placement    Placement?  @relation(fields: [placementId], references: [id])
+  visitDate    DateTime
+  type         VisitType   @default(physical)
+  status       VisitStatus @default(scheduled)
+  objective    String?
+  location     String?
+  feedback     String?
+  score        Int?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([studentId])
+  @@index([supervisorId])
+  @@index([placementId])
+  @@index([visitDate])
+  @@index([status])
+  @@index([studentId, supervisorId, visitDate])
+  @@map("visits")
+}
+
+model ComplianceForm {
+  id            String               @id @default(uuid())
+  studentId     String
+  student       Student              @relation(fields: [studentId], references: [id])
+  placementId   String?
+  placement     Placement?           @relation(fields: [placementId], references: [id])
+  formType      ComplianceFormType
+  title         String?
+  status        ComplianceFormStatus @default(draft)
+  documentName  String?
+  documentPath  String?
+  note          String?
+  submittedAt   DateTime?
+  reviewedById  String?
+  reviewedBy    User?                @relation("ComplianceReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewComment String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([studentId])
+  @@index([placementId])
+  @@index([formType])
+  @@index([status])
+  @@index([reviewedById])
+  @@unique([studentId, formType])
+  @@map("compliance_forms")
+}
+
+model TechnicalReport {
+  id            String                @id @default(uuid())
+  studentId     String
+  student       Student               @relation(fields: [studentId], references: [id])
+  placementId   String?
+  placement     Placement?            @relation(fields: [placementId], references: [id])
+  title         String?
+  abstract      String?
+  status        TechnicalReportStatus @default(draft)
+  documentName  String?
+  documentPath  String?
+  note          String?
+  submittedAt   DateTime?
+  reviewedById  String?
+  reviewedBy    User?                 @relation("TechnicalReportReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewComment String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([studentId])
+  @@index([placementId])
+  @@index([status])
+  @@index([reviewedById])
+  @@unique([studentId])
+  @@map("technical_reports")
 }
 
 model Attendance {
@@ -786,6 +972,15 @@ model SystemSettings {
   // SIWES settings
   siweDuration Int @default(6)
   minWeeks     Int @default(24)
+
+  // Scoring settings
+  systemScoreMax    Int @default(80)
+  defenseScoreMax   Int @default(20)
+  logbookWeight     Int @default(20)
+  evaluationWeight  Int @default(20)
+  assessmentWeight  Int @default(30)
+  visitationWeight  Int @default(10)
+  maxVisitations    Int @default(2)
   
   // Approval settings
   autoAssignSupervisors   Boolean @default(false)

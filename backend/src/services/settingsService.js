@@ -6,6 +6,65 @@ const logger = require("../utils/logger");
 
 const prisma = getPrismaClient();
 
+const normalizeSystemSettingsUpdate = (updateData = {}) => {
+  const normalized = { ...updateData };
+
+  const numericFields = [
+    "siweDuration",
+    "minWeeks",
+    "systemScoreMax",
+    "defenseScoreMax",
+    "logbookWeight",
+    "evaluationWeight",
+    "assessmentWeight",
+    "visitationWeight",
+    "maxVisitations",
+  ];
+
+  numericFields.forEach((field) => {
+    if (normalized[field] === undefined) return;
+    const value = Number(normalized[field]);
+    if (!Number.isFinite(value) || value < 0) {
+      delete normalized[field];
+      return;
+    }
+    normalized[field] = Math.round(value);
+  });
+
+  if (
+    normalized.systemScoreMax !== undefined &&
+    normalized.defenseScoreMax !== undefined &&
+    normalized.systemScoreMax + normalized.defenseScoreMax !== 100
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "System score max and defense score max must sum to 100",
+    );
+  }
+
+  if (
+    normalized.systemScoreMax !== undefined &&
+    normalized.systemScoreMax <= 0
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "System score max must be greater than 0",
+    );
+  }
+
+  if (
+    normalized.maxVisitations !== undefined &&
+    normalized.maxVisitations <= 0
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Maximum visitations must be greater than 0",
+    );
+  }
+
+  return normalized;
+};
+
 /**
  * Get system settings - retrieve or create defaults
  */
@@ -21,6 +80,13 @@ const getSystemSettings = async () => {
           semester: "First Semester",
           siweDuration: 6,
           minWeeks: 24,
+          systemScoreMax: 80,
+          defenseScoreMax: 20,
+          logbookWeight: 20,
+          evaluationWeight: 20,
+          assessmentWeight: 30,
+          visitationWeight: 10,
+          maxVisitations: 2,
           autoAssignSupervisors: false,
           requireLogbookApproval: true,
         },
@@ -41,18 +107,34 @@ const getSystemSettings = async () => {
  */
 const updateSystemSettings = async (updateData, userId) => {
   try {
+    const normalizedUpdateData = normalizeSystemSettingsUpdate(updateData);
+
     let settings = await prisma.systemSettings.findFirst();
+
+    const currentSystemScoreMax = settings?.systemScoreMax ?? 80;
+    const currentDefenseScoreMax = settings?.defenseScoreMax ?? 20;
+    const nextSystemScoreMax =
+      normalizedUpdateData.systemScoreMax ?? currentSystemScoreMax;
+    const nextDefenseScoreMax =
+      normalizedUpdateData.defenseScoreMax ?? currentDefenseScoreMax;
+
+    if (nextSystemScoreMax + nextDefenseScoreMax !== 100) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "System score max and defense score max must sum to 100",
+      );
+    }
 
     if (!settings) {
       // Create if doesn't exist
       settings = await prisma.systemSettings.create({
-        data: updateData,
+        data: normalizedUpdateData,
       });
     } else {
       // Update existing
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: updateData,
+        data: normalizedUpdateData,
       });
     }
 

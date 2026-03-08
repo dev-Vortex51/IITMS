@@ -8,10 +8,11 @@ const {
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { uploadAcceptanceLetter } = require("./acceptanceLetter");
 
 const prisma = getPrismaClient();
 
-const createPlacement = async (studentId, placementData, files = {}) => {
+const createPlacement = async (studentId, placementData, acceptanceLetterFile = null) => {
   try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -70,6 +71,8 @@ const createPlacement = async (studentId, placementData, files = {}) => {
       }
     }
 
+    const uploadedLetter = await uploadAcceptanceLetter(acceptanceLetterFile);
+
     const placement = await prisma.placement.create({
       data: {
         student: { connect: { id: studentId } },
@@ -91,9 +94,9 @@ const createPlacement = async (studentId, placementData, files = {}) => {
         startDate: new Date(placementData.startDate),
         endDate: new Date(placementData.endDate),
         acceptanceLetter:
-          files?.acceptanceLetter?.filename || placementData.acceptanceLetter,
+          uploadedLetter?.acceptanceLetter || null,
         acceptanceLetterPath:
-          files?.acceptanceLetter?.path || placementData.acceptanceLetterPath,
+          uploadedLetter?.acceptanceLetterPath || null,
         status: PLACEMENT_STATUS.PENDING,
       },
     });

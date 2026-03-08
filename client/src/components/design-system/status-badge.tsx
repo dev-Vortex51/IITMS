@@ -7,6 +7,8 @@ const statusMap: Record<string, { label: string; tone: StatusTone }> = {
   approved: { label: "Approved", tone: "success" },
   rejected: { label: "Rejected", tone: "destructive" },
   submitted: { label: "Submitted", tone: "default" },
+  scheduled: { label: "Scheduled", tone: "warning" },
+  completed: { label: "Completed", tone: "success" },
   reviewed: { label: "Reviewed", tone: "default" },
   draft: { label: "Draft", tone: "secondary" },
   active: { label: "Active", tone: "success" },

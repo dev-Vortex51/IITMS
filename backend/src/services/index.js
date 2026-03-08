@@ -7,6 +7,10 @@ const departmentService = require("./departmentService");
 const placementService = require("./placementService");
 const logbookService = require("./logbookService");
 const assessmentService = require("./assessmentService");
+const evaluationService = require("./evaluationService");
+const complianceFormService = require("./complianceFormService");
+const technicalReportService = require("./technicalReportService");
+const visitService = require("./visitService");
 const supervisorService = require("./supervisorService");
 const reportService = require("./reportService");
 const invitationService = require("./invitationService");
@@ -23,6 +27,10 @@ module.exports = {
   placementService,
   logbookService,
   assessmentService,
+  evaluationService,
+  complianceFormService,
+  technicalReportService,
+  visitService,
   supervisorService,
   reportService,
   invitationService,

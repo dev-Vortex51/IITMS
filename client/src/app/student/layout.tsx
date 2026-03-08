@@ -9,12 +9,16 @@ import {
   Users,
   Settings,
   Calendar,
+  FileCheck2,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
   { title: "Placement", href: "/student/placement", icon: Briefcase },
   { title: "Attendance", href: "/student/attendance", icon: Calendar },
+  { title: "Compliance", href: "/student/compliance", icon: FileCheck2 },
+  { title: "Final Report", href: "/student/final-report", icon: FileText },
   { title: "Logbook", href: "/student/logbook", icon: BookOpen },
   { title: "Supervisors", href: "/student/supervisors", icon: Users },
   { title: "Settings", href: "/student/settings", icon: Settings },

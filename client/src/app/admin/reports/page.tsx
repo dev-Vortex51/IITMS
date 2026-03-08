@@ -41,7 +41,10 @@ export default function AdminReportsPage() {
         departments={filteredDepartments}
       />
 
-      <ExportOptions />
+      <ExportOptions
+        selectedFaculty={selectedFaculty}
+        selectedDepartment={selectedDepartment}
+      />
 
       <FacultyBreakdown
         faculties={filteredFaculties}

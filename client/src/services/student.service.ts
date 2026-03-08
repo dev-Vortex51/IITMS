@@ -82,12 +82,18 @@ export const placementService = {
   },
 
   createPlacement: async (data: any) => {
-    const response = await apiClient.post("/placements", data);
+    const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
+    const response = await apiClient.post("/placements", data, isFormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined);
     return response.data;
   },
 
-  updatePlacement: async (id: string, data: Partial<Placement>) => {
-    const response = await apiClient.put(`/placements/${id}`, data);
+  updatePlacement: async (id: string, data: any) => {
+    const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
+    const response = await apiClient.put(`/placements/${id}`, data, isFormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined);
     return response.data;
   },
 

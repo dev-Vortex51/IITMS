@@ -7,10 +7,14 @@ import {
   LayoutDashboard,
   Users,
   Briefcase,
+  ClipboardCheck,
   UserCheck,
   FileText,
   Settings,
   Mail,
+  CalendarDays,
+  FileCheck2,
+  GraduationCap,
 } from "lucide-react";
 
 const navItems = [
@@ -18,7 +22,11 @@ const navItems = [
   { title: "Invitations", href: "/coordinator/invitations", icon: Mail },
   { title: "Students", href: "/coordinator/students", icon: Users },
   { title: "Placements", href: "/coordinator/placements", icon: Briefcase },
+  { title: "Evaluations", href: "/coordinator/evaluations", icon: ClipboardCheck },
   { title: "Supervisors", href: "/coordinator/supervisors", icon: UserCheck },
+  { title: "Visits", href: "/coordinator/visits", icon: CalendarDays },
+  { title: "Compliance", href: "/coordinator/compliance", icon: FileCheck2 },
+  { title: "Final Reports", href: "/coordinator/final-reports", icon: GraduationCap },
   { title: "Reports", href: "/coordinator/reports", icon: FileText },
   { title: "Settings", href: "/coordinator/settings", icon: Settings },
 ];

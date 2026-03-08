@@ -2,6 +2,7 @@ import {
   Building2,
   BriefcaseBusiness,
   Calendar,
+  ExternalLink,
   FileText,
   MapPin,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 interface PlacementCompanySectionProps {
   placement: any;
@@ -69,9 +71,21 @@ export function PlacementCompanySection({ placement }: PlacementCompanySectionPr
                 <Label className="text-muted-foreground text-xs uppercase tracking-wider">
                   Acceptance Letter
                 </Label>
-                <p className="font-medium text-sm mt-0.5">Document uploaded</p>
+                <p className="font-medium text-sm mt-0.5">
+                  {placement.acceptanceLetter || "Document uploaded"}
+                </p>
               </div>
             </div>
+            {placement.acceptanceLetterPath ? (
+              <div className="mt-3">
+                <Button asChild size="sm" variant="outline">
+                  <a href={placement.acceptanceLetterPath} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    View Document
+                  </a>
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </CardContent>

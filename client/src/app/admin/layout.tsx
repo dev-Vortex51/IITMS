@@ -8,6 +8,7 @@ import {
   Building,
   School,
   UserCog,
+  ClipboardCheck,
   FileBarChart,
   Settings,
   Users,
@@ -25,6 +26,7 @@ const navItems = [
     href: "/admin/academic-supervisors",
     icon: Users,
   },
+  { title: "Evaluations", href: "/admin/evaluations", icon: ClipboardCheck },
   { title: "Reports", href: "/admin/reports", icon: FileBarChart },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];

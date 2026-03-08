@@ -3,11 +3,10 @@ const { handlePrismaError } = require("../../utils/prismaErrors");
 const { ApiError } = require("../../middleware/errorHandler");
 const {
   HTTP_STATUS,
-  ASSESSMENT_STATUS,
-  ASSESSMENT_TYPES,
+  PLACEMENT_STATUS,
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
-const { calculateScore, calculateGrade } = require("./helpers");
+const { calculateSystemContinuousScore } = require("./systemScore");
 
 const prisma = getPrismaClient();
 
@@ -21,42 +20,65 @@ const getStudentFinalGrade = async (studentId) => {
     if (!student)
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
 
-    const departmentalAssessment = await prisma.assessment.findFirst({
-      where: {
-        studentId,
-        type: { in: [ASSESSMENT_TYPES.DEPARTMENTAL, "departmental"] },
-        status: ASSESSMENT_STATUS.COMPLETED,
-      },
+    const [settings, placement, logbooks, assessments, evaluations, visits] =
+      await Promise.all([
+        prisma.systemSettings.findFirst({
+          select: {
+            systemScoreMax: true,
+            defenseScoreMax: true,
+            logbookWeight: true,
+            evaluationWeight: true,
+            assessmentWeight: true,
+            visitationWeight: true,
+            maxVisitations: true,
+          },
+        }),
+        prisma.placement.findFirst({
+          where: { studentId, status: PLACEMENT_STATUS.APPROVED },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, startDate: true, endDate: true },
+        }),
+        prisma.logbook.findMany({
+          where: { studentId },
+          select: { id: true, status: true, weekNumber: true },
+        }),
+        prisma.assessment.findMany({
+          where: { studentId },
+          select: {
+            id: true,
+            status: true,
+            type: true,
+            technical: true,
+            communication: true,
+            punctuality: true,
+            initiative: true,
+            teamwork: true,
+          },
+        }),
+        prisma.evaluation.findMany({
+          where: { studentId },
+          select: { id: true, status: true, type: true, totalScore: true },
+        }),
+        prisma.visit.findMany({
+          where: { studentId },
+          select: { id: true, status: true, score: true, visitDate: true },
+        }),
+      ]);
+
+    const systemScore = calculateSystemContinuousScore({
+      placement,
+      logbooks,
+      assessments,
+      evaluations,
+      visits,
+      scoringConfig: settings || {},
     });
-
-    const industrialAssessment = await prisma.assessment.findFirst({
-      where: {
-        studentId,
-        type: { in: [ASSESSMENT_TYPES.INDUSTRIAL, "industrial"] },
-        status: ASSESSMENT_STATUS.COMPLETED,
-      },
-    });
-
-    if (!departmentalAssessment || !industrialAssessment) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        "Both departmental and industrial assessments must be completed",
-      );
-    }
-
-    const deptScore = calculateScore(departmentalAssessment);
-    const indScore = calculateScore(industrialAssessment);
-    const finalScore = Math.round(deptScore * 0.4 + indScore * 0.6);
-    const finalGrade = calculateGrade(finalScore);
 
     return {
       student,
-      departmentalAssessment,
-      industrialAssessment,
-      departmentalScore: deptScore,
-      industrialScore: indScore,
-      finalScore,
-      finalGrade,
+      systemScore,
+      finalScore: systemScore.systemScore,
+      finalGrade: systemScore.provisionalGrade,
     };
   } catch (error) {
     logger.error(`Error getting student final grade: ${error.message}`);

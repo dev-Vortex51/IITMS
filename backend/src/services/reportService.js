@@ -7,7 +7,9 @@ const {
   ASSESSMENT_STATUS,
   LOGBOOK_STATUS,
 } = require("../utils/constants");
+const { calculateSystemContinuousScore } = require("./assessment/systemScore");
 const logger = require("../utils/logger");
+const { createCsvBuffer, createPdfBuffer } = require("../utils/reportExport");
 
 const prisma = getPrismaClient();
 
@@ -242,9 +244,6 @@ const getStudentProgressReport = async (studentId) => {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        placement: { where: { status: "approved" }, take: 1 },
-        departmentalSupervisor: true,
-        industrialSupervisor: true,
         user: true,
       },
     });
@@ -253,7 +252,24 @@ const getStudentProgressReport = async (studentId) => {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
     }
 
-    const [logbooks, assessments] = await Promise.all([
+    const [settings, approvedPlacement, logbooks, assessments, evaluations, visits] =
+      await Promise.all([
+        prisma.systemSettings.findFirst({
+          select: {
+            systemScoreMax: true,
+            defenseScoreMax: true,
+            logbookWeight: true,
+            evaluationWeight: true,
+            assessmentWeight: true,
+            visitationWeight: true,
+            maxVisitations: true,
+          },
+        }),
+        prisma.placement.findFirst({
+          where: { studentId, status: PLACEMENT_STATUS.APPROVED },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, startDate: true, endDate: true },
+        }),
       prisma.logbook.findMany({
         where: { studentId },
         include: { evidence: true, reviews: true },
@@ -262,6 +278,14 @@ const getStudentProgressReport = async (studentId) => {
       prisma.assessment.findMany({
         where: { studentId },
         include: { supervisor: true },
+      }),
+      prisma.evaluation.findMany({
+        where: { studentId },
+        select: { id: true, status: true, type: true, totalScore: true },
+      }),
+      prisma.visit.findMany({
+        where: { studentId },
+        select: { id: true, status: true, score: true, visitDate: true },
       }),
     ]);
 
@@ -303,43 +327,14 @@ const getStudentProgressReport = async (studentId) => {
       }
     }
 
-    let finalGrade = null;
-    const departmentalAssessment = assessments.find(
-      (a) =>
-        a.type === "departmental" && a.status === ASSESSMENT_STATUS.COMPLETED,
-    );
-    const industrialAssessment = assessments.find(
-      (a) =>
-        a.type === "industrial" && a.status === ASSESSMENT_STATUS.COMPLETED,
-    );
-
-    if (departmentalAssessment && industrialAssessment) {
-      const deptScore = Math.round(
-        (departmentalAssessment.technical +
-          departmentalAssessment.communication +
-          departmentalAssessment.punctuality +
-          departmentalAssessment.initiative +
-          departmentalAssessment.teamwork) /
-          5,
-      );
-      const indScore = Math.round(
-        (industrialAssessment.technical +
-          industrialAssessment.communication +
-          industrialAssessment.punctuality +
-          industrialAssessment.initiative +
-          industrialAssessment.teamwork) /
-          5,
-      );
-      const finalScore = Math.round(deptScore * 0.4 + indScore * 0.6);
-      const gradeMap = {
-        A: finalScore >= 90,
-        B: finalScore >= 80,
-        C: finalScore >= 70,
-        D: finalScore >= 60,
-      };
-      const grade = Object.keys(gradeMap).find((g) => gradeMap[g]) || "F";
-      finalGrade = { score: finalScore, grade };
-    }
+    const finalGrade = calculateSystemContinuousScore({
+      placement: approvedPlacement,
+      logbooks,
+      assessments,
+      evaluations,
+      visits,
+      scoringConfig: settings || {},
+    });
 
     return {
       student,
@@ -459,6 +454,10 @@ const getPlacementReport = async (filters = {}) => {
       where.student = {
         departmentId: filters.department,
       };
+    } else if (Array.isArray(filters.departmentIds) && filters.departmentIds.length) {
+      where.student = {
+        departmentId: { in: filters.departmentIds },
+      };
     }
 
     const placements = await prisma.placement.findMany({
@@ -527,6 +526,332 @@ const exportStudentReport = async (studentId) => {
   }
 };
 
+const buildStudentsListDataset = async (options = {}) => {
+  const where = { isActive: true };
+  if (options.departmentId) {
+    where.departmentId = options.departmentId;
+  } else if (options.facultyId) {
+    where.department = { facultyId: options.facultyId };
+  }
+
+  const students = await prisma.student.findMany({
+    where,
+    include: {
+      user: {
+        select: { firstName: true, lastName: true, email: true },
+      },
+      department: {
+        select: { name: true, code: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const columns = [
+    { key: "name", label: "Student Name" },
+    { key: "matricNumber", label: "Matric Number" },
+    { key: "email", label: "Email" },
+    { key: "department", label: "Department" },
+    { key: "level", label: "Level" },
+    { key: "session", label: "Session" },
+    { key: "placementStatus", label: "Placement Status" },
+  ];
+
+  const rows = students.map((student) => ({
+    name: `${student.user?.firstName || ""} ${student.user?.lastName || ""}`.trim(),
+    matricNumber: student.matricNumber,
+    email: student.user?.email || "",
+    department: student.department?.name || "",
+    level: student.level,
+    session: student.session,
+    placementStatus: student.placementApproved ? "Approved" : student.hasPlacement ? "Pending" : "No Placement",
+  }));
+
+  return {
+    title: "Student List Report",
+    subtitle: options.departmentName
+      ? `Department: ${options.departmentName}`
+      : "All accessible departments",
+    columns,
+    rows,
+    summary: [
+      { label: "Total Students", value: rows.length },
+      {
+        label: "Approved Placements",
+        value: rows.filter((row) => row.placementStatus === "Approved").length,
+      },
+    ],
+  };
+};
+
+const buildPlacementSummaryDataset = async (options = {}) => {
+  let departmentFilter = options.departmentId;
+  let departmentIds = null;
+  if (!departmentFilter && options.facultyId) {
+    const departments = await prisma.department.findMany({
+      where: { facultyId: options.facultyId },
+      select: { id: true },
+    });
+    departmentIds = departments.map((item) => item.id);
+  }
+
+  const report = await getPlacementReport({
+    department: departmentFilter || undefined,
+    departmentIds: departmentIds || undefined,
+    status: options.status,
+    startDate: options.startDate,
+    endDate: options.endDate,
+  });
+
+  const columns = [
+    { key: "studentName", label: "Student Name" },
+    { key: "matricNumber", label: "Matric Number" },
+    { key: "company", label: "Company" },
+    { key: "position", label: "Role" },
+    { key: "status", label: "Status" },
+    { key: "submittedAt", label: "Submitted At" },
+  ];
+
+  const rows = report.placements.map((placement) => ({
+    studentName: `${placement.student?.user?.firstName || ""} ${placement.student?.user?.lastName || ""}`.trim(),
+    matricNumber: placement.student?.matricNumber || "",
+    company: placement.industryPartner?.name || placement.companyName || "",
+    position: placement.position || "",
+    status: placement.status || "",
+    submittedAt: new Date(placement.createdAt).toLocaleDateString(),
+  }));
+
+  return {
+    title: "Placement Summary Report",
+    subtitle: options.departmentName
+      ? `Department: ${options.departmentName}`
+      : "All accessible departments",
+    columns,
+    rows,
+    summary: [
+      { label: "Total", value: report.statistics.total },
+      { label: "Pending", value: report.statistics.pending },
+      { label: "Approved", value: report.statistics.approved },
+      { label: "Rejected", value: report.statistics.rejected },
+      { label: "Withdrawn", value: report.statistics.withdrawn },
+    ],
+  };
+};
+
+const buildSupervisorSummaryDataset = async (options = {}) => {
+  const where = { isActive: true };
+  if (options.departmentId) {
+    where.departmentId = options.departmentId;
+  } else if (options.facultyId) {
+    where.department = { facultyId: options.facultyId };
+  }
+
+  const supervisors = await prisma.supervisor.findMany({
+    where,
+    include: {
+      user: {
+        select: { firstName: true, lastName: true, email: true },
+      },
+      department: {
+        select: { name: true },
+      },
+      assignedStudents: {
+        where: { status: "active" },
+        select: { id: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const columns = [
+    { key: "name", label: "Supervisor Name" },
+    { key: "email", label: "Email" },
+    { key: "type", label: "Type" },
+    { key: "department", label: "Department" },
+    { key: "assignedStudents", label: "Assigned Students" },
+    { key: "maxStudents", label: "Capacity" },
+  ];
+
+  const rows = supervisors.map((supervisor) => ({
+    name: `${supervisor.user?.firstName || ""} ${supervisor.user?.lastName || ""}`.trim(),
+    email: supervisor.user?.email || "",
+    type: supervisor.type || "",
+    department: supervisor.department?.name || "",
+    assignedStudents: supervisor.assignedStudents.length,
+    maxStudents: supervisor.maxStudents,
+  }));
+
+  return {
+    title: "Supervisor Summary Report",
+    subtitle: options.departmentName
+      ? `Department: ${options.departmentName}`
+      : "All accessible departments",
+    columns,
+    rows,
+    summary: [{ label: "Total Supervisors", value: rows.length }],
+  };
+};
+
+const buildAssessmentSummaryDataset = async (options = {}) => {
+  const where = {};
+  if (options.departmentId) {
+    where.student = { departmentId: options.departmentId };
+  } else if (options.facultyId) {
+    where.student = { department: { facultyId: options.facultyId } };
+  }
+
+  const assessments = await prisma.assessment.findMany({
+    where,
+    include: {
+      student: {
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          department: { select: { name: true } },
+        },
+      },
+      supervisor: {
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const columns = [
+    { key: "studentName", label: "Student Name" },
+    { key: "matricNumber", label: "Matric Number" },
+    { key: "department", label: "Department" },
+    { key: "type", label: "Assessment Type" },
+    { key: "status", label: "Status" },
+    { key: "grade", label: "Grade" },
+    { key: "supervisor", label: "Supervisor" },
+  ];
+
+  const rows = assessments.map((assessment) => ({
+    studentName: `${assessment.student?.user?.firstName || ""} ${assessment.student?.user?.lastName || ""}`.trim(),
+    matricNumber: assessment.student?.matricNumber || "",
+    department: assessment.student?.department?.name || "",
+    type: assessment.type || "",
+    status: assessment.status || "",
+    grade: assessment.grade || "",
+    supervisor: `${assessment.supervisor?.user?.firstName || ""} ${assessment.supervisor?.user?.lastName || ""}`.trim(),
+  }));
+
+  return {
+    title: "Assessment Summary Report",
+    subtitle: options.departmentName
+      ? `Department: ${options.departmentName}`
+      : "All accessible departments",
+    columns,
+    rows,
+    summary: [
+      { label: "Total Assessments", value: rows.length },
+      {
+        label: "Completed",
+        value: rows.filter((row) => row.status === "completed").length,
+      },
+    ],
+  };
+};
+
+const buildInstitutionalOverviewDataset = async () => {
+  const data = await getInstitutionalOverview();
+  const overview = data.overview || {};
+  const trends = data.trends?.placementsByMonth || [];
+
+  const columns = [
+    { key: "month", label: "Month" },
+    { key: "count", label: "Approved Placements" },
+  ];
+
+  return {
+    title: "Institutional Overview Report",
+    subtitle: "SIWES institutional metrics and placement trend",
+    columns,
+    rows: trends,
+    summary: [
+      { label: "Total Faculties", value: overview.totalFaculties || 0 },
+      { label: "Total Departments", value: overview.totalDepartments || 0 },
+      { label: "Total Students", value: overview.totalStudents || 0 },
+      { label: "Placed Students", value: overview.placedStudents || 0 },
+      { label: "Placement Rate", value: `${overview.placementRate || 0}%` },
+      { label: "Pending Placements", value: overview.pendingPlacements || 0 },
+      { label: "Approved Placements", value: overview.approvedPlacements || 0 },
+    ],
+  };
+};
+
+const resolveDepartmentInfo = async (departmentId) => {
+  if (!departmentId) {
+    return null;
+  }
+  const department = await prisma.department.findUnique({
+    where: { id: departmentId },
+    select: { id: true, name: true },
+  });
+  return department || null;
+};
+
+const generateExportReport = async (reportType, format = "pdf", options = {}) => {
+  try {
+    const normalizedFormat = format === "excel" ? "excel" : "pdf";
+    const department = await resolveDepartmentInfo(options.departmentId);
+    const enrichedOptions = {
+      ...options,
+      departmentName: department?.name || null,
+    };
+
+    let dataset;
+    switch (reportType) {
+      case "institutional-overview":
+        dataset = await buildInstitutionalOverviewDataset();
+        break;
+      case "students-list":
+        dataset = await buildStudentsListDataset(enrichedOptions);
+        break;
+      case "placements-summary":
+        dataset = await buildPlacementSummaryDataset(enrichedOptions);
+        break;
+      case "supervisors-summary":
+        dataset = await buildSupervisorSummaryDataset(enrichedOptions);
+        break;
+      case "assessments-summary":
+        dataset = await buildAssessmentSummaryDataset(enrichedOptions);
+        break;
+      default:
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported report type");
+    }
+
+    const generatedAt = new Date().toISOString();
+    const slug = reportType.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+
+    if (normalizedFormat === "excel") {
+      return {
+        buffer: createCsvBuffer(dataset.columns, dataset.rows),
+        mimeType: "text/csv",
+        filename: `${slug}-${Date.now()}.csv`,
+      };
+    }
+
+    const pdfBuffer = await createPdfBuffer({
+      ...dataset,
+      generatedAt,
+    });
+    return {
+      buffer: pdfBuffer,
+      mimeType: "application/pdf",
+      filename: `${slug}-${Date.now()}.pdf`,
+    };
+  } catch (error) {
+    logger.error(`Error generating export report: ${error.message}`);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw handlePrismaError(error);
+  }
+};
+
 module.exports = {
   getDepartmentStatistics,
   getFacultyStatistics,
@@ -535,4 +860,5 @@ module.exports = {
   getSupervisorPerformanceReport,
   getPlacementReport,
   exportStudentReport,
+  generateExportReport,
 };

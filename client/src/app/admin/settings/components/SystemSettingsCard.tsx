@@ -7,6 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
+  SystemScoringSettingsSection,
+  type SystemSettingsFormScoring,
+} from "./SystemScoringSettingsSection";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +24,13 @@ interface SystemSettingsForm {
   semester: string;
   siweDuration: number;
   minWeeks: number;
+  systemScoreMax: SystemSettingsFormScoring["systemScoreMax"];
+  defenseScoreMax: SystemSettingsFormScoring["defenseScoreMax"];
+  logbookWeight: SystemSettingsFormScoring["logbookWeight"];
+  evaluationWeight: SystemSettingsFormScoring["evaluationWeight"];
+  assessmentWeight: SystemSettingsFormScoring["assessmentWeight"];
+  visitationWeight: SystemSettingsFormScoring["visitationWeight"];
+  maxVisitations: SystemSettingsFormScoring["maxVisitations"];
   autoAssignSupervisors: boolean;
   requireLogbookApproval: boolean;
 }
@@ -99,6 +110,26 @@ export function SystemSettingsCard({
                     </div>
                   </div>
                 </div>
+
+                <Separator />
+
+                <SystemScoringSettingsSection
+                  form={{
+                    systemScoreMax: systemSettingsForm.systemScoreMax,
+                    defenseScoreMax: systemSettingsForm.defenseScoreMax,
+                    logbookWeight: systemSettingsForm.logbookWeight,
+                    evaluationWeight: systemSettingsForm.evaluationWeight,
+                    assessmentWeight: systemSettingsForm.assessmentWeight,
+                    visitationWeight: systemSettingsForm.visitationWeight,
+                    maxVisitations: systemSettingsForm.maxVisitations,
+                  }}
+                  onChange={(scoring) =>
+                    onSystemSettingsChange({
+                      ...systemSettingsForm,
+                      ...scoring,
+                    })
+                  }
+                />
 
                 <Separator />
 
@@ -217,6 +248,18 @@ export function SystemSettingsCard({
           <DetailRow
             label="SIWES Duration"
             value={`${systemSettingsForm.siweDuration} months / ${systemSettingsForm.minWeeks} weeks minimum`}
+          />
+          <DetailRow
+            label="Scoring Split"
+            value={`System ${systemSettingsForm.systemScoreMax}% / Defense ${systemSettingsForm.defenseScoreMax}%`}
+          />
+          <DetailRow
+            label="System Weights"
+            value={`Logbook ${systemSettingsForm.logbookWeight}, Evaluation ${systemSettingsForm.evaluationWeight}, Assessment ${systemSettingsForm.assessmentWeight}, Visitation ${systemSettingsForm.visitationWeight}`}
+          />
+          <DetailRow
+            label="Max Visitations"
+            value={`${systemSettingsForm.maxVisitations}`}
           />
           <DetailRow
             label="Auto Assign Supervisors"

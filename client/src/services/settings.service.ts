@@ -6,6 +6,13 @@ export interface SystemSettings {
   semester: string;
   siweDuration: number;
   minWeeks: number;
+  systemScoreMax: number;
+  defenseScoreMax: number;
+  logbookWeight: number;
+  evaluationWeight: number;
+  assessmentWeight: number;
+  visitationWeight: number;
+  maxVisitations: number;
   autoAssignSupervisors: boolean;
   requireLogbookApproval: boolean;
 }

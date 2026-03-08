@@ -9,7 +9,7 @@ const createPlacement = catchAsync(async (req, res) => {
   const placement = await placementService.createPlacement(
     studentId,
     req.body,
-    req.files,
+    req.file,
   );
 
   res.status(HTTP_STATUS.CREATED).json({
@@ -62,6 +62,7 @@ const updatePlacement = catchAsync(async (req, res) => {
     req.params.id,
     req.body,
     req.user.id,
+    req.file,
   );
 
   res.status(HTTP_STATUS.OK).json({

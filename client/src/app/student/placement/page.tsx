@@ -34,8 +34,8 @@ export default function StudentPlacementPage() {
     createMutation,
     updateMutation,
     withdrawMutation,
-    createPayload,
-    updatePayload,
+    buildCreatePayload,
+    buildUpdatePayload,
     isLoadingStudent,
     isLoadingPlacement,
     isErrorStudent,
@@ -45,6 +45,7 @@ export default function StudentPlacementPage() {
   } = useStudentPlacement();
 
   const handleCreate = () => {
+    const createPayload = buildCreatePayload();
     if (!createPayload) {
       toast.error("Student information not found. Please refresh.");
       return;
@@ -53,7 +54,7 @@ export default function StudentPlacementPage() {
   };
 
   const handleUpdate = () => {
-    updateMutation.mutate(updatePayload);
+    updateMutation.mutate(buildUpdatePayload());
   };
 
   if (isLoadingStudent || isLoadingPlacement) {

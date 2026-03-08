@@ -57,4 +57,10 @@ router.get(
   reportController.getPlacementReport,
 );
 
+router.get(
+  "/exports/:reportType",
+  requireRole(ROLES.ADMIN, ROLES.COORDINATOR),
+  reportController.exportReport,
+);
+
 module.exports = router;

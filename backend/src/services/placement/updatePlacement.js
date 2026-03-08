@@ -8,10 +8,16 @@ const {
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { uploadAcceptanceLetter } = require("./acceptanceLetter");
 
 const prisma = getPrismaClient();
 
-const updatePlacement = async (placementId, updateData, userId) => {
+const updatePlacement = async (
+  placementId,
+  updateData,
+  userId,
+  acceptanceLetterFile = null,
+) => {
   try {
     const placement = await prisma.placement.findUnique({
       where: { id: placementId },
@@ -160,6 +166,21 @@ const updatePlacement = async (placementId, updateData, userId) => {
         editableUpdateData[field] = updatePayload[field];
       }
     });
+
+    const shouldRemoveAcceptanceLetter =
+      updatePayload.removeAcceptanceLetter === true ||
+      updatePayload.removeAcceptanceLetter === "true";
+    if (shouldRemoveAcceptanceLetter) {
+      editableUpdateData.acceptanceLetter = null;
+      editableUpdateData.acceptanceLetterPath = null;
+    }
+
+    const uploadedLetter = await uploadAcceptanceLetter(acceptanceLetterFile);
+    if (uploadedLetter) {
+      editableUpdateData.acceptanceLetter = uploadedLetter.acceptanceLetter;
+      editableUpdateData.acceptanceLetterPath = uploadedLetter.acceptanceLetterPath;
+    }
+
     if (industryPartnerId !== undefined) {
       editableUpdateData.industryPartner = {
         connect: { id: industryPartnerId },

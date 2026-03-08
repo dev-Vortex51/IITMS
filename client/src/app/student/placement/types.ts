@@ -11,6 +11,10 @@ export interface PlacementFormData {
   supervisorEmail: string;
   supervisorPhone: string;
   supervisorPosition: string;
+  acceptanceLetterFile?: File | null;
+  acceptanceLetterName?: string;
+  acceptanceLetterPath?: string;
+  removeAcceptanceLetter?: boolean;
 }
 
 export type PlacementStatus = "approved" | "pending" | "rejected" | "withdrawn" | string;

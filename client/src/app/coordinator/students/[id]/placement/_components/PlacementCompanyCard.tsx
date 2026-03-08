@@ -6,8 +6,16 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Calendar, FileText, MapPin, Building2, BriefcaseBusiness } from "lucide-react";
+import {
+  Calendar,
+  ExternalLink,
+  FileText,
+  MapPin,
+  Building2,
+  BriefcaseBusiness,
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 export function PlacementCompanyCard({ placement }: { placement: any }) {
   return (
@@ -59,9 +67,21 @@ export function PlacementCompanyCard({ placement }: { placement: any }) {
                 <Label className="text-muted-foreground text-xs uppercase tracking-wider">
                   Acceptance Letter
                 </Label>
-                <p className="font-medium text-sm mt-0.5">Document uploaded</p>
+                <p className="font-medium text-sm mt-0.5">
+                  {placement.acceptanceLetter || "Document uploaded"}
+                </p>
               </div>
             </div>
+            {placement.acceptanceLetterPath ? (
+              <div className="mt-3">
+                <Button asChild size="sm" variant="outline">
+                  <a href={placement.acceptanceLetterPath} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    View Document
+                  </a>
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </CardContent>

@@ -6,6 +6,10 @@ const departmentController = require("./departmentController");
 const placementController = require("./placementController");
 const logbookController = require("./logbookController");
 const assessmentController = require("./assessmentController");
+const evaluationController = require("./evaluationController");
+const complianceFormController = require("./complianceFormController");
+const technicalReportController = require("./technicalReportController");
+const visitController = require("./visitController");
 const supervisorController = require("./supervisorController");
 const reportController = require("./reportController");
 const notificationController = require("./notificationController");
@@ -20,6 +24,10 @@ module.exports = {
   placementController,
   logbookController,
   assessmentController,
+  evaluationController,
+  complianceFormController,
+  technicalReportController,
+  visitController,
   supervisorController,
   reportController,
   notificationController,

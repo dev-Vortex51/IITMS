@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AcceptanceLetterField } from "./AcceptanceLetterField";
 
 interface PlacementFormDialogProps {
   open: boolean;
@@ -192,6 +193,8 @@ export function PlacementFormDialog({
                 />
               </div>
             </div>
+
+            <AcceptanceLetterField formData={formData} setFormData={setFormData} />
 
             <div className="pt-4 border-t">
               <h4 className="font-semibold mb-3">Industrial Supervisor Details</h4>

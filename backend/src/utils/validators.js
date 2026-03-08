@@ -301,6 +301,123 @@ const assessmentValidation = {
   }).min(1),
 };
 
+const evaluationValidation = {
+  createEvaluation: Joi.object({
+    student: customValidators.objectId.required(),
+    type: Joi.string().valid("midterm", "final").required(),
+    scores: Joi.object({
+      technicalSkill: Joi.number().min(0).max(100).required(),
+      communication: Joi.number().min(0).max(100).required(),
+      professionalism: Joi.number().min(0).max(100).required(),
+      punctuality: Joi.number().min(0).max(100).required(),
+      problemSolving: Joi.number().min(0).max(100).required(),
+      workAttitude: Joi.number().min(0).max(100).optional(),
+      initiative: Joi.number().min(0).max(100).optional(),
+    }).required(),
+    strengths: Joi.string().max(1000).allow("").optional(),
+    areasForImprovement: Joi.string().max(1000).allow("").optional(),
+    comment: Joi.string().max(1000).allow("").optional(),
+  }),
+
+  updateEvaluation: Joi.object({
+    type: Joi.string().valid("midterm", "final").optional(),
+    status: Joi.string().valid("draft", "submitted", "completed").optional(),
+    scores: Joi.object({
+      technicalSkill: Joi.number().min(0).max(100).required(),
+      communication: Joi.number().min(0).max(100).required(),
+      professionalism: Joi.number().min(0).max(100).required(),
+      punctuality: Joi.number().min(0).max(100).required(),
+      problemSolving: Joi.number().min(0).max(100).required(),
+      workAttitude: Joi.number().min(0).max(100).optional(),
+      initiative: Joi.number().min(0).max(100).optional(),
+    }).optional(),
+    strengths: Joi.string().max(1000).allow("").optional(),
+    areasForImprovement: Joi.string().max(1000).allow("").optional(),
+    comment: Joi.string().max(1000).allow("").optional(),
+  }).min(1),
+};
+
+const visitValidation = {
+  createVisit: Joi.object({
+    student: customValidators.objectId.required(),
+    visitDate: Joi.date().required(),
+    type: Joi.string().valid("physical", "virtual").required(),
+    objective: Joi.string().max(1000).allow("").optional(),
+    location: Joi.string().max(300).allow("").optional(),
+    feedback: Joi.string().max(2000).allow("").optional(),
+  }),
+
+  updateVisit: Joi.object({
+    visitDate: Joi.date().optional(),
+    type: Joi.string().valid("physical", "virtual").optional(),
+    objective: Joi.string().max(1000).allow("").optional(),
+    location: Joi.string().max(300).allow("").optional(),
+    feedback: Joi.string().max(2000).allow("").optional(),
+    score: Joi.number().integer().min(0).max(100).optional(),
+  }).min(1),
+
+  completeVisit: Joi.object({
+    feedback: Joi.string().max(2000).allow("").optional(),
+    score: Joi.number().integer().min(0).max(100).optional(),
+  }),
+
+  cancelVisit: Joi.object({
+    reason: Joi.string().max(1000).allow("").optional(),
+    feedback: Joi.string().max(2000).allow("").optional(),
+  }),
+};
+
+const complianceFormValidation = {
+  createComplianceForm: Joi.object({
+    formType: Joi.string()
+      .valid(
+        "acceptance_letter",
+        "introduction_letter",
+        "monthly_clearance",
+        "indemnity_form",
+        "itf_form_8",
+        "school_form",
+        "final_clearance",
+      )
+      .required(),
+    title: Joi.string().max(200).allow("").optional(),
+    note: Joi.string().max(2000).allow("").optional(),
+  }),
+
+  updateComplianceForm: Joi.object({
+    title: Joi.string().max(200).allow("").optional(),
+    note: Joi.string().max(2000).allow("").optional(),
+  }).min(1),
+
+  submitComplianceForm: Joi.object({}),
+
+  reviewComplianceForm: Joi.object({
+    status: Joi.string().valid("approved", "rejected").required(),
+    reviewComment: Joi.string().max(2000).allow("").optional(),
+  }),
+};
+
+const technicalReportValidation = {
+  createTechnicalReport: Joi.object({
+    title: Joi.string().max(200).allow("").optional(),
+    abstract: Joi.string().max(5000).allow("").optional(),
+    note: Joi.string().max(2000).allow("").optional(),
+  }),
+
+  updateTechnicalReport: Joi.object({
+    title: Joi.string().max(200).allow("").optional(),
+    abstract: Joi.string().max(5000).allow("").optional(),
+    note: Joi.string().max(2000).allow("").optional(),
+  }).min(1),
+
+  submitTechnicalReport: Joi.object({}),
+
+  reviewTechnicalReport: Joi.object({
+    status: Joi.string().valid("approved", "rejected").required(),
+    reviewComment: Joi.string().max(2000).allow("").optional(),
+  }),
+};
+
 /**
  * Notification Validation Schemas
  */
@@ -344,6 +461,10 @@ module.exports = {
   placementValidation,
   logbookValidation,
   assessmentValidation,
+  evaluationValidation,
+  visitValidation,
+  complianceFormValidation,
+  technicalReportValidation,
   notificationValidation,
   queryValidation,
   customValidators,
