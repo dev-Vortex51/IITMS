@@ -2,12 +2,13 @@ const { getPrismaClient } = require("../../config/prisma");
 const { parsePagination, buildPaginationMeta } = require("../../utils/helpers");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude } = require("./helpers");
+const { formInclude, getComplianceFormDelegate } = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const getComplianceForms = async (filters = {}, pagination = {}) => {
   try {
+    const complianceForm = getComplianceFormDelegate(prisma);
     const { page, limit, skip } = parsePagination(pagination);
 
     const where = {};
@@ -25,14 +26,14 @@ const getComplianceForms = async (filters = {}, pagination = {}) => {
     }
 
     const [forms, total] = await Promise.all([
-      prisma.complianceForm.findMany({
+      complianceForm.findMany({
         where,
         skip,
         take: limit,
         orderBy: { updatedAt: "desc" },
         include: formInclude,
       }),
-      prisma.complianceForm.count({ where }),
+      complianceForm.count({ where }),
     ]);
 
     return {

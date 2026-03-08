@@ -1,3 +1,6 @@
+const { ApiError } = require("../../middleware/errorHandler");
+const { HTTP_STATUS } = require("../../utils/constants");
+
 const formInclude = {
   student: {
     include: {
@@ -28,7 +31,19 @@ const formInclude = {
 
 const COMPLIANCE_FORM_FOLDER = "iitms/compliance-forms";
 
+const getComplianceFormDelegate = (prisma) => {
+  const delegate = prisma?.complianceForm;
+  if (!delegate) {
+    throw new ApiError(
+      HTTP_STATUS.SERVICE_UNAVAILABLE,
+      "Compliance forms module is not ready in this deployment. Run Prisma generate and redeploy backend.",
+    );
+  }
+  return delegate;
+};
+
 module.exports = {
   formInclude,
   COMPLIANCE_FORM_FOLDER,
+  getComplianceFormDelegate,
 };

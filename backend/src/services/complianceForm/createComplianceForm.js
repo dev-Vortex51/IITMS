@@ -4,12 +4,17 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude, COMPLIANCE_FORM_FOLDER } = require("./helpers");
+const {
+  formInclude,
+  COMPLIANCE_FORM_FOLDER,
+  getComplianceFormDelegate,
+} = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const createComplianceForm = async (studentId, formData, file) => {
   try {
+    const complianceForm = getComplianceFormDelegate(prisma);
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       select: { id: true },
@@ -36,7 +41,7 @@ const createComplianceForm = async (studentId, formData, file) => {
       });
     }
 
-    const existing = await prisma.complianceForm.findUnique({
+    const existing = await complianceForm.findUnique({
       where: {
         studentId_formType: {
           studentId,
@@ -76,7 +81,7 @@ const createComplianceForm = async (studentId, formData, file) => {
     };
 
     const record = existing
-      ? await prisma.complianceForm.update({
+      ? await complianceForm.update({
           where: { id: existing.id },
           data: {
             ...payload,
@@ -85,7 +90,7 @@ const createComplianceForm = async (studentId, formData, file) => {
           },
           include: formInclude,
         })
-      : await prisma.complianceForm.create({
+      : await complianceForm.create({
           data: payload,
           include: formInclude,
         });

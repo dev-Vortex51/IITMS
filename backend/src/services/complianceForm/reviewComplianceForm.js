@@ -3,13 +3,14 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude } = require("./helpers");
+const { formInclude, getComplianceFormDelegate } = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const reviewComplianceForm = async (id, reviewData, user) => {
   try {
-    const existing = await prisma.complianceForm.findUnique({
+    const complianceForm = getComplianceFormDelegate(prisma);
+    const existing = await complianceForm.findUnique({
       where: { id },
       include: {
         student: {
@@ -40,7 +41,7 @@ const reviewComplianceForm = async (id, reviewData, user) => {
 
     const nextStatus = reviewData.status;
 
-    const reviewed = await prisma.complianceForm.update({
+    const reviewed = await complianceForm.update({
       where: { id },
       data: {
         status: nextStatus,

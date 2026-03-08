@@ -4,6 +4,7 @@
   "description": "Backend API for Institutional Industrial Training Management System (SIWES/IT)",
   "main": "src/server.js",
   "scripts": {
+    "prestart": "npm run prisma:generate && npm run prisma:deploy",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --coverage --detectOpenHandles",

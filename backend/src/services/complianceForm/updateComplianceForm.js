@@ -4,13 +4,18 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude, COMPLIANCE_FORM_FOLDER } = require("./helpers");
+const {
+  formInclude,
+  COMPLIANCE_FORM_FOLDER,
+  getComplianceFormDelegate,
+} = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const updateComplianceForm = async (id, studentId, formData, file) => {
   try {
-    const existing = await prisma.complianceForm.findUnique({
+    const complianceForm = getComplianceFormDelegate(prisma);
+    const existing = await complianceForm.findUnique({
       where: { id },
       select: {
         id: true,
@@ -44,7 +49,7 @@ const updateComplianceForm = async (id, studentId, formData, file) => {
       });
     }
 
-    const updated = await prisma.complianceForm.update({
+    const updated = await complianceForm.update({
       where: { id },
       data: {
         title: formData.title !== undefined ? formData.title || null : undefined,

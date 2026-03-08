@@ -3,13 +3,14 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS, USER_ROLES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude } = require("./helpers");
+const { formInclude, getComplianceFormDelegate } = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const getComplianceFormById = async (id, user) => {
   try {
-    const form = await prisma.complianceForm.findUnique({
+    const complianceForm = getComplianceFormDelegate(prisma);
+    const form = await complianceForm.findUnique({
       where: { id },
       include: formInclude,
     });

@@ -63,6 +63,23 @@ const sampleData = {
     yearsOfExperience: 10,
     specialization: "Infrastructure and Cloud Systems",
   },
+  placement: {
+    companyName: "TechCorp Nigeria Ltd",
+    companyAddress: "15 Adeola Odeku, Victoria Island, Lagos",
+    companyEmail: "hr@techcorp.ng",
+    companyPhone: "+2348094445566",
+    companyWebsite: "https://techcorp.ng",
+    companySector: "Information Technology",
+    position: "Software Engineering Intern",
+    department: "Engineering",
+    supervisorName: "Chinonso Okafor",
+    supervisorEmail: "ind.supervisor@techcorp.ng",
+    supervisorPhone: "+2348093334455",
+    supervisorPosition: "Lead Systems Engineer",
+    startDate: "2026-01-05",
+    endDate: "2026-06-30",
+    status: "approved",
+  },
 };
 
 /**
@@ -317,6 +334,59 @@ const seedDatabase = async () => {
     } else {
       logger.info("Supervisor assignment already exists");
     }
+
+    logger.info("Ensuring student placement...");
+    let placement = await prisma.placement.findFirst({
+      where: {
+        studentId: student.id,
+        companyName: sampleData.placement.companyName,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!placement) {
+      placement = await prisma.placement.create({
+        data: {
+          studentId: student.id,
+          companyName: sampleData.placement.companyName,
+          companyAddress: sampleData.placement.companyAddress,
+          companyEmail: sampleData.placement.companyEmail,
+          companyPhone: sampleData.placement.companyPhone,
+          companyWebsite: sampleData.placement.companyWebsite,
+          companySector: sampleData.placement.companySector,
+          position: sampleData.placement.position,
+          department: sampleData.placement.department,
+          supervisorName: sampleData.placement.supervisorName,
+          supervisorEmail: sampleData.placement.supervisorEmail,
+          supervisorPhone: sampleData.placement.supervisorPhone,
+          supervisorPosition: sampleData.placement.supervisorPosition,
+          startDate: new Date(sampleData.placement.startDate),
+          endDate: new Date(sampleData.placement.endDate),
+          status: sampleData.placement.status,
+          approvedAt:
+            sampleData.placement.status === "approved" ? new Date() : null,
+          industrialSupervisorId: industrialSupervisor.id,
+          reviewedById: admin.id,
+          reviewedAt: new Date(),
+        },
+      });
+      logger.info("Placement created successfully");
+    } else {
+      logger.info("Placement already exists");
+    }
+
+    await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        hasPlacement: true,
+        placementApproved: placement.status === "approved",
+        currentPlacementId: placement.id,
+        industrialSupervisorId: industrialSupervisor.id,
+        trainingStartDate: placement.startDate,
+        trainingEndDate: placement.endDate,
+      },
+    });
+    logger.info("Student placement flags synchronized");
 
     logger.info("╔════════════════════════════════════════════════╗");
     logger.info("║  Database seeding completed successfully!      ║");

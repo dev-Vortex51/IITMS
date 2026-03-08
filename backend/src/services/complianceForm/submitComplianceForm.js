@@ -3,13 +3,14 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { formInclude } = require("./helpers");
+const { formInclude, getComplianceFormDelegate } = require("./helpers");
 
 const prisma = getPrismaClient();
 
 const submitComplianceForm = async (id, studentId) => {
   try {
-    const existing = await prisma.complianceForm.findUnique({
+    const complianceForm = getComplianceFormDelegate(prisma);
+    const existing = await complianceForm.findUnique({
       where: { id },
       select: {
         id: true,
@@ -38,7 +39,7 @@ const submitComplianceForm = async (id, studentId) => {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Form already approved");
     }
 
-    return prisma.complianceForm.update({
+    return complianceForm.update({
       where: { id },
       data: {
         status: "submitted",
