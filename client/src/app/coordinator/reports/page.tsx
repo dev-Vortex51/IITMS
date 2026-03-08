@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import adminService from "@/services/admin.service";
-import { studentService, placementService } from "@/services/student.service";
+import { apiClient } from "@/lib/api-client";
 import {
   DashboardMetricsGrid,
   LoadingPage,
@@ -35,96 +35,76 @@ export default function CoordinatorReportsPage() {
     queryFn: () => adminService.departmentService.getAllDepartments(),
   });
 
-  // Fetch all students
-  const { data: studentsData, isLoading: isLoadingStudents } = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentService.getAllStudents(),
-  });
+  const departmentStatsQuery = useQuery({
+    queryKey: ["reports", "coordinator-department-stats", selectedDepartment],
+    queryFn: async () => {
+      const departments = departmentsData?.data || [];
+      const targetDepartments =
+        selectedDepartment === "all"
+          ? departments
+          : departments.filter((dept: any) => dept.id === selectedDepartment);
 
-  // Fetch all placements
-  const { data: placementsData, isLoading: isLoadingPlacements } = useQuery({
-    queryKey: ["placements"],
-    queryFn: () => placementService.getAllPlacements({}),
-  });
+      const results = await Promise.all(
+        targetDepartments.map(async (dept: any) => {
+          const response = await apiClient.get(
+            `/reports/departments/${dept.id}/statistics`,
+          );
+          return {
+            id: dept.id,
+            name: dept.name,
+            ...(response.data?.data?.statistics || {}),
+          };
+        }),
+      );
 
-  // Fetch supervisors
-  const { data: dSupervisorsData, isLoading: isLoadingDSupervisors } = useQuery({
-    queryKey: ["supervisors", "departmental"],
-    queryFn: () =>
-      adminService.supervisorService.getAllSupervisors({
-        type: "departmental",
-      }),
-  });
-
-  const { data: iSupervisorsData, isLoading: isLoadingISupervisors } = useQuery({
-    queryKey: ["supervisors", "industrial"],
-    queryFn: () =>
-      adminService.supervisorService.getAllSupervisors({ type: "industrial" }),
+      return results;
+    },
+    enabled: !isLoadingDepartments,
   });
 
   const departments = departmentsData?.data || [];
-  const students = studentsData?.data || [];
-  const placements = placementsData?.data || [];
-  const departmentalSupervisors = dSupervisorsData?.data || [];
-  const industrialSupervisors = iSupervisorsData?.data || [];
+  const departmentStats = useMemo(
+    () => departmentStatsQuery.data || [],
+    [departmentStatsQuery.data],
+  );
 
-  const isLoading =
-    isLoadingDepartments ||
-    isLoadingStudents ||
-    isLoadingPlacements ||
-    isLoadingDSupervisors ||
-    isLoadingISupervisors;
+  const isLoading = isLoadingDepartments || departmentStatsQuery.isLoading;
+
+  // Calculate statistics from pre-aggregated department report data.
+  const totalStudents = departmentStats.reduce(
+    (sum: number, dept: any) => sum + (dept.totalStudents || 0),
+    0,
+  );
+  const approvedPlacements = departmentStats.reduce(
+    (sum: number, dept: any) => sum + (dept.placedStudents || 0),
+    0,
+  );
+  const pendingPlacements = departmentStats.reduce(
+    (sum: number, dept: any) => sum + (dept.pendingPlacements || 0),
+    0,
+  );
+  const rejectedPlacements = 0;
+  const totalSupervisors = departmentStats.reduce(
+    (sum: number, dept: any) => sum + (dept.totalSupervisors || 0),
+    0,
+  );
+  const placementRate =
+    totalStudents > 0 ? `${Math.round((approvedPlacements / totalStudents) * 100)}%` : "0%";
+
+  const filteredDepartmentStats = useMemo(
+    () =>
+      departmentStats.map((dept: any) => ({
+        id: dept.id,
+        name: dept.name,
+        students: dept.totalStudents || 0,
+        withPlacement: dept.placedStudents || 0,
+      })),
+    [departmentStats],
+  );
 
   if (isLoading) {
     return <LoadingPage label="Loading reports..." />;
   }
-
-  // Calculate statistics
-  const totalStudents = students.length;
-  const approvedPlacements = placements.filter(
-    (p: any) => p.status === "approved",
-  ).length;
-  const pendingPlacements = placements.filter(
-    (p: any) => p.status === "pending",
-  ).length;
-  const rejectedPlacements = placements.filter(
-    (p: any) => p.status === "rejected",
-  ).length;
-  const totalSupervisors = departmentalSupervisors.length + industrialSupervisors.length;
-  const placementRate =
-    totalStudents > 0 ? `${Math.round((approvedPlacements / totalStudents) * 100)}%` : "0%";
-
-  const departmentStats = departments.map((dept: any) => {
-    const deptStudents = students.filter((s: any) => {
-      if (typeof s.department === "object") {
-        if (s.department.code && dept.code) {
-          return s.department.code === dept.code;
-        }
-        if (s.department.name && dept.name) {
-          return s.department.name === dept.name;
-        }
-      }
-
-      if (typeof s.department === "string") {
-        if (dept.code) return s.department === dept.code;
-        if (dept.name) return s.department === dept.name;
-      }
-
-      return false;
-    });
-
-    return {
-      id: dept.id,
-      name: dept.name,
-      students: deptStudents.length,
-      withPlacement: deptStudents.filter((s: any) => s.placement).length,
-    };
-  });
-
-  const filteredDepartmentStats =
-    selectedDepartment === "all"
-      ? departmentStats
-      : departmentStats.filter((dept: any) => dept.id === selectedDepartment);
 
   const metrics = [
     {

@@ -31,12 +31,22 @@ const getAttendanceSummary = async (studentId, user) => {
       }
     }
 
-    const allRecords = await prisma.attendance.findMany({
-      where: { studentId },
-    });
+    const [total, groupedByDayStatus, groupedByApprovalStatus] = await Promise.all([
+      prisma.attendance.count({ where: { studentId } }),
+      prisma.attendance.groupBy({
+        by: ["dayStatus"],
+        where: { studentId },
+        _count: { _all: true },
+      }),
+      prisma.attendance.groupBy({
+        by: ["approvalStatus"],
+        where: { studentId },
+        _count: { _all: true },
+      }),
+    ]);
 
     const summary = {
-      total: allRecords.length,
+      total,
       presentOnTime: 0,
       presentLate: 0,
       halfDay: 0,
@@ -51,37 +61,41 @@ const getAttendanceSummary = async (studentId, user) => {
       anomalies: [],
     };
 
-    allRecords.forEach((record) => {
-      switch (record.dayStatus) {
+    groupedByDayStatus.forEach((group) => {
+      const count = group._count._all;
+      switch (group.dayStatus) {
         case "PRESENT_ON_TIME":
-          summary.presentOnTime++;
+          summary.presentOnTime = count;
           break;
         case "PRESENT_LATE":
-          summary.presentLate++;
+          summary.presentLate = count;
           break;
         case "HALF_DAY":
-          summary.halfDay++;
+          summary.halfDay = count;
           break;
         case "ABSENT":
-          summary.absent++;
+          summary.absent = count;
           break;
         case "EXCUSED_ABSENCE":
-          summary.excusedAbsence++;
+          summary.excusedAbsence = count;
           break;
         case "INCOMPLETE":
-          summary.incomplete++;
+          summary.incomplete = count;
           break;
       }
+    });
 
-      switch (record.approvalStatus) {
+    groupedByApprovalStatus.forEach((group) => {
+      const count = group._count._all;
+      switch (group.approvalStatus) {
         case "PENDING":
-          summary.pending++;
+          summary.pending = count;
           break;
         case "APPROVED":
-          summary.approved++;
+          summary.approved = count;
           break;
         case "REJECTED":
-          summary.rejected++;
+          summary.rejected = count;
           break;
       }
     });

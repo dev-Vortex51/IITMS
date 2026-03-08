@@ -31,12 +31,23 @@ const getAttendanceStats = async (studentId, user) => {
       }
     }
 
-    const records = await prisma.attendance.findMany({
-      where: { studentId },
-    });
+    const [total, groupedByStatus, recentRecords] = await Promise.all([
+      prisma.attendance.count({ where: { studentId } }),
+      prisma.attendance.groupBy({
+        by: ["dayStatus"],
+        where: { studentId },
+        _count: { _all: true },
+      }),
+      prisma.attendance.findMany({
+        where: { studentId },
+        select: { dayStatus: true, date: true },
+        orderBy: { date: "desc" },
+        take: 365,
+      }),
+    ]);
 
     const stats = {
-      total: records.length,
+      total,
       presentOnTime: 0,
       presentLate: 0,
       halfDay: 0,
@@ -45,35 +56,32 @@ const getAttendanceStats = async (studentId, user) => {
       incomplete: 0,
     };
 
-    records.forEach((record) => {
-      switch (record.dayStatus) {
+    groupedByStatus.forEach((group) => {
+      const count = group._count._all;
+      switch (group.dayStatus) {
         case "PRESENT_ON_TIME":
-          stats.presentOnTime++;
+          stats.presentOnTime = count;
           break;
         case "PRESENT_LATE":
-          stats.presentLate++;
+          stats.presentLate = count;
           break;
         case "HALF_DAY":
-          stats.halfDay++;
+          stats.halfDay = count;
           break;
         case "ABSENT":
-          stats.absent++;
+          stats.absent = count;
           break;
         case "EXCUSED_ABSENCE":
-          stats.excusedAbsence++;
+          stats.excusedAbsence = count;
           break;
         case "INCOMPLETE":
-          stats.incomplete++;
+          stats.incomplete = count;
           break;
       }
     });
 
     let currentStreak = 0;
-    const sortedRecords = records.sort(
-      (a, b) => new Date(b.date) - new Date(a.date),
-    );
-
-    for (const record of sortedRecords) {
+    for (const record of recentRecords) {
       if (
         record.dayStatus === "PRESENT_ON_TIME" ||
         record.dayStatus === "PRESENT_LATE"

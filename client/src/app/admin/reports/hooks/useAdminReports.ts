@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import adminService from "@/services/admin.service";
-import { placementService, studentService } from "@/services/student.service";
+import { apiClient } from "@/lib/api-client";
 
 export function useAdminReports() {
   const [selectedFaculty, setSelectedFaculty] = useState<string>("all");
@@ -17,14 +17,12 @@ export function useAdminReports() {
     queryFn: () => adminService.departmentService.getAllDepartments(),
   });
 
-  const studentsQuery = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentService.getAllStudents(),
-  });
-
-  const placementsQuery = useQuery({
-    queryKey: ["placements"],
-    queryFn: () => placementService.getAllPlacements({}),
+  const overviewQuery = useQuery({
+    queryKey: ["reports", "institutional-overview"],
+    queryFn: async () => {
+      const response = await apiClient.get("/reports/institutional-overview");
+      return response.data?.data || null;
+    },
   });
 
   const faculties = useMemo(() => facultiesQuery.data?.data || [], [facultiesQuery.data]);
@@ -32,11 +30,7 @@ export function useAdminReports() {
     () => departmentsQuery.data?.data || [],
     [departmentsQuery.data],
   );
-  const students = useMemo(() => studentsQuery.data?.data || [], [studentsQuery.data]);
-  const placements = useMemo(
-    () => placementsQuery.data?.data || [],
-    [placementsQuery.data],
-  );
+  const overview = useMemo(() => overviewQuery.data?.overview || null, [overviewQuery.data]);
 
   const filteredDepartments = useMemo(() => {
     if (selectedFaculty === "all") return departments;
@@ -75,16 +69,14 @@ export function useAdminReports() {
     () => ({
       totalFaculties: faculties.length,
       totalDepartments: departments.length,
-      totalStudents: students.length,
-      totalPlacements: placements.length,
-      approvedPlacements: placements.filter((placement: any) => placement.status === "approved")
-        .length,
-      pendingPlacements: placements.filter((placement: any) => placement.status === "pending")
-        .length,
-      rejectedPlacements: placements.filter((placement: any) => placement.status === "rejected")
-        .length,
+      totalStudents: overview?.totalStudents || 0,
+      totalPlacements:
+        (overview?.approvedPlacements || 0) + (overview?.pendingPlacements || 0),
+      approvedPlacements: overview?.approvedPlacements || 0,
+      pendingPlacements: overview?.pendingPlacements || 0,
+      rejectedPlacements: overview?.rejectedPlacements || 0,
     }),
-    [faculties, departments, placements, students],
+    [departments, faculties, overview],
   );
 
   return {
@@ -100,7 +92,6 @@ export function useAdminReports() {
     isLoading:
       facultiesQuery.isLoading ||
       departmentsQuery.isLoading ||
-      studentsQuery.isLoading ||
-      placementsQuery.isLoading,
+      overviewQuery.isLoading,
   };
 }

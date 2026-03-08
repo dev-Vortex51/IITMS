@@ -146,6 +146,11 @@ const getFacultyStatistics = async (facultyId) => {
  */
 const getInstitutionalOverview = async () => {
   try {
+    const monthlyTrendStart = new Date();
+    monthlyTrendStart.setMonth(monthlyTrendStart.getMonth() - 11);
+    monthlyTrendStart.setDate(1);
+    monthlyTrendStart.setHours(0, 0, 0, 0);
+
     const [
       totalFaculties,
       totalDepartments,
@@ -174,7 +179,10 @@ const getInstitutionalOverview = async () => {
         where: { status: ASSESSMENT_STATUS.COMPLETED },
       }),
       prisma.placement.findMany({
-        where: { status: PLACEMENT_STATUS.APPROVED },
+        where: {
+          status: PLACEMENT_STATUS.APPROVED,
+          approvedAt: { gte: monthlyTrendStart },
+        },
         select: { approvedAt: true },
       }),
     ]);

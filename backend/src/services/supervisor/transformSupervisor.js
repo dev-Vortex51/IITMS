@@ -8,6 +8,11 @@ const transformSupervisor = (supervisor) => {
   }
 
   const partner = supervisor.industryPartner;
+  const assignedStudents = supervisor.assignedStudents || [];
+  const assignedCount =
+    typeof supervisor?._count?.assignedStudents === "number"
+      ? supervisor._count.assignedStudents
+      : assignedStudents.length;
 
   return {
     ...supervisor,
@@ -19,8 +24,8 @@ const transformSupervisor = (supervisor) => {
     phone: supervisor.user?.phone || null,
     companyName: partner?.name || supervisor.companyName || null,
     companyAddress: partner?.address || supervisor.companyAddress || null,
-    students: supervisor.assignedStudents || [],
-    isAvailable: supervisor.assignedStudents.length < supervisor.maxStudents,
+    students: assignedStudents,
+    isAvailable: assignedCount < supervisor.maxStudents,
   };
 };
 

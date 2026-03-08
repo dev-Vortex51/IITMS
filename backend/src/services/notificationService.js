@@ -64,47 +64,72 @@ const createNotification = async (notificationData) => {
  */
 const createBulkNotifications = async (recipients, notificationData) => {
   try {
-    const notifications = await Promise.all(
-      recipients.map((recipientId) =>
-        prisma.notification.create({
-          data: {
-            recipientId,
-            type: notificationData.type,
-            title: notificationData.title,
-            message: notificationData.message,
-            priority: notificationData.priority || "medium",
-            relatedModel: notificationData.relatedModel,
-            relatedId: notificationData.relatedId,
-            actionLink: notificationData.actionLink,
-            actionText: notificationData.actionText,
-            createdById: notificationData.createdById,
-          },
-          include: {
-            recipient: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    const uniqueRecipients = Array.from(new Set(recipients));
+
+    await prisma.notification.createMany({
+      data: uniqueRecipients.map((recipientId) => ({
+        recipientId,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || "medium",
+        relatedModel: notificationData.relatedModel,
+        relatedId: notificationData.relatedId,
+        actionLink: notificationData.actionLink,
+        actionText: notificationData.actionText,
+        createdById: notificationData.createdById,
+        createdAt: now,
+      })),
+    });
+
+    const [notifications, unreadCounts] = await Promise.all([
+      prisma.notification.findMany({
+        where: {
+          recipientId: { in: uniqueRecipients },
+          createdAt: now,
+          type: notificationData.type,
+          title: notificationData.title,
+          message: notificationData.message,
+        },
+        include: {
+          recipient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
-        }),
-      ),
+        },
+      }),
+      prisma.notification.groupBy({
+        by: ["recipientId"],
+        where: {
+          recipientId: { in: uniqueRecipients },
+          isRead: false,
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const unreadCountByRecipient = new Map(
+      unreadCounts.map((row) => [row.recipientId, row._count._all]),
     );
 
-    await Promise.all(
-      notifications.map(async (notification) => {
-        emitToUser(notification.recipientId, "notification:new", notification);
-        const unreadCount = await getUnreadCount(notification.recipientId);
-        emitToUser(notification.recipientId, "notification:unread_count", {
-          count: unreadCount,
-        });
-      }),
-    );
+    notifications.forEach((notification) => {
+      emitToUser(notification.recipientId, "notification:new", notification);
+      emitToUser(notification.recipientId, "notification:unread_count", {
+        count: unreadCountByRecipient.get(notification.recipientId) || 0,
+      });
+    });
 
     logger.info(
-      `Bulk notifications created for ${recipients.length} users: ${notifications.length} records`,
+      `Bulk notifications created for ${uniqueRecipients.length} users: ${notifications.length} records`,
     );
 
     return notifications;

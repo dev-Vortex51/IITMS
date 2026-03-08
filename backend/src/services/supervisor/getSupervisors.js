@@ -54,12 +54,14 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
           industryPartner: {
             select: { name: true, address: true },
           },
-          assignedStudents: true,
+          _count: {
+            select: { assignedStudents: true },
+          },
         },
       });
 
       const availableSupervisors = allSupervisors.filter((s) => {
-        const isAvailable = s.assignedStudents.length < s.maxStudents;
+        const isAvailable = s._count.assignedStudents < s.maxStudents;
         return isAvailable === filters.available;
       });
 
@@ -87,7 +89,9 @@ const getSupervisors = async (filters = {}, pagination = {}) => {
         industryPartner: {
           select: { name: true, address: true },
         },
-        assignedStudents: true,
+        _count: {
+          select: { assignedStudents: true },
+        },
       },
       skip,
       take: limit,
