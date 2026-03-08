@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="ITMS app icon master">
+  <defs>
+    <linearGradient id="tileGrad" x1="0" y1="16" x2="0" y2="496" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#001F4D" />
+      <stop offset="1" stop-color="#003280" />
+    </linearGradient>
+    <mask id="ringMask">
+      <rect width="512" height="512" fill="black" />
+      <circle cx="256" cy="236" r="132" fill="white" />
+      <circle cx="256" cy="236" r="104" fill="black" />
+    </mask>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tileGrad)" />
+
+  <rect width="512" height="512" fill="#FFC766" mask="url(#ringMask)" />
+
+  <rect x="184" y="176" width="30" height="120" rx="15" fill="#FFFFFF" />
+  <rect x="230" y="176" width="98" height="30" rx="15" fill="#FFFFFF" />
+  <rect x="264" y="176" width="30" height="120" rx="15" fill="#FFFFFF" />
+</svg>

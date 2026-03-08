@@ -1,6 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="ITMS icon">
-  <rect width="192" height="192" rx="40" fill="#4f62c7"/>
-  <circle cx="96" cy="72" r="26" fill="#f6be00"/>
-  <rect x="44" y="108" width="104" height="20" rx="10" fill="#ffffff"/>
-  <rect x="56" y="136" width="80" height="12" rx="6" fill="#dbe2ff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ITMS icon">
+  <defs>
+    <linearGradient id="tileGrad192" x1="0" y1="16" x2="0" y2="496" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#001F4D" />
+      <stop offset="1" stop-color="#003280" />
+    </linearGradient>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tileGrad192)" />
+
+  <circle cx="256" cy="256" r="112" fill="none" stroke="#FFC766" stroke-width="24" opacity="0.95" />
+  <g fill="#FFC766">
+    <rect x="246" y="114" width="20" height="28" rx="8" />
+    <rect x="246" y="370" width="20" height="28" rx="8" />
+    <rect x="114" y="246" width="28" height="20" rx="8" />
+    <rect x="370" y="246" width="28" height="20" rx="8" />
+    <rect x="152" y="154" width="24" height="20" rx="8" transform="rotate(-45 164 164)" />
+    <rect x="336" y="338" width="24" height="20" rx="8" transform="rotate(-45 348 348)" />
+    <rect x="336" y="154" width="24" height="20" rx="8" transform="rotate(45 348 164)" />
+    <rect x="152" y="338" width="24" height="20" rx="8" transform="rotate(45 164 348)" />
+  </g>
+
+  <g transform="translate(256 256)">
+    <text
+      x="0"
+      y="16"
+      text-anchor="middle"
+      fill="#FFFFFF"
+      font-family="Avenir Next, Sora, Manrope, Montserrat, Poppins, Segoe UI, Arial, sans-serif"
+      font-size="54"
+      font-weight="700"
+      letter-spacing="0.8"
+    >
+      ITMS
+    </text>
+  </g>
 </svg>

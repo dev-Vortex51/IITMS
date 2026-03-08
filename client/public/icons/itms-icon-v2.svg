@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ITMS icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="ITMS app icon v2">
   <defs>
-    <linearGradient id="tileGrad512" x1="0" y1="16" x2="0" y2="496" gradientUnits="userSpaceOnUse">
+    <linearGradient id="tileGradV2" x1="0" y1="16" x2="0" y2="496" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#001F4D" />
       <stop offset="1" stop-color="#003280" />
     </linearGradient>
   </defs>
 
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tileGrad512)" />
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tileGradV2)" />
 
+  <!-- Industry cue: gear ring -->
   <circle cx="256" cy="256" r="112" fill="none" stroke="#FFC766" stroke-width="24" opacity="0.95" />
   <g fill="#FFC766">
     <rect x="246" y="114" width="20" height="28" rx="8" />
@@ -20,6 +21,7 @@
     <rect x="152" y="338" width="24" height="20" rx="8" transform="rotate(45 164 348)" />
   </g>
 
+  <!-- Core ITMS wordmark -->
   <g transform="translate(256 256)">
     <text
       x="0"

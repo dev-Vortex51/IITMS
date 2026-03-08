@@ -1,4 +1,4 @@
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `itms-shell-${VERSION}`;
 const RUNTIME_CACHE = `itms-runtime-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
