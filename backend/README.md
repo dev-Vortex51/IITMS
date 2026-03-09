@@ -111,17 +111,17 @@ GET /api/v1/health
 - `/reports`
 - `/settings`
 
-## Email Configuration (Gmail SMTP Recommended)
+## Email Configuration (SendGrid SMTP Recommended)
 
-Set Gmail SMTP credentials in environment:
+Set SendGrid SMTP credentials in environment:
 
 - `EMAIL_PROVIDER=smtp`
-- `SMTP_HOST=smtp.gmail.com`
-- `SMTP_PORT=465`
-- `SMTP_SECURE=true`
-- `SMTP_USER=<your-gmail-address>`
-- `SMTP_PASS=<gmail-app-password>`
-- `EMAIL_FROM=IITMS <your-gmail-address>`
+- `SMTP_HOST=smtp.sendgrid.net`
+- `SMTP_PORT=587`
+- `SMTP_SECURE=false`
+- `SMTP_USER=apikey`
+- `SMTP_PASS=<your-sendgrid-api-key>`
+- `EMAIL_FROM=IITMS <verified-sender@your-domain>`
 
 Optional:
 
