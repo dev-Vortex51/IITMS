@@ -29,7 +29,11 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false
       - key: EMAIL_PROVIDER
-        value: smtp
+        value: sendgrid
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM
+        sync: false
       - key: SMTP_HOST
         value: smtp.sendgrid.net
       - key: SMTP_PORT

@@ -27,6 +27,25 @@ class EmailService {
         return;
       }
 
+      if (preferredProvider === "sendgrid" && config.sendgrid?.apiKey) {
+        this.provider = "sendgrid";
+        this.initialized = true;
+        logger.info("Email service initialized with SendGrid API");
+        return;
+      }
+
+      if (preferredProvider === "resend" && !config.resend?.apiKey) {
+        throw new Error(
+          "EMAIL_PROVIDER is set to resend but RESEND_API_KEY is not configured",
+        );
+      }
+
+      if (preferredProvider === "sendgrid" && !config.sendgrid?.apiKey) {
+        throw new Error(
+          "EMAIL_PROVIDER is set to sendgrid but SENDGRID_API_KEY is not configured",
+        );
+      }
+
       if (config.email.user && config.email.password) {
         this.transporter = nodemailer.createTransport({
           host: config.email.host,
@@ -206,6 +225,10 @@ class EmailService {
       return this.sendWithResend({ to, subject, html, text });
     }
 
+    if (this.provider === "sendgrid") {
+      return this.sendWithSendGrid({ to, subject, html, text });
+    }
+
     return this.sendWithSmtp({ to, subject, html, text });
   }
 
@@ -247,6 +270,49 @@ class EmailService {
 
     const data = await response.json();
     return { messageId: data?.id };
+  }
+
+  async sendWithSendGrid({ to, subject, html, text }) {
+    const from = config.sendgrid.from || config.email.from;
+    const toList = Array.isArray(to) ? to : [to];
+
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.sendgrid.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: toList.map((email) => ({ email })) }],
+        from: this.parseFromAddress(from),
+        subject,
+        content: [
+          { type: "text/plain", value: text || "" },
+          { type: "text/html", value: html || "" },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`SendGrid API error (${response.status}): ${details}`);
+    }
+
+    return {
+      messageId: response.headers.get("x-message-id") || null,
+    };
+  }
+
+  parseFromAddress(from) {
+    const match = typeof from === "string" ? from.match(/^(.*)<(.+)>$/) : null;
+    if (!match) {
+      return { email: from };
+    }
+
+    return {
+      name: match[1].trim().replace(/^"|"$/g, ""),
+      email: match[2].trim(),
+    };
   }
 }
 

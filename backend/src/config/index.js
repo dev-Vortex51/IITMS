@@ -57,6 +57,10 @@ const config = {
     apiKey: process.env.RESEND_API_KEY,
     from: process.env.RESEND_FROM || process.env.EMAIL_FROM,
   },
+  sendgrid: {
+    apiKey: process.env.SENDGRID_API_KEY,
+    from: process.env.SENDGRID_FROM || process.env.EMAIL_FROM,
+  },
 
   // CORS
   cors: {

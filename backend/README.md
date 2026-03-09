@@ -111,9 +111,16 @@ GET /api/v1/health
 - `/reports`
 - `/settings`
 
-## Email Configuration (SendGrid SMTP Recommended)
+## Email Configuration
 
-Set SendGrid SMTP credentials in environment:
+Recommended on Render free tier (HTTP API, no SMTP ports required):
+
+- `EMAIL_PROVIDER=sendgrid`
+- `SENDGRID_API_KEY=<your-sendgrid-api-key>`
+- `SENDGRID_FROM=IITMS <verified-sender@your-domain>`
+- `EMAIL_FROM=IITMS <verified-sender@your-domain>`
+
+SMTP option (only for platforms that allow outbound SMTP ports):
 
 - `EMAIL_PROVIDER=smtp`
 - `SMTP_HOST=smtp.sendgrid.net`
