@@ -11,6 +11,11 @@ export interface VisitQueryParams {
 }
 
 export const visitService = {
+  getMyVisits: async () => {
+    const response = await apiClient.get("/visits/my-visits");
+    return response.data?.data || [];
+  },
+
   getVisits: async (params?: VisitQueryParams) => {
     const response = await dedupedGet(
       "/visits",

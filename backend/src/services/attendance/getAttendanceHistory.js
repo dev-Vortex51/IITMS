@@ -42,7 +42,16 @@ const getAttendanceHistory = async (studentId, filters = {}, user) => {
       }
     }
 
-    if (filters.dayStatus) where.dayStatus = filters.dayStatus;
+    if (filters.dayStatus) {
+      where.dayStatus = filters.dayStatus;
+    } else if (filters.status) {
+      const legacyMap = {
+        present: { in: ["PRESENT_ON_TIME", "PRESENT_LATE", "HALF_DAY"] },
+        late: "PRESENT_LATE",
+        absent: { in: ["ABSENT", "EXCUSED_ABSENCE"] },
+      };
+      where.dayStatus = legacyMap[filters.status] || filters.status;
+    }
 
     return await prisma.attendance.findMany({
       where,

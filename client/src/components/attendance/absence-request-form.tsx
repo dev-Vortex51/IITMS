@@ -29,16 +29,18 @@ const labelize = (value: string) =>
   value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function AbsenceRequestForm() {
-  const [date, setDate] = useState<Date>();
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
   const queryClient = useQueryClient();
 
   const submitMutation = useMutation({
-    mutationFn: (data: { date: string; reason: string }) =>
+    mutationFn: (data: { startDate: string; endDate: string; reason: string }) =>
       attendanceService.submitAbsenceRequest(data),
     onSuccess: () => {
       toast.success("Absence request submitted successfully");
-      setDate(undefined);
+      setStartDate(undefined);
+      setEndDate(undefined);
       setReason("");
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
@@ -100,8 +102,13 @@ export function AbsenceRequestForm() {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!date) {
-      toast.error("Please select a date");
+    if (!startDate || !endDate) {
+      toast.error("Please select a date range");
+      return;
+    }
+
+    if (startDate > endDate) {
+      toast.error("Start date must be before end date");
       return;
     }
 
@@ -110,7 +117,11 @@ export function AbsenceRequestForm() {
       return;
     }
 
-    submitMutation.mutate({ date: format(date, "yyyy-MM-dd"), reason });
+    submitMutation.mutate({
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+      reason,
+    });
   };
 
   return (
@@ -125,23 +136,44 @@ export function AbsenceRequestForm() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="absence-date">Date of Absence</Label>
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="absence-date"
-                    type="date"
-                    value={date ? format(date, "yyyy-MM-dd") : ""}
-                    onChange={(event) => {
-                      if (!event.target.value) {
-                        setDate(undefined);
-                        return;
-                      }
-                      const [year, month, day] = event.target.value.split("-");
-                      setDate(new Date(Number(year), Number(month) - 1, Number(day)));
-                    }}
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="absence-start-date">Start Date</Label>
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Input
+                      id="absence-start-date"
+                      type="date"
+                      value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                      onChange={(event) => {
+                        if (!event.target.value) {
+                          setStartDate(undefined);
+                          return;
+                        }
+                        const [year, month, day] = event.target.value.split("-");
+                        setStartDate(new Date(Number(year), Number(month) - 1, Number(day)));
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="absence-end-date">End Date</Label>
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Input
+                      id="absence-end-date"
+                      type="date"
+                      value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                      onChange={(event) => {
+                        if (!event.target.value) {
+                          setEndDate(undefined);
+                          return;
+                        }
+                        const [year, month, day] = event.target.value.split("-");
+                        setEndDate(new Date(Number(year), Number(month) - 1, Number(day)));
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -174,7 +206,7 @@ export function AbsenceRequestForm() {
 
               <Button
                 type="submit"
-                disabled={!date || !isValid || submitMutation.isPending}
+                disabled={!startDate || !endDate || !isValid || submitMutation.isPending}
                 className="h-10 w-full"
               >
                 <Send className="mr-2 h-4 w-4" />
@@ -199,7 +231,7 @@ export function AbsenceRequestForm() {
             </p>
             <p className="inline-flex items-start gap-2">
               <CalendarIcon className="mt-0.5 h-4 w-4" />
-              Requests are tracked in attendance history with approval status.
+              Select a date range for multi-day absences. Records already checked in or approved are skipped.
             </p>
           </CardContent>
         </Card>
@@ -211,7 +243,7 @@ export function AbsenceRequestForm() {
         loading={isLoading}
         data={absenceRecords}
         columns={columns}
-        rowKey={(record) => String((record as any).id || (record as any)._id || record.date)}
+        rowKey={(record) => String(record.id || record.date)}
         emptyTitle="No absence requests"
         emptyDescription="You have no absence requests in the selected period."
         emptyIcon={<CalendarIcon className="h-8 w-8 text-muted-foreground/50" />}

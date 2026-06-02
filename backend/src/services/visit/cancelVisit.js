@@ -1,9 +1,10 @@
 const { getPrismaClient } = require("../../config/prisma");
 const { ApiError } = require("../../middleware/errorHandler");
-const { HTTP_STATUS } = require("../../utils/constants");
+const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { canManageVisit, visitInclude } = require("./helpers");
+const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
 
@@ -13,7 +14,7 @@ const cancelVisit = async (id, payload, user) => {
       where: { id },
       include: {
         student: {
-          select: { departmentId: true },
+          select: { departmentId: true, userId: true },
         },
       },
     });
@@ -48,17 +49,35 @@ const cancelVisit = async (id, payload, user) => {
       );
     }
 
-    const cancelNote = payload?.feedback || payload?.reason || null;
+    const cancelNote = payload?.feedback || payload?.reason;
+    if (!cancelNote) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "A cancellation reason is required",
+      );
+    }
 
     const cancelledVisit = await prisma.visit.update({
       where: { id },
       data: {
         status: "cancelled",
         cancelledAt: new Date(),
-        feedback: cancelNote ?? existingVisit.feedback,
+        feedback: cancelNote,
       },
       include: visitInclude,
     });
+
+    if (existingVisit.student?.userId) {
+      await notificationService.createNotification({
+        recipientId: existingVisit.student.userId,
+        type: NOTIFICATION_TYPES.GENERAL,
+        title: "Visit Cancelled",
+        message: `Your scheduled visit has been cancelled. Reason: ${cancelNote}`,
+        priority: "high",
+        relatedModel: "Visit",
+        relatedId: id,
+      });
+    }
 
     return cancelledVisit;
   } catch (error) {

@@ -11,12 +11,14 @@ import {
   Calendar,
   FileCheck2,
   FileText,
+  Eye,
 } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
   { title: "Placement", href: "/student/placement", icon: Briefcase },
   { title: "Attendance", href: "/student/attendance", icon: Calendar },
+  { title: "Visits", href: "/student/visits", icon: Eye },
   { title: "Compliance", href: "/student/compliance", icon: FileCheck2 },
   { title: "Final Report", href: "/student/final-report", icon: FileText },
   { title: "Logbook", href: "/student/logbook", icon: BookOpen },

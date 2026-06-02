@@ -4,6 +4,7 @@ const { getVisitById } = require("./getVisitById");
 const { updateVisit } = require("./updateVisit");
 const { completeVisit } = require("./completeVisit");
 const { cancelVisit } = require("./cancelVisit");
+const { getVisitsByStudent } = require("./getVisitsByStudent");
 
 module.exports = {
   createVisit,
@@ -12,4 +13,5 @@ module.exports = {
   updateVisit,
   completeVisit,
   cancelVisit,
+  getVisitsByStudent,
 };

@@ -43,9 +43,9 @@ export interface Anomaly {
 }
 
 export interface AttendanceRecord {
-  _id: string;
+  id: string;
   student: {
-    _id: string;
+    id: string;
     matricNumber: string;
     user: {
       firstName: string;
@@ -54,7 +54,7 @@ export interface AttendanceRecord {
     };
   };
   placement: {
-    _id: string;
+    id: string;
     companyName: string;
     position: string;
   };
@@ -79,16 +79,6 @@ export interface AttendanceRecord {
   supervisorComment?: string;
   isLateEntry?: boolean;
   isIncomplete?: boolean;
-  // Backward compatibility
-  status: "present" | "late" | "absent";
-  acknowledgedBy?: {
-    _id: string;
-    user: {
-      firstName: string;
-      lastName: string;
-    };
-  };
-  acknowledgedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,7 +115,8 @@ export interface CheckOutData {
 }
 
 export interface AbsenceRequestData {
-  date: string;
+  startDate: string;
+  endDate: string;
   reason: string;
 }
 
@@ -141,6 +132,7 @@ export interface ReclassifyData {
 export interface AttendanceFilters {
   startDate?: string;
   endDate?: string;
+  dayStatus?: DayStatus;
   status?: "present" | "late" | "absent";
 }
 

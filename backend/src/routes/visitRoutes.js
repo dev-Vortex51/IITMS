@@ -23,6 +23,12 @@ router.get(
 );
 
 router.get(
+  "/my-visits",
+  requireRole(ROLES.STUDENT),
+  visitController.getMyVisits,
+);
+
+router.get(
   "/:id",
   requireRole(ROLES.ADMIN, ROLES.COORDINATOR, ROLES.ACADEMIC_SUPERVISOR),
   visitController.getVisitById,

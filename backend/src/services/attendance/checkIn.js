@@ -4,7 +4,7 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const { getDistance } = require("geolib");
-const { getLagosDayBounds, isDateWithinPlacementWindow } = require("./helpers");
+const { getDayBounds, isDateWithinPlacementWindow } = require("./helpers");
 const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
@@ -17,7 +17,6 @@ const checkIn = async (studentId, data = {}) => {
         placements: {
           where: { status: "approved" },
           orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
-          take: 1,
         },
         supervisorAssignments: {
           where: { status: "active" },
@@ -43,8 +42,22 @@ const checkIn = async (studentId, data = {}) => {
       );
     }
 
-    const placement = student.placements[0];
-    const { startOfDay, endOfDay, lagosTime } = getLagosDayBounds();
+    let placement;
+    if (student.placements.length === 1) {
+      placement = student.placements[0];
+    } else if (data.placementId) {
+      placement = student.placements.find((p) => p.id === data.placementId);
+      if (!placement) {
+        throw new ApiError(400, "The specified placement was not found or is not approved.");
+      }
+    } else {
+      throw new ApiError(
+        400,
+        "You have multiple approved placements. Please specify a placementId.",
+      );
+    }
+    const placementTz = placement.timezone || "Africa/Lagos";
+    const { startOfDay, endOfDay, zonedTime: lagosTime } = getDayBounds(new Date(), placementTz);
     if (!isDateWithinPlacementWindow(startOfDay, placement)) {
       throw new ApiError(
         400,
@@ -90,13 +103,13 @@ const checkIn = async (studentId, data = {}) => {
     const workStartTime = placement.workStartTime || "08:00";
     const [targetHour, targetMinute] = workStartTime.split(":").map(Number);
 
-    const currentHour = lagosTime.getHours();
-    const currentMinute = lagosTime.getMinutes();
+    const graceMinutes = placement.gracePeriodMinutes ?? 15;
+    let targetTotalMinutes = targetHour * 60 + targetMinute;
+    targetTotalMinutes += graceMinutes;
 
-    if (
-      currentHour > targetHour ||
-      (currentHour === targetHour && currentMinute > targetMinute)
-    ) {
+    const currentTotalMinutes = lagosTime.getHours() * 60 + lagosTime.getMinutes();
+
+    if (currentTotalMinutes > targetTotalMinutes) {
       punctuality = "LATE";
     }
 
@@ -114,7 +127,6 @@ const checkIn = async (studentId, data = {}) => {
         dayStatus: "INCOMPLETE",
         approvalStatus: "PENDING",
         punctuality,
-        status: "present",
       },
       include: {
         student: { include: { user: true } },

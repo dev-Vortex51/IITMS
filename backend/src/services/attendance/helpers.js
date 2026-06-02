@@ -1,17 +1,17 @@
 const { toZonedTime } = require("date-fns-tz");
 
-const TIMEZONE = "Africa/Lagos";
+const DEFAULT_TIMEZONE = "Africa/Lagos";
 
-const getLagosDayBounds = (date = new Date()) => {
-  const lagosTime = toZonedTime(date, TIMEZONE);
-  const year = lagosTime.getFullYear();
-  const month = (lagosTime.getMonth() + 1).toString().padStart(2, "0");
-  const day = lagosTime.getDate().toString().padStart(2, "0");
+const getDayBounds = (date = new Date(), timezone = DEFAULT_TIMEZONE) => {
+  const zonedTime = toZonedTime(date, timezone);
+  const year = zonedTime.getFullYear();
+  const month = zonedTime.getMonth();
+  const day = zonedTime.getDate();
 
-  const startOfDay = new Date(`${year}-${month}-${day}T00:00:00.000+01:00`);
-  const endOfDay = new Date(`${year}-${month}-${day}T23:59:59.999+01:00`);
+  const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
-  return { startOfDay, endOfDay, lagosTime };
+  return { startOfDay, endOfDay, zonedTime };
 };
 
 const normalizeDayStart = (date) => {
@@ -34,8 +34,11 @@ const isDateWithinPlacementWindow = (date, placement) => {
   return target >= start && target <= end;
 };
 
+const getLagosDayBounds = (date = new Date()) => getDayBounds(date, DEFAULT_TIMEZONE);
+
 module.exports = {
-  TIMEZONE,
+  DEFAULT_TIMEZONE,
+  getDayBounds,
   getLagosDayBounds,
   isDateWithinPlacementWindow,
 };

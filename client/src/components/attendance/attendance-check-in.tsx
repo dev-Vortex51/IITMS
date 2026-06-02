@@ -195,8 +195,13 @@ export function AttendanceCheckIn() {
     setIsSyncingOffline(true);
     const remaining: AttendanceOfflineAction[] = [];
     let processed = 0;
+    let failed = false;
 
     for (const action of offlineQueue) {
+      if (failed) {
+        remaining.push(action);
+        continue;
+      }
       try {
         if (action.type === "check-in") {
           await attendanceService.checkIn(action.payload);
@@ -206,6 +211,7 @@ export function AttendanceCheckIn() {
         processed += 1;
       } catch {
         remaining.push(action);
+        failed = true;
       }
     }
 

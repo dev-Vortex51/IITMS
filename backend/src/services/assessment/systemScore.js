@@ -83,9 +83,20 @@ const calculateVisitationComponent = (visits, visitLimit) => {
   const effectiveLimit = Math.max(1, Number(visitLimit) || DEFAULT_VISITATION_LIMIT);
   const completionRate = Math.min(completedVisits.length / effectiveLimit, 1);
 
+  const scoredVisits = completedVisits.filter((v) => Number.isFinite(v.score));
+  const avgQuality =
+    scoredVisits.length > 0
+      ? scoredVisits.reduce((sum, v) => sum + v.score, 0) / scoredVisits.length
+      : 100;
+
+  const combinedScore = round2(completionRate * (avgQuality / 100) * 100);
+
   return {
-    score: round2(completionRate * 100),
+    score: combinedScore,
+    completionScore: round2(completionRate * 100),
+    averageQuality: round2(avgQuality),
     completedVisits: completedVisits.length,
+    scoredVisits: scoredVisits.length,
     visitLimit: effectiveLimit,
   };
 };

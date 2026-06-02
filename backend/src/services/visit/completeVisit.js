@@ -1,9 +1,10 @@
 const { getPrismaClient } = require("../../config/prisma");
 const { ApiError } = require("../../middleware/errorHandler");
-const { HTTP_STATUS } = require("../../utils/constants");
+const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { canManageVisit, visitInclude } = require("./helpers");
+const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
 
@@ -13,7 +14,7 @@ const completeVisit = async (id, payload, user) => {
       where: { id },
       include: {
         student: {
-          select: { departmentId: true },
+          select: { departmentId: true, userId: true },
         },
       },
     });
@@ -54,6 +55,18 @@ const completeVisit = async (id, payload, user) => {
       },
       include: visitInclude,
     });
+
+    if (existingVisit.student?.userId) {
+      await notificationService.createNotification({
+        recipientId: existingVisit.student.userId,
+        type: NOTIFICATION_TYPES.GENERAL,
+        title: "Visit Completed",
+        message: `Your visit has been marked as completed.`,
+        priority: "low",
+        relatedModel: "Visit",
+        relatedId: id,
+      });
+    }
 
     return completedVisit;
   } catch (error) {

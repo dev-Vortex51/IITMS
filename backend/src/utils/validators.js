@@ -340,7 +340,9 @@ const evaluationValidation = {
 const visitValidation = {
   createVisit: Joi.object({
     student: customValidators.objectId.required(),
-    visitDate: Joi.date().required(),
+    visitDate: Joi.date().greater("now").required().messages({
+      "date.greater": "Visit date must be in the future",
+    }),
     type: Joi.string().valid("physical", "virtual").required(),
     objective: Joi.string().max(1000).allow("").optional(),
     location: Joi.string().max(300).allow("").optional(),
@@ -353,7 +355,6 @@ const visitValidation = {
     objective: Joi.string().max(1000).allow("").optional(),
     location: Joi.string().max(300).allow("").optional(),
     feedback: Joi.string().max(2000).allow("").optional(),
-    score: Joi.number().integer().min(0).max(100).optional(),
   }).min(1),
 
   completeVisit: Joi.object({
@@ -362,9 +363,8 @@ const visitValidation = {
   }),
 
   cancelVisit: Joi.object({
-    reason: Joi.string().max(1000).allow("").optional(),
-    feedback: Joi.string().max(2000).allow("").optional(),
-  }),
+    reason: Joi.string().max(1000).required(),
+  }).messages({ "any.required": "Cancellation reason is required" }),
 };
 
 const complianceFormValidation = {

@@ -53,6 +53,7 @@ const getMyAttendance = asyncHandler(async (req, res) => {
   const filters = {
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    dayStatus: req.query.dayStatus,
     status: req.query.status,
   };
 
@@ -94,6 +95,7 @@ const getStudentAttendance = asyncHandler(async (req, res) => {
   const filters = {
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    dayStatus: req.query.dayStatus,
     status: req.query.status,
   };
 
@@ -133,6 +135,7 @@ const getPlacementAttendance = asyncHandler(async (req, res) => {
   const filters = {
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    dayStatus: req.query.dayStatus,
     status: req.query.status,
   };
 
@@ -201,17 +204,33 @@ const submitAbsenceRequest = asyncHandler(async (req, res) => {
       .json(formatResponse(false, "Student profile not found", null));
   }
 
-  const { date, reason } = req.body;
+  const { startDate, endDate, date, reason } = req.body;
 
-  if (!date || !reason) {
+  const from = startDate || date;
+  const to = endDate || date;
+
+  if (!from || !to || !reason) {
     return res
       .status(400)
-      .json(formatResponse(false, "Date and reason are required", null));
+      .json(formatResponse(false, "startDate, endDate, and reason are required", null));
+  }
+
+  if (reason.trim().length < 10) {
+    return res
+      .status(400)
+      .json(formatResponse(false, "Reason must be at least 10 characters", null));
+  }
+
+  if (reason.length > 500) {
+    return res
+      .status(400)
+      .json(formatResponse(false, "Reason must not exceed 500 characters", null));
   }
 
   const attendance = await attendanceService.submitAbsenceRequest(
     studentId,
-    date,
+    from,
+    to,
     reason,
   );
 
@@ -336,6 +355,19 @@ const markAbsentForDate = asyncHandler(async (req, res) => {
   );
 });
 
+const updateAttendance = asyncHandler(async (req, res) => {
+  const { attendanceId } = req.params;
+
+  const attendance = await attendanceService.updateAttendance(
+    attendanceId,
+    req.body,
+  );
+
+  res.json(
+    formatResponse(true, "Attendance record updated successfully", attendance),
+  );
+});
+
 module.exports = {
   checkIn,
   checkOut,
@@ -352,4 +384,5 @@ module.exports = {
   reclassifyAttendance,
   getAttendanceSummary,
   markAbsentForDate,
+  updateAttendance,
 };

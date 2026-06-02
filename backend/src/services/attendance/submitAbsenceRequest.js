@@ -8,7 +8,7 @@ const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
 
-const submitAbsenceRequest = async (studentId, date, reason) => {
+const submitAbsenceRequest = async (studentId, startDate, endDate, reason) => {
   try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -40,60 +40,67 @@ const submitAbsenceRequest = async (studentId, date, reason) => {
       );
     }
 
-    const { startOfDay, endOfDay } = getLagosDayBounds(new Date(date));
-    if (!isDateWithinPlacementWindow(startOfDay, student.placements[0])) {
-      throw new ApiError(
-        400,
-        "Absence requests are only allowed within your approved placement dates.",
-      );
+    const dates = [];
+    const rangeStart = new Date(startDate);
+    const rangeEnd = new Date(endDate);
+    const current = new Date(rangeStart);
+
+    while (current <= rangeEnd) {
+      const { startOfDay } = getLagosDayBounds(new Date(current));
+      if (!isDateWithinPlacementWindow(startOfDay, student.placements[0])) {
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 1);
     }
 
-    let attendance = await prisma.attendance.findFirst({
-      where: {
-        studentId,
-        date: { gte: startOfDay, lte: endOfDay },
-      },
-    });
-
-    if (attendance && attendance.approvalStatus === "APPROVED") {
-      throw new ApiError(
-        400,
-        "Cannot request absence for already approved attendance",
-      );
+    if (dates.length === 0) {
+      throw new ApiError(400, "No valid dates within your placement window.");
     }
 
-    if (attendance && attendance.checkInTime) {
-      throw new ApiError(
-        400,
-        "Cannot request absence for a day you already checked in",
-      );
-    }
+    const created = [];
 
-    if (attendance) {
-      attendance = await prisma.attendance.update({
-        where: { id: attendance.id },
-        data: {
-          absenceReason: reason,
-          dayStatus: "ABSENT",
-          approvalStatus: "PENDING",
-          punctuality: "LATE",
-        },
-        include: { student: { include: { user: true } }, placement: true },
-      });
-    } else {
-      attendance = await prisma.attendance.create({
-        data: {
+    for (const dateStr of dates) {
+      const { startOfDay, endOfDay } = getLagosDayBounds(new Date(dateStr));
+
+      let attendance = await prisma.attendance.findFirst({
+        where: {
           studentId,
-          placementId: student.placements[0].id,
-          date: startOfDay,
-          absenceReason: reason,
-          dayStatus: "ABSENT",
-          approvalStatus: "PENDING",
-          punctuality: "LATE",
-          status: "absent",
+          date: { gte: startOfDay, lte: endOfDay },
         },
-        include: { student: { include: { user: true } }, placement: true },
       });
+
+      if (attendance && attendance.approvalStatus === "APPROVED") continue;
+      if (attendance && attendance.checkInTime) continue;
+
+      if (attendance) {
+        attendance = await prisma.attendance.update({
+          where: { id: attendance.id },
+          data: {
+            absenceReason: reason,
+            dayStatus: "ABSENT",
+            approvalStatus: "PENDING",
+            punctuality: "LATE",
+          },
+          include: { student: { include: { user: true } }, placement: true },
+        });
+      } else {
+        attendance = await prisma.attendance.create({
+          data: {
+            studentId,
+            placementId: student.placements[0].id,
+            date: startOfDay,
+            absenceReason: reason,
+            dayStatus: "ABSENT",
+            approvalStatus: "PENDING",
+            punctuality: "LATE",
+          },
+          include: { student: { include: { user: true } }, placement: true },
+        });
+      }
+
+      created.push(attendance);
     }
 
     const industrialSupervisorIds = [
@@ -105,20 +112,20 @@ const submitAbsenceRequest = async (studentId, date, reason) => {
       ),
     ];
 
-    if (industrialSupervisorIds.length > 0) {
+    if (industrialSupervisorIds.length > 0 && created.length > 0) {
       await notificationService.createBulkNotifications(industrialSupervisorIds, {
         type: NOTIFICATION_TYPES.ABSENCE_REQUEST_SUBMITTED,
         title: "Absence Request Submitted",
-        message: `${student.user.firstName} ${student.user.lastName} submitted an absence request.`,
+        message: `${student.user.firstName} ${student.user.lastName} submitted an absence request for ${created.length} day(s).`,
         priority: "medium",
         relatedModel: "Attendance",
-        relatedId: attendance.id,
+        relatedId: created[0].id,
         actionLink: "/i-supervisor/attendance",
         actionText: "Review Request",
       });
     }
 
-    return attendance;
+    return created;
   } catch (error) {
     logger.error(`Error submitting absence request: ${error.message}`);
     throw handlePrismaError(error);

@@ -10,6 +10,7 @@ const { rejectAttendance } = require("./rejectAttendance");
 const { reclassifyAttendance } = require("./reclassifyAttendance");
 const { markAbsent } = require("./markAbsent");
 const { getAttendanceSummary } = require("./getAttendanceSummary");
+const { updateAttendance } = require("./updateAttendance");
 
 module.exports = {
   checkIn,
@@ -24,4 +25,5 @@ module.exports = {
   reclassifyAttendance,
   markAbsent,
   getAttendanceSummary,
+  updateAttendance,
 };

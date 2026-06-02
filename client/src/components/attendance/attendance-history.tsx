@@ -35,7 +35,12 @@ const dayStatusLabel = (status: string) =>
 
 export function AttendanceHistory() {
   const [period, setPeriod] = useState("current");
-  const [statusFilter, setStatusFilter] = useState<"all" | "present" | "late">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "on_time" | "late">("all");
+
+  const statusToDayStatus: Record<string, string> = {
+    on_time: "PRESENT_ON_TIME",
+    late: "PRESENT_LATE",
+  };
 
   const filters = useMemo<AttendanceFilters>(() => {
     const now = new Date();
@@ -44,7 +49,7 @@ export function AttendanceHistory() {
       return {
         startDate: "1970-01-01",
         endDate: format(now, "yyyy-MM-dd"),
-        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        ...(statusFilter !== "all" ? { dayStatus: statusToDayStatus[statusFilter] as any } : {}),
       };
     }
 
@@ -58,7 +63,7 @@ export function AttendanceHistory() {
     return {
       startDate: format(startOfMonth(base), "yyyy-MM-dd"),
       endDate: format(endOfMonth(base), "yyyy-MM-dd"),
-      ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+      ...(statusFilter !== "all" ? { dayStatus: statusToDayStatus[statusFilter] as any } : {}),
     };
   }, [period, statusFilter]);
 
@@ -201,7 +206,7 @@ export function AttendanceHistory() {
         loading={isLoading}
         data={historyRecords}
         columns={columns}
-        rowKey={(record) => String((record as any).id || (record as any)._id || record.date)}
+        rowKey={(record) => String(record.id || record.date)}
         emptyTitle="No attendance records"
         emptyDescription="No check-in/out records were found for the selected filters."
         emptyIcon={<CalendarDays className="h-8 w-8 text-muted-foreground/50" />}
@@ -222,7 +227,7 @@ export function AttendanceHistory() {
             <Select
               value={statusFilter}
               onValueChange={(value) =>
-                setStatusFilter(value as "all" | "present" | "late")
+                setStatusFilter(value as "all" | "on_time" | "late")
               }
             >
               <SelectTrigger className="h-9 w-[130px]">
@@ -230,7 +235,7 @@ export function AttendanceHistory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="present">Present</SelectItem>
+                <SelectItem value="on_time">On Time</SelectItem>
                 <SelectItem value="late">Late</SelectItem>
               </SelectContent>
             </Select>

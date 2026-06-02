@@ -468,6 +468,7 @@ model Placement {
   companyLng      Float?   // Longitude of the office
   allowedRadius   Int      @default(200) // Allowed radius in meters (e.g. 200m)
   
+  timezone        String   @default("Africa/Lagos")
   workStartTime   String   @default("08:00") // Format "HH:mm"
   workEndTime     String   @default("17:00") // Format "HH:mm"
   
@@ -705,6 +706,7 @@ model Visit {
   placementId  String?
   placement    Placement?  @relation(fields: [placementId], references: [id])
   visitDate    DateTime
+  timezone     String      @default("Africa/Lagos")
   type         VisitType   @default(physical)
   status       VisitStatus @default(scheduled)
   objective    String?
@@ -818,9 +820,6 @@ model Attendance {
   supervisor         Supervisor? @relation(fields: [supervisorId], references: [id])
   supervisorComment  String?
   supervisorApprovedAt DateTime?
-  
-  // Legacy
-  status String @default("present")
   
   // Timestamps
   createdAt DateTime @default(now())

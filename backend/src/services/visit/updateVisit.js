@@ -64,10 +64,6 @@ const updateVisit = async (id, visitData, user) => {
     if (visitData.feedback !== undefined) {
       data.feedback = visitData.feedback || null;
     }
-    if (visitData.score !== undefined) {
-      data.score = visitData.score;
-    }
-
     const updatedVisit = await prisma.visit.update({
       where: { id },
       data,

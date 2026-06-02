@@ -85,6 +85,25 @@ const cancelVisit = catchAsync(async (req, res) => {
   });
 });
 
+const getMyVisits = catchAsync(async (req, res) => {
+  const studentId = req.user.studentProfile;
+
+  if (!studentId) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: "Student profile not found",
+    });
+  }
+
+  const visits = await visitService.getVisitsByStudent(studentId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: "Visits retrieved successfully",
+    data: visits,
+  });
+});
+
 module.exports = {
   createVisit,
   getVisits,
@@ -92,4 +111,5 @@ module.exports = {
   updateVisit,
   completeVisit,
   cancelVisit,
+  getMyVisits,
 };

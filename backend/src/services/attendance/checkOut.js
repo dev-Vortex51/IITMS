@@ -40,6 +40,9 @@ const checkOut = async (studentId, data = {}) => {
     if (attendance.punctuality === "LATE") {
       dayStatus = "PRESENT_LATE";
     }
+    if (hoursWorked < 6) {
+      dayStatus = "HALF_DAY";
+    }
 
     const updated = await prisma.attendance.update({
       where: { id: attendance.id },

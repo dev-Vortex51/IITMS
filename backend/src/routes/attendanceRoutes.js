@@ -156,4 +156,12 @@ router.post(
   attendanceController.markAbsentForDate,
 );
 
+// Admin/Coordinator record correction
+router.patch(
+  "/:attendanceId",
+  authenticate,
+  authorize(USER_ROLES.ADMIN, USER_ROLES.COORDINATOR),
+  attendanceController.updateAttendance,
+);
+
 module.exports = router;

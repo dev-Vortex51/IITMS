@@ -1,9 +1,10 @@
 const { getPrismaClient } = require("../../config/prisma");
 const { ApiError } = require("../../middleware/errorHandler");
-const { HTTP_STATUS } = require("../../utils/constants");
+const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
-const { visitInclude } = require("./helpers");
+const { visitInclude, validateVisitDate, checkDuplicateVisit } = require("./helpers");
+const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
 
@@ -16,6 +17,7 @@ const createVisit = async (visitData, supervisorId) => {
           where: { status: "active" },
           select: { studentId: true },
         },
+        user: { select: { firstName: true, lastName: true } },
       },
     });
 
@@ -25,7 +27,7 @@ const createVisit = async (visitData, supervisorId) => {
 
     const student = await prisma.student.findUnique({
       where: { id: visitData.student },
-      select: { id: true, departmentId: true },
+      select: { id: true, departmentId: true, userId: true },
     });
 
     if (!student) {
@@ -43,7 +45,9 @@ const createVisit = async (visitData, supervisorId) => {
       );
     }
 
-    const [settings, activeVisitCount] = await Promise.all([
+    const visitDate = new Date(visitData.visitDate);
+
+    const [settings, activeVisitCount, activePlacement] = await Promise.all([
       prisma.systemSettings.findFirst({
         select: { maxVisitations: true },
       }),
@@ -52,6 +56,11 @@ const createVisit = async (visitData, supervisorId) => {
           studentId: student.id,
           status: { in: ["scheduled", "completed"] },
         },
+      }),
+      prisma.placement.findFirst({
+        where: { studentId: student.id, status: "approved" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, startDate: true, endDate: true, timezone: true },
       }),
     ]);
 
@@ -67,21 +76,16 @@ const createVisit = async (visitData, supervisorId) => {
       );
     }
 
-    const activePlacement = await prisma.placement.findFirst({
-      where: {
-        studentId: student.id,
-        status: "approved",
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
+    validateVisitDate(visitDate, activePlacement);
+    await checkDuplicateVisit(prisma, student.id, visitDate);
 
     const createdVisit = await prisma.visit.create({
       data: {
         studentId: student.id,
         supervisorId,
         placementId: activePlacement?.id || null,
-        visitDate: new Date(visitData.visitDate),
+        timezone: activePlacement?.timezone || "Africa/Lagos",
+        visitDate,
         type: visitData.type,
         objective: visitData.objective || null,
         location: visitData.location || null,
@@ -89,6 +93,18 @@ const createVisit = async (visitData, supervisorId) => {
       },
       include: visitInclude,
     });
+
+    if (student.userId) {
+      await notificationService.createNotification({
+        recipientId: student.userId,
+        type: NOTIFICATION_TYPES.GENERAL,
+        title: "Visit Scheduled",
+        message: `A ${visitData.type} visit has been scheduled for you by ${supervisor.user.firstName} ${supervisor.user.lastName}.`,
+        priority: "medium",
+        relatedModel: "Visit",
+        relatedId: createdVisit.id,
+      });
+    }
 
     return createdVisit;
   } catch (error) {

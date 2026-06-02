@@ -45,7 +45,7 @@ interface SupervisorApprovalInterfaceProps {
 type DialogAction = "approve" | "reject" | "reclassify" | null;
 
 function getRecordId(record: AttendanceRecord) {
-  return String((record as any).id || record._id || `${record.student?._id}-${record.date}`);
+  return String(record.id || `${record.student?.id}-${record.date}`);
 }
 
 function getStudentName(record: AttendanceRecord) {

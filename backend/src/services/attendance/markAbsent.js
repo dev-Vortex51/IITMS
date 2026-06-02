@@ -53,7 +53,6 @@ const markAbsent = async (targetDate = null) => {
           date: startOfDay,
           dayStatus: "ABSENT",
           approvalStatus: "PENDING",
-          status: "absent",
         });
       }
     }
