@@ -2,13 +2,17 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, FileText, BarChart3, AlertCircle } from "lucide-react";
 import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
 import { AttendanceHistory } from "@/components/attendance/attendance-history";
 import { AbsenceRequestForm } from "@/components/attendance/absence-request-form";
 import { useAuth } from "@/components/providers/auth-provider";
-import { SectionCard, PageHeader } from "@/components/design-system";
+import { SectionCard, PageHeader, LoadingPage } from "@/components/design-system";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { studentService } from "@/services/student.service";
 
 const AttendanceSummaryCard = dynamic(
   () =>
@@ -25,6 +29,22 @@ export default function StudentAttendancePage() {
 
   const { user } = useAuth();
   const studentId = user?.profileData?.id;
+
+  const {
+    data: placement,
+    isLoading: isPlacementLoading,
+  } = useQuery({
+    queryKey: ["placement", studentId],
+    queryFn: () => studentService.getStudentPlacement(studentId!),
+    enabled: !!studentId,
+    retry: false,
+  });
+
+  if (isPlacementLoading) {
+    return <LoadingPage label="Loading attendance..." />;
+  }
+
+  const hasApprovedPlacement = placement?.status === "approved";
 
   return (
     <div className="space-y-6">
@@ -57,7 +77,24 @@ export default function StudentAttendancePage() {
           </TabsList>
 
           <TabsContent value="check-in" className="space-y-6">
-            <AttendanceCheckIn />
+            {hasApprovedPlacement ? (
+              <AttendanceCheckIn />
+            ) : (
+              <SectionCard
+                title="Check-in Locked"
+                description="Attendance check-in becomes available when your placement is approved."
+              >
+                <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  <p className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4" />
+                    You need an approved placement before you can check in.
+                  </p>
+                </div>
+                <Button asChild className="mt-4 h-9">
+                  <Link href="/student/placement">Go to Placement</Link>
+                </Button>
+              </SectionCard>
+            )}
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
