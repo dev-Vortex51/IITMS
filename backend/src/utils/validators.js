@@ -301,42 +301,6 @@ const assessmentValidation = {
   }).min(1),
 };
 
-const evaluationValidation = {
-  createEvaluation: Joi.object({
-    student: customValidators.objectId.required(),
-    type: Joi.string().valid("midterm", "final").required(),
-    scores: Joi.object({
-      technicalSkill: Joi.number().min(0).max(100).required(),
-      communication: Joi.number().min(0).max(100).required(),
-      professionalism: Joi.number().min(0).max(100).required(),
-      punctuality: Joi.number().min(0).max(100).required(),
-      problemSolving: Joi.number().min(0).max(100).required(),
-      workAttitude: Joi.number().min(0).max(100).optional(),
-      initiative: Joi.number().min(0).max(100).optional(),
-    }).required(),
-    strengths: Joi.string().max(1000).allow("").optional(),
-    areasForImprovement: Joi.string().max(1000).allow("").optional(),
-    comment: Joi.string().max(1000).allow("").optional(),
-  }),
-
-  updateEvaluation: Joi.object({
-    type: Joi.string().valid("midterm", "final").optional(),
-    status: Joi.string().valid("draft", "submitted", "completed").optional(),
-    scores: Joi.object({
-      technicalSkill: Joi.number().min(0).max(100).required(),
-      communication: Joi.number().min(0).max(100).required(),
-      professionalism: Joi.number().min(0).max(100).required(),
-      punctuality: Joi.number().min(0).max(100).required(),
-      problemSolving: Joi.number().min(0).max(100).required(),
-      workAttitude: Joi.number().min(0).max(100).optional(),
-      initiative: Joi.number().min(0).max(100).optional(),
-    }).optional(),
-    strengths: Joi.string().max(1000).allow("").optional(),
-    areasForImprovement: Joi.string().max(1000).allow("").optional(),
-    comment: Joi.string().max(1000).allow("").optional(),
-  }).min(1),
-};
-
 const visitValidation = {
   createVisit: Joi.object({
     student: customValidators.objectId.required(),
@@ -461,7 +425,6 @@ module.exports = {
   placementValidation,
   logbookValidation,
   assessmentValidation,
-  evaluationValidation,
   visitValidation,
   complianceFormValidation,
   technicalReportValidation,

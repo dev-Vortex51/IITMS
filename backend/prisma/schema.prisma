@@ -69,17 +69,6 @@ enum Recommendation {
   poor
 }
 
-enum EvaluationType {
-  midterm
-  final
-}
-
-enum EvaluationStatus {
-  draft
-  submitted
-  completed
-}
-
 enum VisitType {
   physical
   virtual
@@ -383,7 +372,6 @@ model Student {
   placements            Placement[]
   logbooks              Logbook[]
   assessments           Assessment[]
-  evaluations           Evaluation[]
   visits                Visit[]
   attendances           Attendance[]
   supervisorAssignments SupervisorAssignment[]
@@ -443,7 +431,6 @@ model Supervisor {
   placements            Placement[]
   logbookReviews        LogbookReview[]
   assessments           Assessment[]
-  evaluations           Evaluation[]
   visits                Visit[]
   attendanceReviews     Attendance[]
   
@@ -517,7 +504,6 @@ model Placement {
   
   // Relations
   assessments           Assessment[]
-  evaluations           Evaluation[]
   visits                Visit[]
   attendances           Attendance[]
   supervisorAssignments SupervisorAssignment[]
@@ -613,6 +599,8 @@ model Assessment {
   supervisor   Supervisor       @relation(fields: [supervisorId], references: [id])
   placementId  String?
   placement    Placement?       @relation(fields: [placementId], references: [id], onDelete: SetNull)
+  visitId      String?
+  visit        Visit?           @relation(fields: [visitId], references: [id])
   type         AssessmentType
   
   // Scores (out of 100)
@@ -652,50 +640,9 @@ model Assessment {
   @@index([supervisorId])
   @@index([type])
   @@index([status])
+  @@index([visitId])
   @@index([studentId, type])
   @@map("assessments")
-}
-
-model Evaluation {
-  id           String            @id @default(uuid())
-  studentId    String
-  student      Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  supervisorId String
-  supervisor   Supervisor        @relation(fields: [supervisorId], references: [id])
-  placementId  String?
-  placement    Placement?        @relation(fields: [placementId], references: [id], onDelete: SetNull)
-  type         EvaluationType    @default(midterm)
-  status       EvaluationStatus  @default(draft)
-
-  // Scores (0-100)
-  technicalSkill  Int
-  communication   Int
-  professionalism Int
-  punctuality     Int
-  problemSolving  Int
-  workAttitude    Int?
-  initiative      Int?
-
-  // Computed summary
-  totalScore Float?
-  grade      String?
-
-  // Qualitative feedback
-  strengths           String?
-  areasForImprovement String?
-  comment             String?
-
-  submittedAt DateTime?
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([studentId, supervisorId, type])
-  @@index([studentId])
-  @@index([supervisorId])
-  @@index([type])
-  @@index([status])
-  @@map("evaluations")
 }
 
 model Visit {
@@ -718,6 +665,8 @@ model Visit {
   cancelledAt  DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  assessments Assessment[]
 
   @@index([studentId])
   @@index([supervisorId])
@@ -976,11 +925,8 @@ model SystemSettings {
   // Scoring settings
   systemScoreMax    Int @default(80)
   defenseScoreMax   Int @default(20)
-  logbookWeight     Int @default(20)
-  evaluationWeight  Int @default(20)
+  logbookWeight     Int @default(50)
   assessmentWeight  Int @default(30)
-  visitationWeight  Int @default(10)
-  maxVisitations    Int @default(2)
   
   // Approval settings
   autoAssignSupervisors   Boolean @default(false)

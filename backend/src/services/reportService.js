@@ -252,17 +252,14 @@ const getStudentProgressReport = async (studentId) => {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
     }
 
-    const [settings, approvedPlacement, logbooks, assessments, evaluations, visits] =
+    const [settings, approvedPlacement, logbooks, assessments] =
       await Promise.all([
         prisma.systemSettings.findFirst({
           select: {
             systemScoreMax: true,
             defenseScoreMax: true,
             logbookWeight: true,
-            evaluationWeight: true,
             assessmentWeight: true,
-            visitationWeight: true,
-            maxVisitations: true,
           },
         }),
         prisma.placement.findFirst({
@@ -278,14 +275,6 @@ const getStudentProgressReport = async (studentId) => {
       prisma.assessment.findMany({
         where: { studentId },
         include: { supervisor: true },
-      }),
-      prisma.evaluation.findMany({
-        where: { studentId },
-        select: { id: true, status: true, type: true, totalScore: true },
-      }),
-      prisma.visit.findMany({
-        where: { studentId },
-        select: { id: true, status: true, score: true, visitDate: true },
       }),
     ]);
 
@@ -331,8 +320,6 @@ const getStudentProgressReport = async (studentId) => {
       placement: approvedPlacement,
       logbooks,
       assessments,
-      evaluations,
-      visits,
       scoringConfig: settings || {},
     });
 

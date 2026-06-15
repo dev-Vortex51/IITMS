@@ -5,10 +5,7 @@ export interface SystemSettingsFormScoring {
   systemScoreMax: number;
   defenseScoreMax: number;
   logbookWeight: number;
-  evaluationWeight: number;
   assessmentWeight: number;
-  visitationWeight: number;
-  maxVisitations: number;
 }
 
 interface SystemScoringSettingsSectionProps {
@@ -72,20 +69,6 @@ export function SystemScoringSettingsSection({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="admin-evaluation-weight">Evaluation Weight</Label>
-          <Input
-            id="admin-evaluation-weight"
-            type="number"
-            value={form.evaluationWeight}
-            onChange={(event) =>
-              onChange({
-                ...form,
-                evaluationWeight: parseInt(event.target.value, 10) || 0,
-              })
-            }
-          />
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="admin-assessment-weight">Assessment Weight</Label>
           <Input
             id="admin-assessment-weight"
@@ -95,34 +78,6 @@ export function SystemScoringSettingsSection({
               onChange({
                 ...form,
                 assessmentWeight: parseInt(event.target.value, 10) || 0,
-              })
-            }
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="admin-visitation-weight">Visitation Weight</Label>
-          <Input
-            id="admin-visitation-weight"
-            type="number"
-            value={form.visitationWeight}
-            onChange={(event) =>
-              onChange({
-                ...form,
-                visitationWeight: parseInt(event.target.value, 10) || 0,
-              })
-            }
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="admin-max-visitations">Maximum Visitations</Label>
-          <Input
-            id="admin-max-visitations"
-            type="number"
-            value={form.maxVisitations}
-            onChange={(event) =>
-              onChange({
-                ...form,
-                maxVisitations: parseInt(event.target.value, 10) || 0,
               })
             }
           />

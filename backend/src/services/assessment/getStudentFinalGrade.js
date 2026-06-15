@@ -20,17 +20,14 @@ const getStudentFinalGrade = async (studentId) => {
     if (!student)
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Student not found");
 
-    const [settings, placement, logbooks, assessments, evaluations, visits] =
+    const [settings, placement, logbooks, assessments] =
       await Promise.all([
         prisma.systemSettings.findFirst({
           select: {
             systemScoreMax: true,
             defenseScoreMax: true,
             logbookWeight: true,
-            evaluationWeight: true,
             assessmentWeight: true,
-            visitationWeight: true,
-            maxVisitations: true,
           },
         }),
         prisma.placement.findFirst({
@@ -55,22 +52,12 @@ const getStudentFinalGrade = async (studentId) => {
             teamwork: true,
           },
         }),
-        prisma.evaluation.findMany({
-          where: { studentId },
-          select: { id: true, status: true, type: true, totalScore: true },
-        }),
-        prisma.visit.findMany({
-          where: { studentId },
-          select: { id: true, status: true, score: true, visitDate: true },
-        }),
       ]);
 
     const systemScore = calculateSystemContinuousScore({
       placement,
       logbooks,
       assessments,
-      evaluations,
-      visits,
       scoringConfig: settings || {},
     });
 

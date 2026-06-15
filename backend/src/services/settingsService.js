@@ -15,10 +15,7 @@ const normalizeSystemSettingsUpdate = (updateData = {}) => {
     "systemScoreMax",
     "defenseScoreMax",
     "logbookWeight",
-    "evaluationWeight",
     "assessmentWeight",
-    "visitationWeight",
-    "maxVisitations",
   ];
 
   numericFields.forEach((field) => {
@@ -52,16 +49,6 @@ const normalizeSystemSettingsUpdate = (updateData = {}) => {
     );
   }
 
-  if (
-    normalized.maxVisitations !== undefined &&
-    normalized.maxVisitations <= 0
-  ) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Maximum visitations must be greater than 0",
-    );
-  }
-
   return normalized;
 };
 
@@ -82,11 +69,8 @@ const getSystemSettings = async () => {
           minWeeks: 24,
           systemScoreMax: 80,
           defenseScoreMax: 20,
-          logbookWeight: 20,
-          evaluationWeight: 20,
+          logbookWeight: 50,
           assessmentWeight: 30,
-          visitationWeight: 10,
-          maxVisitations: 2,
           autoAssignSupervisors: false,
           requireLogbookApproval: true,
         },

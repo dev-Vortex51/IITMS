@@ -27,10 +27,7 @@ interface SystemSettingsForm {
   systemScoreMax: SystemSettingsFormScoring["systemScoreMax"];
   defenseScoreMax: SystemSettingsFormScoring["defenseScoreMax"];
   logbookWeight: SystemSettingsFormScoring["logbookWeight"];
-  evaluationWeight: SystemSettingsFormScoring["evaluationWeight"];
   assessmentWeight: SystemSettingsFormScoring["assessmentWeight"];
-  visitationWeight: SystemSettingsFormScoring["visitationWeight"];
-  maxVisitations: SystemSettingsFormScoring["maxVisitations"];
   autoAssignSupervisors: boolean;
   requireLogbookApproval: boolean;
 }
@@ -118,10 +115,7 @@ export function SystemSettingsCard({
                     systemScoreMax: systemSettingsForm.systemScoreMax,
                     defenseScoreMax: systemSettingsForm.defenseScoreMax,
                     logbookWeight: systemSettingsForm.logbookWeight,
-                    evaluationWeight: systemSettingsForm.evaluationWeight,
                     assessmentWeight: systemSettingsForm.assessmentWeight,
-                    visitationWeight: systemSettingsForm.visitationWeight,
-                    maxVisitations: systemSettingsForm.maxVisitations,
                   }}
                   onChange={(scoring) =>
                     onSystemSettingsChange({
@@ -255,11 +249,7 @@ export function SystemSettingsCard({
           />
           <DetailRow
             label="System Weights"
-            value={`Logbook ${systemSettingsForm.logbookWeight}, Evaluation ${systemSettingsForm.evaluationWeight}, Assessment ${systemSettingsForm.assessmentWeight}, Visitation ${systemSettingsForm.visitationWeight}`}
-          />
-          <DetailRow
-            label="Max Visitations"
-            value={`${systemSettingsForm.maxVisitations}`}
+            value={`Logbook ${systemSettingsForm.logbookWeight}, Assessment ${systemSettingsForm.assessmentWeight}`}
           />
           <DetailRow
             label="Auto Assign Supervisors"

@@ -47,10 +47,7 @@ const createVisit = async (visitData, supervisorId) => {
 
     const visitDate = new Date(visitData.visitDate);
 
-    const [settings, activeVisitCount, activePlacement] = await Promise.all([
-      prisma.systemSettings.findFirst({
-        select: { maxVisitations: true },
-      }),
+    const [activeVisitCount, activePlacement] = await Promise.all([
       prisma.visit.count({
         where: {
           studentId: student.id,
@@ -64,10 +61,7 @@ const createVisit = async (visitData, supervisorId) => {
       }),
     ]);
 
-    const visitLimit =
-      Number.isFinite(settings?.maxVisitations) && settings.maxVisitations > 0
-        ? settings.maxVisitations
-        : 2;
+    const visitLimit = 2;
 
     if (activeVisitCount >= visitLimit) {
       throw new ApiError(

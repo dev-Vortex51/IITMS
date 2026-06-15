@@ -21,11 +21,8 @@ export function useAdminSettings(isAdmin: boolean) {
     minWeeks: 24,
     systemScoreMax: 80,
     defenseScoreMax: 20,
-    logbookWeight: 20,
-    evaluationWeight: 20,
+    logbookWeight: 50,
     assessmentWeight: 30,
-    visitationWeight: 10,
-    maxVisitations: 2,
     autoAssignSupervisors: false,
     requireLogbookApproval: true,
   });
@@ -58,10 +55,7 @@ export function useAdminSettings(isAdmin: boolean) {
       systemScoreMax: systemSettingsQuery.data.systemScoreMax,
       defenseScoreMax: systemSettingsQuery.data.defenseScoreMax,
       logbookWeight: systemSettingsQuery.data.logbookWeight,
-      evaluationWeight: systemSettingsQuery.data.evaluationWeight,
       assessmentWeight: systemSettingsQuery.data.assessmentWeight,
-      visitationWeight: systemSettingsQuery.data.visitationWeight,
-      maxVisitations: systemSettingsQuery.data.maxVisitations,
       autoAssignSupervisors: systemSettingsQuery.data.autoAssignSupervisors,
       requireLogbookApproval: systemSettingsQuery.data.requireLogbookApproval,
     });
