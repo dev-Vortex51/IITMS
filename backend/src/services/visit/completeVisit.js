@@ -15,7 +15,7 @@ const completeVisit = async (id, payload, user) => {
       where: { id },
       include: {
         student: {
-          select: { departmentId: true, userId: true, id: true },
+          select: { departmentId: true, userId: true, id: true, industrialSupervisorId: true },
         },
         supervisor: {
           select: { id: true },
@@ -98,6 +98,28 @@ const completeVisit = async (id, payload, user) => {
             relatedModel: "Assessment",
             relatedId: assessment.id,
           });
+        }
+
+        // Notify the industrial supervisor that their feedback is needed
+        const industrialSupervisorId = existingVisit.student.industrialSupervisorId;
+        if (industrialSupervisorId) {
+          const industrialSupervisor = await prisma.supervisor.findUnique({
+            where: { id: industrialSupervisorId },
+            select: { userId: true },
+          });
+          if (industrialSupervisor?.userId) {
+            await notificationService.createNotification({
+              recipientId: industrialSupervisor.userId,
+              type: NOTIFICATION_TYPES.ASSESSMENT_ASSIGNED,
+              title: "Student Assessment Feedback Required",
+              message: `The academic supervisor has completed a visit assessment and your feedback is needed.`,
+              priority: "high",
+              relatedModel: "Assessment",
+              relatedId: assessment.id,
+              actionLink: "/i-supervisor/assessments",
+              actionText: "Provide Feedback",
+            });
+          }
         }
       } catch (assessmentError) {
         logger.warn(`Failed to create linked assessment for visit ${id}: ${assessmentError.message}`);

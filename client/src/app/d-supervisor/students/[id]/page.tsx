@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { studentService, logbookService } from "@/services/student.service";
+import { apiClient } from "@/lib/api-client";
 import {
   EmptyState,
   LoadingPage,
@@ -10,11 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/components/providers/auth-provider";
 import {
+  AssessmentWithFeedbackCard,
   LogbookOverviewCard,
   PlacementDetailsCard,
   RecentLogbookEntriesCard,
   StudentInformationCard,
+  AssessmentDetailsDialog,
 } from "./components/StudentOverviewSections";
 
 export default function StudentDetailsPage({
@@ -22,6 +27,9 @@ export default function StudentDetailsPage({
 }: {
   params: { id: string };
 }) {
+  const { user } = useAuth();
+  const [viewingAssessment, setViewingAssessment] = useState<any>(null);
+
   // Fetch student details
   const { data: studentData, isLoading } = useQuery({
     queryKey: ["student", params.id],
@@ -36,9 +44,39 @@ export default function StudentDetailsPage({
     enabled: !!params.id,
   });
 
+  // Fetch d-supervisor's departmental assessment for this student
+  const { data: departmentalAssessment } = useQuery({
+    queryKey: ["departmental-assessment", params.id, user?.profileData?.id],
+    queryFn: async () => {
+      const response = await apiClient.get("/assessments", {
+        params: { student: params.id, type: "departmental", supervisor: user?.profileData?.id },
+      });
+      const data = response.data.data || [];
+      return data[0] || null;
+    },
+    enabled: !!params.id && !!user?.profileData?.id,
+  });
+
+  // Fetch industrial supervisor feedback for this student
+  const { data: industryFeedback } = useQuery({
+    queryKey: ["industry-feedback", params.id],
+    queryFn: async () => {
+      const response = await apiClient.get("/assessments", {
+        params: { student: params.id, type: "industrial" },
+      });
+      const assessments = response.data.data || [];
+      return assessments.sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+    },
+    enabled: !!params.id,
+  });
+
   const student = studentData;
   const placement = student?.currentPlacement;
   const logbookEntries = logbookData?.data || [];
+  const industryFeedbackData = industryFeedback?.[0] || null;
 
   if (isLoading) {
     return <LoadingPage label="Loading student profile..." />;
@@ -76,8 +114,20 @@ export default function StudentDetailsPage({
 
       <StudentInformationCard student={student} />
       <PlacementDetailsCard placement={placement} />
+      <AssessmentWithFeedbackCard
+        assessment={departmentalAssessment}
+        industryFeedback={industryFeedbackData}
+        onViewDetails={setViewingAssessment}
+      />
       <LogbookOverviewCard logbookEntries={logbookEntries} />
       <RecentLogbookEntriesCard logbookEntries={logbookEntries} />
+
+      <AssessmentDetailsDialog
+        assessment={viewingAssessment}
+        industryFeedback={industryFeedbackData}
+        open={!!viewingAssessment}
+        onOpenChange={(open) => { if (!open) setViewingAssessment(null); }}
+      />
     </div>
   );
 }
