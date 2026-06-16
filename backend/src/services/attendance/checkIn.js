@@ -3,7 +3,6 @@ const { handlePrismaError } = require("../../utils/prismaErrors");
 const { ApiError } = require("../../middleware/errorHandler");
 const { NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
-const { getDistance } = require("geolib");
 const { getDayBounds, isDateWithinPlacementWindow } = require("./helpers");
 const notificationService = require("../notificationService");
 
@@ -76,29 +75,6 @@ const checkIn = async (studentId, data = {}) => {
       throw new ApiError(400, "You have already checked in today");
     }
 
-    let distanceFromOffice = null;
-    if (placement.companyLat && placement.companyLng) {
-      if (!data.location?.latitude || !data.location?.longitude) {
-        throw new ApiError(400, "GPS location is required for check-in.");
-      }
-
-      distanceFromOffice = getDistance(
-        {
-          latitude: data.location.latitude,
-          longitude: data.location.longitude,
-        },
-        { latitude: placement.companyLat, longitude: placement.companyLng },
-      );
-
-      const allowedRadius = placement.allowedRadius || 200;
-      if (distanceFromOffice > allowedRadius) {
-        throw new ApiError(
-          403,
-          `You are outside the acceptable radius. Distance: ${distanceFromOffice}m.`,
-        );
-      }
-    }
-
     let punctuality = "ON_TIME";
     const workStartTime = placement.workStartTime || "08:00";
     const [targetHour, targetMinute] = workStartTime.split(":").map(Number);
@@ -119,10 +95,6 @@ const checkIn = async (studentId, data = {}) => {
         placementId: placement.id,
         date: startOfDay,
         checkInTime: new Date(),
-        locationAddress: data.location?.address || null,
-        locationLatitude: data.location?.latitude,
-        locationLongitude: data.location?.longitude,
-        distanceFromOffice,
         notes: data.notes || "",
         dayStatus: "INCOMPLETE",
         approvalStatus: "PENDING",
