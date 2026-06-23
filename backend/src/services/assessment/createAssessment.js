@@ -121,6 +121,7 @@ const createAssessment = async (assessmentData, supervisorId) => {
     return assessment;
   } catch (error) {
     logger.error(`Error creating assessment: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

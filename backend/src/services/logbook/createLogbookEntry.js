@@ -150,6 +150,7 @@ const createLogbookEntry = async (studentId, logbookData, files = []) => {
     return logbook;
   } catch (error) {
     logger.error(`Error creating logbook entry: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

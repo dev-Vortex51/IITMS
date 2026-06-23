@@ -77,6 +77,7 @@ const getDepartmentStatistics = async (departmentId) => {
     };
   } catch (error) {
     logger.error(`Error getting department statistics: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -139,6 +140,7 @@ const getFacultyStatistics = async (facultyId) => {
     };
   } catch (error) {
     logger.error(`Error getting faculty statistics: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -232,6 +234,7 @@ const getInstitutionalOverview = async () => {
     };
   } catch (error) {
     logger.error(`Error getting institutional overview: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -334,6 +337,7 @@ const getStudentProgressReport = async (studentId) => {
     };
   } catch (error) {
     logger.error(`Error getting student progress report: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -414,6 +418,7 @@ const getSupervisorPerformanceReport = async (supervisorId) => {
     logger.error(
       `Error getting supervisor performance report: ${error.message}`,
     );
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -491,6 +496,7 @@ const getPlacementReport = async (filters = {}) => {
     };
   } catch (error) {
     logger.error(`Error getting placement report: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
@@ -509,6 +515,7 @@ const exportStudentReport = async (studentId) => {
     };
   } catch (error) {
     logger.error(`Error exporting student report: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

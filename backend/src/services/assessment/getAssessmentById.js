@@ -21,6 +21,7 @@ const getAssessmentById = async (assessmentId) => {
     return assessment;
   } catch (error) {
     logger.error(`Error getting assessment: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

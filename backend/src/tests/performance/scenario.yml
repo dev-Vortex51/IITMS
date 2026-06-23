@@ -1,0 +1,66 @@
+config:
+  target: "http://localhost:10000/api/v1"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load"
+    - duration: 30
+      arrivalRate: 5
+      name: "Cool down"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Student reads dashboard data"
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "student@test.com"
+            password: "test123"
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+      - get:
+          url: "/students/profile"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/attendances?page=1&limit=10"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/logbooks?page=1&limit=5"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/placements"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  - name: "Coordinator reviews placements"
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "coordinator@test.com"
+            password: "test123"
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+      - get:
+          url: "/placements?status=pending"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/students?page=1&limit=20"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/supervisors"
+          headers:
+            Authorization: "Bearer {{ token }}"

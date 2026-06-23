@@ -1,143 +1,171 @@
-/**
- * Authentication Service Tests
- * Unit tests for authentication business logic
- */
-
 const { authService } = require("../../services");
-const { User, Student } = require("../../models");
-const { ApiError } = require("../../middleware/errorHandler");
+const { createPrismaMock } = require("../utils/prismaMock");
+const { mockUser } = require("../utils/testFactory");
 
-describe("Authentication Service", () => {
+jest.mock("../../config/prisma", () => {
+  const { createPrismaMock } = require("../utils/prismaMock");
+  const mock = createPrismaMock();
+  return {
+    getPrismaClient: jest.fn(() => mock),
+    connectPrisma: jest.fn(),
+    disconnectPrisma: jest.fn(),
+    setupGracefulShutdown: jest.fn(),
+  };
+});
+
+jest.mock("../../middleware/auth", () => ({
+  generateToken: jest.fn(() => "mock-access-token"),
+  generateRefreshToken: jest.fn(() => "mock-refresh-token"),
+}));
+
+jest.mock("../../utils/helpers", () => ({
+  hashPassword: jest.fn((pwd) => `hashed-${pwd}`),
+  comparePassword: jest.fn((plain, hash) => {
+    if (plain === "Test@1234" && hash === "$2a$12$hashedpassword") return true;
+    if (plain === "OldPassword@123") return true;
+    if (plain === "NewPassword@456") return false;
+    return false;
+  }),
+  sanitizeInput: jest.fn((x) => x),
+  catchAsync: jest.fn((fn) => fn),
+}));
+
+jest.mock("../../utils/logger", () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+}));
+
+jest.mock("../../jobs/emailQueue", () => ({
+  enqueueEmailJob: jest.fn(),
+}));
+
+jest.mock("../../utils/emailService", () => ({
+  sendPasswordReset: jest.fn(),
+}));
+
+jest.mock("../../services/notificationService", () => ({
+  createNotification: jest.fn(),
+  createBulkNotifications: jest.fn(),
+}));
+
+describe("authService", () => {
+  let mockPrisma;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const { getPrismaClient } = require("../../config/prisma");
+    mockPrisma = getPrismaClient();
+  });
+
   describe("login", () => {
-    it("should login user with valid credentials", async () => {
-      // Create test user
-      const user = await User.create({
-        email: "test@example.com",
-        password: "Test@1234",
-        firstName: "Test",
-        lastName: "User",
-        role: "student",
-        isFirstLogin: false,
-        passwordResetRequired: false,
-      });
+    it("logs in a user with valid credentials", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser());
+      mockPrisma.student.findUnique.mockResolvedValue({ id: "student-123", department: null });
 
       const result = await authService.login("test@example.com", "Test@1234");
 
       expect(result).toHaveProperty("user");
-      expect(result).toHaveProperty("accessToken");
-      expect(result).toHaveProperty("refreshToken");
+      expect(result).toHaveProperty("accessToken", "mock-access-token");
+      expect(result).toHaveProperty("refreshToken", "mock-refresh-token");
       expect(result.user.email).toBe("test@example.com");
-    });
-
-    it("should require password reset on first login", async () => {
-      const user = await User.create({
-        email: "newuser@example.com",
-        password: "Test@1234",
-        firstName: "New",
-        lastName: "User",
-        role: "student",
-        isFirstLogin: true,
-      });
-
-      const result = await authService.login(
-        "newuser@example.com",
-        "Test@1234"
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-123" },
+          data: expect.objectContaining({ lastLogin: expect.any(Date) }),
+        }),
       );
-
-      expect(result.requiresPasswordReset).toBe(true);
-      expect(result.isFirstLogin).toBe(true);
     });
 
-    it("should reject invalid credentials", async () => {
-      await User.create({
-        email: "test@example.com",
-        password: "Test@1234",
-        firstName: "Test",
-        lastName: "User",
-        role: "student",
-      });
+    it("rejects non-existent user", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        authService.login("test@example.com", "WrongPassword")
-      ).rejects.toThrow(ApiError);
+        authService.login("unknown@test.com", "Test@1234"),
+      ).rejects.toMatchObject({ statusCode: 401 });
     });
 
-    it("should reject inactive users", async () => {
-      await User.create({
-        email: "inactive@example.com",
-        password: "Test@1234",
-        firstName: "Inactive",
-        lastName: "User",
-        role: "student",
-        isActive: false,
-      });
+    it("rejects inactive user", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser({ isActive: false }));
 
       await expect(
-        authService.login("inactive@example.com", "Test@1234")
-      ).rejects.toThrow("deactivated");
+        authService.login("inactive@test.com", "Test@1234"),
+      ).rejects.toMatchObject({ statusCode: 403, message: expect.stringContaining("deactivated") });
     });
-  });
 
-  describe("resetPasswordFirstLogin", () => {
-    it("should reset password on first login", async () => {
-      const user = await User.create({
-        email: "newuser@example.com",
-        password: "Default@123",
-        firstName: "New",
-        lastName: "User",
-        role: "student",
-        isFirstLogin: true,
-        passwordResetRequired: true,
-      });
+    it("rejects invalid password", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser());
 
-      const result = await authService.resetPasswordFirstLogin(
-        user._id,
-        "NewPassword@123"
-      );
-
-      expect(result).toHaveProperty("user");
-      expect(result).toHaveProperty("accessToken");
-
-      const updatedUser = await User.findById(user._id);
-      expect(updatedUser.isFirstLogin).toBe(false);
-      expect(updatedUser.passwordResetRequired).toBe(false);
+      await expect(
+        authService.login("test@example.com", "WrongPassword"),
+      ).rejects.toMatchObject({ statusCode: 401 });
     });
   });
 
   describe("changePassword", () => {
-    it("should change password with valid old password", async () => {
-      const user = await User.create({
-        email: "test@example.com",
-        password: "OldPassword@123",
-        firstName: "Test",
-        lastName: "User",
-        role: "student",
-        isFirstLogin: false,
-      });
+    it("changes password with valid old password", async () => {
+      const user = mockUser({ password: "$2a$12$hashedpassword" });
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ ...user });
 
-      await authService.changePassword(
-        user._id,
-        "OldPassword@123",
-        "NewPassword@456"
+      const result = await authService.changePassword("user-123", "OldPassword@123", "NewPwd@123");
+
+      expect(result).toHaveProperty("message");
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-123" },
+          data: expect.objectContaining({ password: "hashed-NewPwd@123" }),
+        }),
       );
-
-      const updatedUser = await User.findById(user._id).select("+password");
-      const isMatch = await updatedUser.comparePassword("NewPassword@456");
-      expect(isMatch).toBe(true);
     });
 
-    it("should reject wrong old password", async () => {
-      const user = await User.create({
-        email: "test@example.com",
-        password: "OldPassword@123",
-        firstName: "Test",
-        lastName: "User",
-        role: "student",
-      });
+    it("rejects wrong old password", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser({ password: "$2a$12$hashedpassword" }));
 
       await expect(
-        authService.changePassword(user._id, "WrongPassword", "NewPassword@456")
-      ).rejects.toThrow("incorrect");
+        authService.changePassword("user-123", "WrongOld", "NewPwd@123"),
+      ).rejects.toMatchObject({ statusCode: 401, message: expect.stringContaining("incorrect") });
+    });
+
+    it("rejects if new password is same as old", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser({ password: "$2a$12$hashedpassword" }));
+
+      await expect(
+        authService.changePassword("user-123", "OldPassword@123", "OldPassword@123"),
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("different from current") });
+    });
+  });
+
+  describe("forgotPassword", () => {
+    it("generates reset token for existing user", async () => {
+      const crypto = require("crypto");
+      const mockToken = "abcdef123456";
+      jest.spyOn(crypto, "randomBytes").mockReturnValue({ toString: () => mockToken });
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser());
+
+      await authService.forgotPassword("test@example.com");
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-123" },
+          data: expect.objectContaining({
+            passwordResetToken: mockToken,
+            passwordResetExpires: expect.any(Date),
+          }),
+        }),
+      );
+
+      crypto.randomBytes.mockRestore();
+    });
+
+    it("silently succeeds for non-existent user", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        authService.forgotPassword("nonexistent@test.com"),
+      ).resolves.toBeUndefined();
     });
   });
 });

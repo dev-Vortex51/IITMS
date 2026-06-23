@@ -95,6 +95,7 @@ const getAttendanceStats = async (studentId, user) => {
     return { ...stats, currentStreak };
   } catch (error) {
     logger.error(`Error getting attendance stats: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

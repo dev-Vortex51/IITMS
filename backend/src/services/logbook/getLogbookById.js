@@ -57,6 +57,7 @@ const getLogbookById = async (logbookId) => {
     return logbook;
   } catch (error) {
     logger.error(`Error getting logbook: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

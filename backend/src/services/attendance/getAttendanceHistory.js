@@ -64,6 +64,7 @@ const getAttendanceHistory = async (studentId, filters = {}, user) => {
     });
   } catch (error) {
     logger.error(`Error getting attendance history: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };

@@ -8,7 +8,8 @@ const notificationService = require("../notificationService");
 
 const prisma = getPrismaClient();
 
-const checkIn = async (studentId, data = {}) => {
+const checkIn = async (studentId, data) => {
+  data = data || {};
   try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -131,6 +132,7 @@ const checkIn = async (studentId, data = {}) => {
     return attendance;
   } catch (error) {
     logger.error(`Error checking in: ${error.message}`);
+    if (error instanceof ApiError) throw error;
     throw handlePrismaError(error);
   }
 };
