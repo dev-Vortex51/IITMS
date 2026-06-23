@@ -14,6 +14,8 @@ interface FilterFieldSelectProps {
   className?: string;
 }
 
+const ALL_SENTINEL = "__all__";
+
 export function FilterFieldSelect({
   value,
   onChange,
@@ -21,14 +23,18 @@ export function FilterFieldSelect({
   placeholder = "Select...",
   className,
 }: FilterFieldSelectProps) {
+  const internalValue = value || ALL_SENTINEL;
+  const handleChange = (v: string) => {
+    onChange(v === ALL_SENTINEL ? "" : v);
+  };
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={internalValue} onValueChange={handleChange}>
       <SelectTrigger className={cn("min-w-40", className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem key={option.value || ALL_SENTINEL} value={option.value || ALL_SENTINEL}>
             {option.label}
           </SelectItem>
         ))}
