@@ -19,51 +19,12 @@ const SKIP_MODELS = ["AuditLog"];
 let prismaInstance = null;
 
 
-const createAuditMiddleware = () => {
-  return async (params, next) => {
-    const result = await next(params);
-
-    const action = AUDIT_ACTIONS[params.action];
-    if (!action || SKIP_MODELS.includes(params.model)) {
-      return result;
-    }
-
-    const context = getAuditContext();
-
-    setImmediate(async () => {
-      try {
-        const prisma = getPrismaClient();
-        await prisma.auditLog.create({
-          data: {
-            action,
-            entity: params.model,
-            entityId: result?.id || params.args?.where?.id || null,
-            userId: context.userId || null,
-            userEmail: context.userEmail || null,
-            userRole: context.userRole || null,
-            metadata: {
-              args: params.args,
-            },
-            ipAddress: context.ipAddress || null,
-            userAgent: context.userAgent || null,
-          },
-        });
-      } catch (err) {
-        logger.error(`Audit log failed: ${err.message}`);
-      }
-    });
-
-    return result;
-  };
-};
-
-
 const getPrismaClient = () => {
   if (prismaInstance) {
     return prismaInstance;
   }
 
-  prismaInstance = new PrismaClient({
+  const base = new PrismaClient({
     errorFormat: "pretty",
     log:
       process.env.NODE_ENV === "development"
@@ -74,13 +35,47 @@ const getPrismaClient = () => {
         : [{ level: "error", emit: "stdout" }],
   });
 
-  // Handle disconnections
-  prismaInstance.$on("error", (e) => {
+  base.$on("error", (e) => {
     logger.error(`Prisma Client error: ${e.message}`);
   });
 
-  // Attach audit middleware
-  prismaInstance.$use(createAuditMiddleware());
+  prismaInstance = base.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const result = await query(args);
+
+          const auditJob = () => {
+            const action = AUDIT_ACTIONS[operation];
+            if (!action || SKIP_MODELS.includes(model)) return;
+
+            const context = getAuditContext();
+
+            const prisma = getPrismaClient();
+            prisma.auditLog.create({
+              data: {
+                action,
+                entity: model,
+                entityId: result?.id || args?.where?.id || null,
+                userId: context.userId || null,
+                userEmail: context.userEmail || null,
+                userRole: context.userRole || null,
+                metadata: { args },
+                ipAddress: context.ipAddress || null,
+                userAgent: context.userAgent || null,
+              },
+            }).catch((err) => {
+              logger.error(`Audit log failed: ${err.message}`);
+            });
+          };
+
+          setImmediate(auditJob);
+
+          return result;
+        },
+      },
+    },
+  });
 
   return prismaInstance;
 };
