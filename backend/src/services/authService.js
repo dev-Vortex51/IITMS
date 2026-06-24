@@ -15,6 +15,7 @@ const { hashPassword, comparePassword } = require("../utils/helpers");
 const emailService = require("../utils/emailService");
 const notificationService = require("./notificationService");
 const { enqueueEmailJob } = require("../jobs/emailQueue");
+const { emitToUser } = require("../realtime/socket");
 
 const login = async (email, password) => {
   try {
@@ -164,13 +165,19 @@ const changePassword = async (userId, oldPassword, newPassword) => {
 
     // Hash and update password, invalidate other sessions
     const hashedPassword = await hashPassword(newPassword);
-    await prisma.user.update({
+
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         password: hashedPassword,
         passwordResetRequired: false,
         tokenVersion: { increment: 1 },
       },
+      select: { tokenVersion: true },
+    });
+
+    emitToUser(userId, "force_logout", {
+      tokenVersion: updatedUser.tokenVersion,
     });
 
     logger.info(`User changed password: ${user.email}`);
@@ -225,6 +232,11 @@ const logoutAllDevices = async (userId) => {
     // Generate a new token with the incremented version for the current session
     const accessToken = generateToken(user);
     const refreshToken = generateRefreshToken(user);
+
+    // Notify other connected devices to force logout
+    emitToUser(userId, "force_logout", {
+      tokenVersion: user.tokenVersion,
+    });
 
     logger.info(`User logged out all devices: ${user.email}`);
 
@@ -486,7 +498,7 @@ const resetPassword = async (token, newPassword) => {
     // Hash and update password, invalidate other sessions
     const hashedPassword = await hashPassword(newPassword);
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
@@ -495,6 +507,11 @@ const resetPassword = async (token, newPassword) => {
         passwordResetRequired: false,
         tokenVersion: { increment: 1 },
       },
+      select: { tokenVersion: true },
+    });
+
+    emitToUser(user.id, "force_logout", {
+      tokenVersion: updatedUser.tokenVersion,
     });
 
     logger.info(`User reset password via token: ${user.email}`);
@@ -534,13 +551,18 @@ const resetPasswordFirstLogin = async (userId, newPassword) => {
     // Hash and update password, clear first login flag, invalidate other sessions
     const hashedPassword = await hashPassword(newPassword);
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         password: hashedPassword,
         passwordResetRequired: false,
         tokenVersion: { increment: 1 },
       },
+      select: { tokenVersion: true },
+    });
+
+    emitToUser(user.id, "force_logout", {
+      tokenVersion: updatedUser.tokenVersion,
     });
 
     logger.info(`User reset password on first login: ${user.email}`);

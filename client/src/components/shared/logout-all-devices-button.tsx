@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { authService } from "@/services/auth.service";
+import { markForceLogoutPending, clearForceLogoutPending } from "@/lib/session";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
@@ -23,6 +24,7 @@ export function LogoutAllDevicesButton() {
 
   const handleLogout = async () => {
     setIsPending(true);
+    markForceLogoutPending();
     try {
       const result = await authService.logoutAllDevices();
 
@@ -34,9 +36,12 @@ export function LogoutAllDevicesButton() {
         document.cookie = `accessToken=${result.accessToken}; Path=/; Max-Age=604800; SameSite=Lax`;
       }
 
+      clearForceLogoutPending();
+
       toast.success("Logged out of all other devices successfully");
       setOpen(false);
     } catch (err: any) {
+      clearForceLogoutPending();
       toast.error(err.response?.data?.message || "Failed to log out of other devices");
     } finally {
       setIsPending(false);

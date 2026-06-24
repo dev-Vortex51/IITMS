@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import { useAuth } from "@/components/providers/auth-provider";
 import { API_URL } from "@/lib/api-client";
+import { isForceLogoutPending } from "@/lib/session";
 
 type NotificationContextType = {
   unreadCount: number;
@@ -90,6 +91,25 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({
       if (typeof payload?.count === "number") {
         queryClient.setQueryData(["notifications", "unread-count"], payload.count);
       }
+    });
+
+    socket.on("force_logout", (payload: { tokenVersion?: number }) => {
+      // If this device initiated the logout (flag set by LogoutAllDevicesButton),
+      // ignore the event — we already have a fresh token.
+      if (isForceLogoutPending()) return;
+
+      if (typeof window === "undefined") return;
+
+      window.localStorage.removeItem("accessToken");
+      window.localStorage.removeItem("refreshToken");
+      window.localStorage.removeItem("itms:userCache");
+      document.cookie = "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
+
+      const message = payload?.tokenVersion
+        ? "Your session has been terminated on another device."
+        : "Your password was changed. Please log in again.";
+      (window as any).__sessionExpiredMessage = message;
+      window.location.href = "/login";
     });
 
     return () => {
