@@ -5,6 +5,7 @@ const { NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const { getLagosDayBounds, isDateWithinPlacementWindow } = require("./helpers");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -122,6 +123,14 @@ const submitAbsenceRequest = async (studentId, startDate, endDate, reason) => {
         relatedId: created[0].id,
         actionLink: "/i-supervisor/attendance",
         actionText: "Review Request",
+      });
+
+      industrialSupervisorIds.forEach((id) => {
+        notifyUser(id, "attendance:absence_requested", {
+          studentId,
+          dates: created.map((a) => a.date),
+          reason,
+        });
       });
     }
 

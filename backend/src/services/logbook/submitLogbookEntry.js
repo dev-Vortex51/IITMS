@@ -8,6 +8,7 @@ const {
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -91,6 +92,12 @@ const submitLogbookEntry = async (logbookId, userId) => {
         relatedId: logbookId,
         actionLink: "/i-supervisor/logbooks",
         actionText: "Review Logbook",
+      });
+
+      notifyUser(industrialSupervisor.userId, "logbook:submitted", {
+        logbookId,
+        weekNumber: logbook.weekNumber,
+        studentName: `${logbook.student.user.firstName} ${logbook.student.user.lastName}`,
       });
     }
 

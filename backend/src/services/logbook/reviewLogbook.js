@@ -8,6 +8,7 @@ const {
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -197,6 +198,12 @@ const reviewLogbook = async (
           relatedId: logbookId,
         });
 
+        notifyUser(student.userId, "logbook:reviewed", {
+          logbookId,
+          weekNumber: logbook.weekNumber,
+          status: "reviewed",
+        });
+
         const departmentalRecipientIds = [
           ...new Set(
             (student.supervisorAssignments || [])
@@ -224,6 +231,14 @@ const reviewLogbook = async (
               actionText: "Approve Logbook",
             },
           );
+
+          departmentalRecipientIds.forEach((id) => {
+            notifyUser(id, "logbook:ready_for_approval", {
+              logbookId,
+              weekNumber: logbook.weekNumber,
+              studentName: `${student.user.firstName} ${student.user.lastName}`,
+            });
+          });
         }
       } else {
         await notificationService.createNotification({
@@ -234,6 +249,12 @@ const reviewLogbook = async (
           priority: "high",
           relatedModel: "Logbook",
           relatedId: logbookId,
+        });
+
+        notifyUser(student.userId, "logbook:rejected", {
+          logbookId,
+          weekNumber: logbook.weekNumber,
+          stage: "industrial",
         });
       }
     } else {
@@ -257,6 +278,12 @@ const reviewLogbook = async (
             : "medium",
         relatedModel: "Logbook",
         relatedId: logbookId,
+      });
+
+      notifyUser(student.userId, "logbook:final_review", {
+        logbookId,
+        weekNumber: logbook.weekNumber,
+        status: effectiveReviewStatus,
       });
     }
 

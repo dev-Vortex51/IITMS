@@ -4,6 +4,7 @@ const { PrismaClient } = require("@prisma/client");
 const logger = require("../utils/logger");
 const { handlePrismaError } = require("../utils/prismaErrors");
 const { getAuditContext } = require("../utils/asyncStorage");
+const { notifyAdmins } = require("../realtime/events");
 
 const AUDIT_ACTIONS = {
   create: "CREATE",
@@ -64,6 +65,27 @@ const getPrismaClient = () => {
                 ipAddress: context.ipAddress || null,
                 userAgent: context.userAgent || null,
               },
+            }).then((auditLog) => {
+              notifyAdmins("audit:new", {
+                id: auditLog.id,
+                action,
+                entity: model,
+                entityId: auditLog.entityId,
+                userEmail: context.userEmail,
+                userRole: context.userRole,
+                createdAt: auditLog.createdAt,
+              });
+
+              const STATS_MODELS = [
+                "User", "Student", "Placement", "Attendance",
+                "Logbook", "Assessment", "Visit",
+              ];
+              if (STATS_MODELS.includes(model)) {
+                notifyAdmins("admin:stats_changed", {
+                  model,
+                  action,
+                });
+              }
             }).catch((err) => {
               logger.error(`Audit log failed: ${err.message}`);
             });

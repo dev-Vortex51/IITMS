@@ -4,6 +4,7 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -64,6 +65,11 @@ const rejectAttendance = async (attendanceId, supervisorId, comment) => {
         priority: "high",
         relatedModel: "Attendance",
         relatedId: attendanceId,
+      });
+
+      notifyUser(studentProfile.userId, "attendance:rejected", {
+        attendanceId,
+        comment,
       });
     }
 

@@ -4,6 +4,7 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -49,6 +50,13 @@ const assignStudentToSupervisor = async (supervisorId, studentId) => {
         priority: "medium",
         relatedModel: "SupervisorAssignment",
       });
+
+      notifyUser(student.userId, "supervisor:assigned", {
+        supervisorId,
+        supervisorName: supervisor.user?.firstName
+          ? `${supervisor.user.firstName} ${supervisor.user.lastName || ""}`
+          : "A supervisor",
+      });
     }
 
     if (supervisor?.userId) {
@@ -59,6 +67,13 @@ const assignStudentToSupervisor = async (supervisorId, studentId) => {
         message: `${student?.user?.firstName || "A student"} ${student?.user?.lastName || ""} was assigned to you.`,
         priority: "medium",
         relatedModel: "SupervisorAssignment",
+      });
+
+      notifyUser(supervisor.userId, "supervisor:student_assigned", {
+        studentId,
+        studentName: student?.user?.firstName
+          ? `${student.user.firstName} ${student.user.lastName || ""}`
+          : "A student",
       });
     }
 

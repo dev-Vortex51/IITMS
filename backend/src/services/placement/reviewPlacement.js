@@ -9,6 +9,7 @@ const {
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
 const userService = require("../userService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -143,6 +144,11 @@ const reviewPlacement = async (placementId, reviewData, reviewerId) => {
         sendEmail: true,
       });
 
+      notifyUser(placement.student.userId, "placement:approved", {
+        placementId,
+        companyName: partner?.name || placement.companyName,
+      });
+
       logger.info(`Placement approved: ${placementId}`);
     } else {
       await prisma.placement.update({
@@ -165,6 +171,11 @@ const reviewPlacement = async (placementId, reviewData, reviewerId) => {
         relatedId: placement.id,
         createdById: reviewerId,
         sendEmail: true,
+      });
+
+      notifyUser(placement.student.userId, "placement:rejected", {
+        placementId,
+        reason: reviewComment,
       });
 
       logger.info(`Placement rejected: ${placementId}`);

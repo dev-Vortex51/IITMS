@@ -3,6 +3,7 @@ const { handlePrismaError } = require("../../utils/prismaErrors");
 const { ApiError } = require("../../middleware/errorHandler");
 const logger = require("../../utils/logger");
 const { getLagosDayBounds } = require("./helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -60,6 +61,28 @@ const checkOut = async (studentId, data = {}) => {
         student: { include: { user: true } },
         placement: true,
       },
+    });
+
+    const supervisorAssignments = await prisma.supervisorAssignment.findMany({
+      where: { studentId: student.id, status: "active" },
+      include: { supervisor: { select: { userId: true, type: true } } },
+    });
+
+    const supervisorIds = [
+      ...new Set(
+        supervisorAssignments
+          .map((a) => a.supervisor?.userId)
+          .filter(Boolean),
+      ),
+    ];
+
+    supervisorIds.forEach((id) => {
+      notifyUser(id, "attendance:check_out", {
+        studentId,
+        attendanceId: attendance.id,
+        hoursWorked,
+        dayStatus,
+      });
     });
 
     return updated;

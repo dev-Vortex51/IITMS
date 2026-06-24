@@ -5,6 +5,7 @@ const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { visitInclude, validateVisitDate, checkDuplicateVisit } = require("./helpers");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -97,6 +98,12 @@ const createVisit = async (visitData, supervisorId) => {
         priority: "medium",
         relatedModel: "Visit",
         relatedId: createdVisit.id,
+      });
+
+      notifyUser(student.userId, "visit:created", {
+        visitId: createdVisit.id,
+        type: visitData.type,
+        visitDate: visitData.visitDate,
       });
     }
 

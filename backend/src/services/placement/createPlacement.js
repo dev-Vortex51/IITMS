@@ -9,6 +9,7 @@ const {
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
 const { uploadAcceptanceLetter } = require("./acceptanceLetter");
+const { notifyRole } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -131,6 +132,12 @@ const createPlacement = async (studentId, placementData, acceptanceLetterFile = 
           actionText: "Review Placement",
         },
       );
+
+      notifyRole("coordinator", "placement:submitted", {
+        placementId: placement.id,
+        studentName,
+        companyName: placement.companyName,
+      });
     }
 
     return placement;

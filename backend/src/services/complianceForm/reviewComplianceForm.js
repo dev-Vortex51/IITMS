@@ -4,6 +4,7 @@ const { HTTP_STATUS, USER_ROLES } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { formInclude, getComplianceFormDelegate } = require("./helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -15,6 +16,7 @@ const reviewComplianceForm = async (id, reviewData, user) => {
       include: {
         student: {
           select: { departmentId: true },
+          include: { user: { select: { id: true } } },
         },
       },
     });
@@ -51,6 +53,14 @@ const reviewComplianceForm = async (id, reviewData, user) => {
       },
       include: formInclude,
     });
+
+    const studentUserId = existing.student?.user?.id;
+    if (studentUserId) {
+      notifyUser(studentUserId, "compliance:reviewed", {
+        formId: id,
+        status: nextStatus,
+      });
+    }
 
     return reviewed;
   } catch (error) {

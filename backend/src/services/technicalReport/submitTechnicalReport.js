@@ -4,6 +4,7 @@ const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { reportInclude } = require("./helpers");
+const { notifyRole } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -38,7 +39,7 @@ const submitTechnicalReport = async (id, studentId) => {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Report already approved");
     }
 
-    return prisma.technicalReport.update({
+    const updated = await prisma.technicalReport.update({
       where: { id },
       data: {
         status: "submitted",
@@ -46,6 +47,12 @@ const submitTechnicalReport = async (id, studentId) => {
       },
       include: reportInclude,
     });
+
+    notifyRole("coordinator", "report:submitted", {
+      reportId: id,
+    });
+
+    return updated;
   } catch (error) {
     logger.error(`Error submitting technical report: ${error.message}`);
     if (error instanceof ApiError) {

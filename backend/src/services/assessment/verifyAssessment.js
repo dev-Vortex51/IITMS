@@ -9,6 +9,7 @@ const {
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
 const { calculateScore, calculateGrade } = require("./helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -62,6 +63,12 @@ const verifyAssessment = async (assessmentId, coordinatorId, comment = "") => {
         `Non-fatal: Failed to send verification notification: ${notifError.message}`,
       );
     }
+
+    notifyUser(assessment.student.userId, "assessment:verified", {
+      assessmentId,
+      type: assessment.type,
+      grade,
+    });
 
     logger.info(`Assessment verified: ${assessmentId}`);
     return updated;

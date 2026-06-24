@@ -5,6 +5,7 @@ const { NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const { getDayBounds, isDateWithinPlacementWindow } = require("./helpers");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -126,6 +127,15 @@ const checkIn = async (studentId, data) => {
         relatedId: attendance.id,
         actionLink: "/i-supervisor/attendance",
         actionText: "Review Attendance",
+      });
+
+      industrialSupervisorIds.forEach((id) => {
+        notifyUser(id, "attendance:check_in", {
+          studentId,
+          attendanceId: attendance.id,
+          studentName: `${student.user.firstName} ${student.user.lastName}`,
+          punctuality,
+        });
       });
     }
 

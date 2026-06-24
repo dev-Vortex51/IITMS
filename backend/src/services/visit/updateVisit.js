@@ -4,6 +4,7 @@ const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { canManageVisit, visitInclude } = require("./helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -14,6 +15,7 @@ const updateVisit = async (id, visitData, user) => {
       include: {
         student: {
           select: { departmentId: true },
+          include: { user: { select: { id: true } } },
         },
       },
     });
@@ -69,6 +71,13 @@ const updateVisit = async (id, visitData, user) => {
       data,
       include: visitInclude,
     });
+
+    const studentUserId = existingVisit.student?.user?.id;
+    if (studentUserId) {
+      notifyUser(studentUserId, "visit:updated", {
+        visitId: id,
+      });
+    }
 
     return updatedVisit;
   } catch (error) {

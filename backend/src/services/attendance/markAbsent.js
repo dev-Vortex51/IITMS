@@ -2,6 +2,7 @@ const { getPrismaClient } = require("../../config/prisma");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { getLagosDayBounds } = require("./helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -63,6 +64,34 @@ const markAbsent = async (targetDate = null) => {
     logger.info(
       `Created ${result.count} absent records for ${startOfDay.toISOString()}`,
     );
+
+    const studentsWithUserIds = await prisma.student.findMany({
+      where: { id: { in: absentData.map((a) => a.studentId) } },
+      include: {
+        user: { select: { id: true } },
+        supervisorAssignments: {
+          where: { status: "active" },
+          include: { supervisor: { select: { userId: true } } },
+        },
+      },
+    });
+
+    studentsWithUserIds.forEach((student) => {
+      if (student.user?.id) {
+        notifyUser(student.user.id, "attendance:marked_absent", {
+          date: startOfDay,
+        });
+      }
+      const supervisorIds = student.supervisorAssignments
+        .map((a) => a.supervisor?.userId)
+        .filter(Boolean);
+      supervisorIds.forEach((id) => {
+        notifyUser(id, "attendance:marked_absent", {
+          studentId: student.id,
+          date: startOfDay,
+        });
+      });
+    });
 
     return absentData;
   } catch (error) {

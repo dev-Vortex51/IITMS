@@ -5,6 +5,7 @@ const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { canManageVisit, visitInclude } = require("./helpers");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -76,6 +77,11 @@ const cancelVisit = async (id, payload, user) => {
         priority: "high",
         relatedModel: "Visit",
         relatedId: id,
+      });
+
+      notifyUser(existingVisit.student.userId, "visit:cancelled", {
+        visitId: id,
+        reason: cancelNote,
       });
     }
 

@@ -8,6 +8,7 @@ const {
 } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -60,6 +61,11 @@ const submitAssessment = async (assessmentId, supervisorId) => {
         `Non-fatal: Failed to send submission notification: ${notifError.message}`,
       );
     }
+
+    notifyUser(assessment.student.userId, "assessment:submitted", {
+      assessmentId,
+      type: assessment.type,
+    });
 
     logger.info(`Assessment submitted: ${assessmentId}`);
     return updated;

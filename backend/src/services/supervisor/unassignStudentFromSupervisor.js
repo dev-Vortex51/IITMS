@@ -4,6 +4,7 @@ const { ApiError } = require("../../middleware/errorHandler");
 const { HTTP_STATUS, NOTIFICATION_TYPES } = require("../../utils/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../notificationService");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -48,6 +49,10 @@ const unassignStudentFromSupervisor = async (supervisorId, studentId) => {
         priority: "medium",
         relatedModel: "SupervisorAssignment",
       });
+
+      notifyUser(student.userId, "supervisor:unassigned", {
+        supervisorId,
+      });
     }
 
     if (supervisor?.userId) {
@@ -58,6 +63,13 @@ const unassignStudentFromSupervisor = async (supervisorId, studentId) => {
         message: `${student?.user?.firstName || "A student"} ${student?.user?.lastName || ""} was unassigned from you.`,
         priority: "medium",
         relatedModel: "SupervisorAssignment",
+      });
+
+      notifyUser(supervisor.userId, "supervisor:student_unassigned", {
+        studentId,
+        studentName: student?.user?.firstName
+          ? `${student.user.firstName} ${student.user.lastName || ""}`
+          : "A student",
       });
     }
 

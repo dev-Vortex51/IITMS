@@ -6,6 +6,7 @@ const logger = require("../../utils/logger");
 const { canManageVisit, visitInclude } = require("./helpers");
 const notificationService = require("../notificationService");
 const { calculateScore, calculateGrade } = require("../assessment/helpers");
+const { notifyUser } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -135,6 +136,11 @@ const completeVisit = async (id, payload, user) => {
         priority: "low",
         relatedModel: "Visit",
         relatedId: id,
+      });
+
+      notifyUser(existingVisit.student.userId, "visit:completed", {
+        visitId: id,
+        score: payload.score,
       });
     }
 

@@ -4,6 +4,7 @@ const { HTTP_STATUS } = require("../../utils/constants");
 const { handlePrismaError } = require("../../utils/prismaErrors");
 const logger = require("../../utils/logger");
 const { formInclude, getComplianceFormDelegate } = require("./helpers");
+const { notifyRole } = require("../../realtime/events");
 
 const prisma = getPrismaClient();
 
@@ -39,7 +40,7 @@ const submitComplianceForm = async (id, studentId) => {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Form already approved");
     }
 
-    return complianceForm.update({
+    const updated = await complianceForm.update({
       where: { id },
       data: {
         status: "submitted",
@@ -47,6 +48,12 @@ const submitComplianceForm = async (id, studentId) => {
       },
       include: formInclude,
     });
+
+    notifyRole("coordinator", "compliance:submitted", {
+      formId: id,
+    });
+
+    return updated;
   } catch (error) {
     logger.error(`Error submitting compliance form: ${error.message}`);
     if (error instanceof ApiError) {

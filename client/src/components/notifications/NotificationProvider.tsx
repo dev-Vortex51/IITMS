@@ -9,6 +9,45 @@ import { io, type Socket } from "socket.io-client";
 import { useAuth } from "@/components/providers/auth-provider";
 import { API_URL } from "@/lib/api-client";
 import { isForceLogoutPending } from "@/lib/session";
+import { toast } from "sonner";
+
+type RealtimeEventMap = Record<string, {
+  message: string;
+  queryKeys?: string[][];
+}>;
+
+const REALTIME_EVENTS: RealtimeEventMap = {
+  "attendance:check_in": { message: "Student checked in", queryKeys: [["attendance"]] },
+  "attendance:check_out": { message: "Student checked out", queryKeys: [["attendance"]] },
+  "attendance:approved": { message: "Attendance approved", queryKeys: [["attendance"]] },
+  "attendance:rejected": { message: "Attendance rejected", queryKeys: [["attendance"]] },
+  "attendance:reclassified": { message: "Attendance reclassified", queryKeys: [["attendance"]] },
+  "attendance:absence_requested": { message: "Absence request submitted", queryKeys: [["attendance"]] },
+  "attendance:marked_absent": { message: "Marked absent", queryKeys: [["attendance"]] },
+  "logbook:submitted": { message: "New logbook submission", queryKeys: [["logbooks"], ["notifications"]] },
+  "logbook:reviewed": { message: "Logbook reviewed", queryKeys: [["logbooks"]] },
+  "logbook:ready_for_approval": { message: "Logbook ready for approval", queryKeys: [["logbooks"]] },
+  "logbook:rejected": { message: "Logbook rejected", queryKeys: [["logbooks"]] },
+  "logbook:final_review": { message: "Logbook decision made", queryKeys: [["logbooks"]] },
+  "placement:submitted": { message: "New placement application", queryKeys: [["placements"]] },
+  "placement:approved": { message: "Placement approved", queryKeys: [["placements"], ["students"]] },
+  "placement:rejected": { message: "Placement not approved", queryKeys: [["placements"]] },
+  "assessment:submitted": { message: "Assessment submitted", queryKeys: [["assessments"]] },
+  "assessment:verified": { message: "Assessment verified", queryKeys: [["assessments"]] },
+  "compliance:submitted": { message: "Compliance form submitted", queryKeys: [["compliance-forms"]] },
+  "compliance:reviewed": { message: "Compliance form reviewed", queryKeys: [["compliance-forms"]] },
+  "report:submitted": { message: "Technical report submitted", queryKeys: [["technical-reports"]] },
+  "report:reviewed": { message: "Technical report reviewed", queryKeys: [["technical-reports"]] },
+  "visit:created": { message: "Visit scheduled", queryKeys: [["visits"]] },
+  "visit:completed": { message: "Visit completed", queryKeys: [["visits"]] },
+  "visit:cancelled": { message: "Visit cancelled", queryKeys: [["visits"]] },
+  "visit:updated": { message: "Visit updated", queryKeys: [["visits"]] },
+  "supervisor:assigned": { message: "Supervisor assigned", queryKeys: [["students"], ["supervisors"]] },
+  "supervisor:student_assigned": { message: "Student assigned", queryKeys: [["students"], ["supervisors"]] },
+  "supervisor:unassigned": { message: "Supervisor unassigned", queryKeys: [["students"], ["supervisors"]] },
+  "supervisor:student_unassigned": { message: "Student unassigned", queryKeys: [["students"], ["supervisors"]] },
+  "admin:stats_changed": { message: "", queryKeys: [["admin", "stats"]] },
+};
 
 type NotificationContextType = {
   unreadCount: number;
@@ -112,7 +151,29 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({
       window.location.href = "/login";
     });
 
+    // Register real-time event listeners for all pipeline events
+    const registeredListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
+    for (const [event, config] of Object.entries(REALTIME_EVENTS)) {
+      const handler = (...args: any[]) => {
+        const data = args[0] || {};
+        if (config.message) {
+          toast.info(config.message, {
+            description: data.studentName || data.companyName || "",
+            duration: 4000,
+          });
+        }
+        config.queryKeys?.forEach((key) => {
+          queryClient.invalidateQueries({ queryKey: key });
+        });
+      };
+      socket.on(event, handler);
+      registeredListeners.push({ event, handler });
+    }
+
     return () => {
+      for (const { event, handler } of registeredListeners) {
+        socket.off(event, handler);
+      }
       socket.disconnect();
     };
   }, [queryClient, user]);
