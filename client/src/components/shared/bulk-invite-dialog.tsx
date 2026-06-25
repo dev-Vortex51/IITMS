@@ -200,7 +200,7 @@ export function BulkInviteDialog({
   };
 
   const validCount = rows.filter((r) => r.valid).length;
-  const csvExample = `email,role,department,level,session,companyName\nstudent1@example.com,student,dept-uuid,400,2026/2027,\nsupervisor1@example.com,industrial_supervisor,,,,Acme Corp`;
+  const csvExample = `email,role,department,level,session,companyName\nstudent1@example.com,student,CSC,400,2026/2027,\nsupervisor1@example.com,industrial_supervisor,,,,Acme Corp`;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -270,7 +270,7 @@ export function BulkInviteDialog({
 
             <div className="text-xs text-muted-foreground">
               <p className="font-medium mb-1">Required columns: <code className="bg-muted px-1 rounded">email</code>, <code className="bg-muted px-1 rounded">role</code></p>
-              <p className="font-medium mb-1">Optional columns: <code className="bg-muted px-1 rounded">department</code>, <code className="bg-muted px-1 rounded">matricNumber</code>, <code className="bg-muted px-1 rounded">level</code>, <code className="bg-muted px-1 rounded">session</code>, <code className="bg-muted px-1 rounded">companyName</code>, <code className="bg-muted px-1 rounded">companyAddress</code>, <code className="bg-muted px-1 rounded">position</code>, <code className="bg-muted px-1 rounded">yearsOfExperience</code></p>
+              <p className="font-medium mb-1">Optional columns: <code className="bg-muted px-1 rounded">department</code> (code, e.g. CSC), <code className="bg-muted px-1 rounded">matricNumber</code>, <code className="bg-muted px-1 rounded">level</code>, <code className="bg-muted px-1 rounded">session</code>, <code className="bg-muted px-1 rounded">companyName</code>, <code className="bg-muted px-1 rounded">companyAddress</code>, <code className="bg-muted px-1 rounded">position</code>, <code className="bg-muted px-1 rounded">yearsOfExperience</code></p>
             </div>
 
             <div className="text-xs text-muted-foreground">

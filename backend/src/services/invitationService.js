@@ -82,13 +82,16 @@ const createInvitation = async (inviterUser, invitationData) => {
     }
 
     if (departmentId) {
-      const department = await prisma.department.findUnique({
-        where: { id: departmentId },
+      const department = await prisma.department.findFirst({
+        where: {
+          OR: [{ id: departmentId }, { code: departmentId }],
+        },
         select: { id: true },
       });
       if (!department) {
-        throw new ApiError(400, `Department with ID "${departmentId}" does not exist`);
+        throw new ApiError(400, `Department "${departmentId}" does not exist. Use the department code (e.g., CSC, EEE).`);
       }
+      departmentId = department.id;
     }
 
     // Generate secure token
@@ -810,13 +813,16 @@ const createBulkInvitations = async (inviterUser, invitationsData) => {
       }
 
       if (departmentId) {
-        const department = await prisma.department.findUnique({
-          where: { id: departmentId },
+        const department = await prisma.department.findFirst({
+          where: {
+            OR: [{ id: departmentId }, { code: departmentId }],
+          },
           select: { id: true },
         });
         if (!department) {
-          throw new ApiError(400, `Department with ID "${departmentId}" does not exist`);
+          throw new ApiError(400, `Department "${departmentId}" does not exist. Use the department code (e.g., CSC, EEE).`);
         }
+        departmentId = department.id;
       }
 
       const token = generateToken();
