@@ -63,6 +63,7 @@ export default function AdminInvitationsPage() {
         onOpenChange={setIsBulkOpen}
         roleOptions={ADMIN_ROLE_OPTIONS}
         onSubmit={bulkCreateInvitations}
+        isPending={isBulkCreating}
       />
 
       <InvitationStats stats={stats} />

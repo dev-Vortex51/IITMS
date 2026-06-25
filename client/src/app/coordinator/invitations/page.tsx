@@ -90,6 +90,7 @@ export default function CoordinatorInvitationsPage() {
         onOpenChange={setIsBulkOpen}
         roleOptions={COORDINATOR_ROLE_OPTIONS}
         onSubmit={bulkCreateMutation.mutateAsync}
+        isPending={bulkCreateMutation.isPending}
       />
 
       <InvitationStats stats={stats} />
