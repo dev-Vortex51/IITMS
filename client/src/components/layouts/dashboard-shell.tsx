@@ -1,6 +1,12 @@
 "use client";
 
-import { ReactNode, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  ReactNode,
+  useEffect,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -14,6 +20,7 @@ import {
   UnstyledButton,
   Box,
   ScrollArea,
+  Image,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import type { LucideIcon } from "lucide-react";
@@ -77,7 +84,9 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
   const basePath = pathname?.split("/")[1] ? `/${pathname.split("/")[1]}` : "";
   const settingsPath = basePath ? `${basePath}/settings` : "/settings";
   const profilePath = `${settingsPath}?tab=profile`;
-  const notificationPath = basePath ? `${basePath}/notification` : "/notification";
+  const notificationPath = basePath
+    ? `${basePath}/notification`
+    : "/notification";
   const activeSearch = searchParams.get("search") ?? "";
 
   useEffect(() => {
@@ -101,7 +110,9 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
     }
 
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   };
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -158,11 +169,16 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
         <div className={classes.navbarMain}>
           <Group className={classes.header} justify="space-between">
             <Group gap="sm" wrap="nowrap">
-              <Box className={classes.brandMark}>
-                <GraduationCap size={16} strokeWidth={2} />
-              </Box>
+              <Image
+                src="/icons/header-logo.svg"
+                alt="ITMS Logo"
+                // h={150}
+                fit="contain"
+                mx="auto"
+                // mb={8}
+              />
               <Box>
-                <Text className={classes.brandTitle}>PORTAL</Text>
+                <Text className={classes.brandTitle}>USM PORTAL</Text>
               </Box>
             </Group>
             <Group gap="xs">
@@ -229,7 +245,11 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
                 className={classes.searchSubmit}
                 aria-label={`Submit search for ${title.toLowerCase()}`}
               >
-                <Search className={classes.searchIcon} size={14} strokeWidth={1.8} />
+                <Search
+                  className={classes.searchIcon}
+                  size={14}
+                  strokeWidth={1.8}
+                />
               </button>
             </form>
           </Group>
@@ -253,19 +273,33 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
               }}
             >
               <Menu.Target>
-                <UnstyledButton className={classes.avatarButton} aria-label="Open account menu">
+                <UnstyledButton
+                  className={classes.avatarButton}
+                  aria-label="Open account menu"
+                >
                   <Avatar radius="xl" size={24} className={classes.avatar}>
-                    <span className="leading-none">{getUserInitials(user)}</span>
+                    <span className="leading-none">
+                      {getUserInitials(user)}
+                    </span>
                   </Avatar>
-                  <Text size="sm" fw={500} className="hidden truncate text-foreground sm:block">
+                  <Text
+                    size="sm"
+                    fw={500}
+                    className="hidden truncate text-foreground sm:block"
+                  >
                     {getUserLabel(user)}
                   </Text>
-                  <ChevronDown size={14} className="hidden shrink-0 text-muted-foreground sm:block" />
+                  <ChevronDown
+                    size={14}
+                    className="hidden shrink-0 text-muted-foreground sm:block"
+                  />
                 </UnstyledButton>
               </Menu.Target>
 
               <Menu.Dropdown className="bg-white text-foreground border-border">
-                <Menu.Label className="text-muted-foreground">Account</Menu.Label>
+                <Menu.Label className="text-muted-foreground">
+                  Account
+                </Menu.Label>
                 <Box px="sm" py="xs">
                   <Text size="sm" fw={500} className="text-foreground">
                     {getUserLabel(user)}
@@ -312,9 +346,7 @@ function DashboardShell({ children, navItems, title }: DashboardShellProps) {
 
       {/* MAIN CONTENT AREA */}
       <AppShell.Main className={classes.main}>
-        <div className={classes.mainContainer}>
-          {children}
-        </div>
+        <div className={classes.mainContainer}>{children}</div>
       </AppShell.Main>
     </AppShell>
   );
