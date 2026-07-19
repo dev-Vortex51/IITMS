@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicPaths = ["/login", "/forgot-password", "/reset-password", "/invite"];
+const publicPaths = [
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/invite",
+];
 const apiPrefix = "/api";
 
 export function middleware(request: NextRequest) {
@@ -11,7 +16,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (publicPaths.some((path) => pathname === path || pathname.startsWith(path + "/"))) {
+  if (
+    publicPaths.some(
+      (path) => pathname === path || pathname.startsWith(path + "/"),
+    )
+  ) {
     return NextResponse.next();
   }
 
@@ -26,7 +35,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
