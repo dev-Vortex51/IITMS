@@ -75,12 +75,12 @@ export default function LoginPage() {
         <Image
           src="/icons/login-logo.svg"
           alt="ITMS Logo"
-          h={200}
+          // h={200}
           fit="contain"
           mx="auto"
-          mb={8}
+          // mb={8}
         />
-        <Paper withBorder p={30} radius="md" pos="relative">
+        <Paper withBorder p={30} mt={-20} radius="md" pos="relative">
           {isLoading ? (
             <Text size="xs" c="dimmed" mb="sm">
               Checking existing session...
