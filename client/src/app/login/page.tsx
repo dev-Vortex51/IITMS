@@ -75,11 +75,10 @@ export default function LoginPage() {
         <Image
           src="/icons/login-logo.svg"
           alt="ITMS Logo"
-          // w={80}
-          // h={80}
+          h={120}
           fit="contain"
           mx="auto"
-          // mb="sm"
+          mb={8}
         />
         <Paper withBorder p={30} radius="md" pos="relative">
           {isLoading ? (
