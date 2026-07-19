@@ -80,11 +80,11 @@ export default function LoginPage() {
           mx="auto"
           // mb={8}
         />
-        <Title ta="center" className={classes.title}>
+        <Title ta="center" className={classes.title} size="h3">
           Unilorin SIWES Management System
         </Title>
 
-        <Text className={classes.subtitle} size="sm">
+        <Text className={classes.subtitle} size="sm" mb="sm">
           Welcome back!!
         </Text>
 
