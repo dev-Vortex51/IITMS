@@ -81,12 +81,6 @@ export default function LoginPage() {
           mx="auto"
           mb="md"
         />
-        <Title ta="center" className={classes.title} mt="md">
-          Welcome back!
-        </Title>
-        <Text className={classes.subtitle} size="sm">
-          Industrial Training Management System
-        </Text>
         <Paper withBorder p={30} mt={30} radius="md" pos="relative">
           {isLoading ? (
             <Text size="xs" c="dimmed" mb="sm">
